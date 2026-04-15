@@ -15,7 +15,7 @@ function HeaderRow({ item, onChange, onDelete }) {
         placeholder="Content-Type"
         value={item.key}
         onChange={(e) => onChange({ ...item, key: e.target.value })}
-        className="input py-1.5 text-xs flex-1 font-mono"
+        className="bg-surface-850 border border-transparent hover:border-[var(--border-1)] focus:border-[var(--accent)] outline-none py-1.5 px-3 rounded-lg text-xs flex-1 font-mono text-tx-primary transition-all placeholder:text-surface-600"
         list="common-headers"
       />
       <input
@@ -23,7 +23,7 @@ function HeaderRow({ item, onChange, onDelete }) {
         placeholder="application/json"
         value={item.value}
         onChange={(e) => onChange({ ...item, value: e.target.value })}
-        className="input py-1.5 text-xs flex-1 font-mono"
+        className="bg-surface-850 border border-transparent hover:border-[var(--border-1)] focus:border-[var(--accent)] outline-none py-1.5 px-3 rounded-lg text-xs flex-1 font-mono text-tx-primary transition-all placeholder:text-surface-600"
       />
       <button
         onClick={onDelete}

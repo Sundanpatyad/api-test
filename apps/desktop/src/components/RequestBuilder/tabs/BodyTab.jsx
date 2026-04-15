@@ -131,14 +131,14 @@ function FormDataEditor({ items, onChange, label = 'Form Data' }) {
             placeholder="Key"
             value={item.key}
             onChange={(e) => updateRow(i, { ...item, key: e.target.value })}
-            className="input py-1.5 text-xs flex-1 font-mono"
+            className="bg-surface-850 border border-transparent hover:border-[var(--border-1)] focus:border-[var(--accent)] outline-none py-1.5 px-3 rounded-lg text-xs flex-1 font-mono text-tx-primary transition-all placeholder:text-surface-600"
           />
           <input
             type="text"
             placeholder="Value"
             value={item.value}
             onChange={(e) => updateRow(i, { ...item, value: e.target.value })}
-            className="input py-1.5 text-xs flex-1 font-mono"
+            className="bg-surface-850 border border-transparent hover:border-[var(--border-1)] focus:border-[var(--accent)] outline-none py-1.5 px-3 rounded-lg text-xs flex-1 font-mono text-tx-primary transition-all placeholder:text-surface-600"
           />
           <button onClick={() => deleteRow(i)} className="opacity-0 group-hover:opacity-100 text-surface-600 hover:text-danger transition-all">
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
