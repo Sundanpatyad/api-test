@@ -1,0 +1,82 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Custom scrollbar ──────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: hsl(220, 15%, 11%); }
+::-webkit-scrollbar-thumb { background: hsl(220, 13%, 25%); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: hsl(220, 13%, 35%); }
+
+/* ── Base ──────────────────────────────────────────────────────── */
+* { box-sizing: border-box; }
+
+html, body, #root {
+  height: 100%;
+  overflow: hidden;
+  user-select: none;
+  font-family: 'Poppins', sans-serif;
+}
+
+/* Allow text selection in inputs and editors */
+input, textarea, [contenteditable],
+.selectable { user-select: text; }
+
+/* ── Glass card ────────────────────────────────────────────────── */
+@layer components {
+  .glass {
+    @apply bg-surface-800/60 backdrop-blur-sm border border-surface-700/50;
+  }
+  .glass-hover {
+    @apply hover:bg-surface-700/60 transition-colors duration-150;
+  }
+  .btn-primary {
+    @apply bg-brand-500 hover:bg-brand-400 text-white font-medium px-4 py-2 rounded-xl
+           transition-all duration-150 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-ghost {
+    @apply text-surface-300 hover:text-white hover:bg-surface-700 px-3 py-1.5 rounded-lg
+           transition-all duration-150 active:scale-95;
+  }
+  .btn-danger {
+    @apply bg-danger/20 hover:bg-danger/30 text-danger border border-danger/30 font-medium px-4 py-2 rounded-xl
+           transition-all duration-150 active:scale-95;
+  }
+  .input {
+    @apply bg-surface-800 border border-surface-700 text-white placeholder-surface-500
+           rounded-xl px-3 py-2 text-sm w-full focus:outline-none focus:ring-2 focus:ring-brand-500/50
+           focus:border-brand-500/50 transition-all duration-150;
+  }
+  .method-badge {
+    @apply font-mono font-bold text-xs px-2 py-0.5 rounded-md;
+  }
+  .status-badge {
+    @apply font-mono font-bold text-xs px-2 py-1 rounded-lg;
+  }
+}
+
+/* ── Method colors ─────────────────────────────────────────────── */
+.method-GET    { @apply bg-success/20 text-success; }
+.method-POST   { @apply bg-brand-500/20 text-brand-300; }
+.method-PUT    { @apply bg-warning/20 text-warning; }
+.method-PATCH  { @apply bg-orange-500/20 text-orange-400; }
+.method-DELETE { @apply bg-danger/20 text-danger; }
+.method-HEAD   { @apply bg-surface-600/20 text-surface-400; }
+.method-OPTIONS{ @apply bg-info/20 text-info; }
+
+/* ── Status colors ─────────────────────────────────────────────── */
+.status-2xx { @apply bg-success/20 text-success border border-success/30; }
+.status-3xx { @apply bg-info/20 text-info border border-info/30; }
+.status-4xx { @apply bg-warning/20 text-warning border border-warning/30; }
+.status-5xx { @apply bg-danger/20 text-danger border border-danger/30; }
+
+/* ── Animations ────────────────────────────────────────────────── */
+.animate-in { animation: fadeIn 0.2s ease-out; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ── Splash screen ─────────────────────────────────────────────── */
+.splash-logo-glow {
+  filter: drop-shadow(0 0 30px rgba(139, 92, 246, 0.6));
+}

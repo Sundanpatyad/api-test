@@ -1,0 +1,63 @@
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+import api from '@/lib/api';
+
+export const useAuthStore = create(
+  persist(
+    (set, get) => ({
+      user: null,
+      token: null,
+      isLoading: false,
+      error: null,
+
+      login: async (email, password) => {
+        set({ isLoading: true, error: null });
+        try {
+          const { data } = await api.post('/api/auth/login', { email, password });
+          localStorage.setItem('syncnest_token', data.token);
+          set({ user: data.user, token: data.token, isLoading: false });
+          return { success: true };
+        } catch (err) {
+          const error = err.response?.data?.error || 'Login failed';
+          set({ isLoading: false, error });
+          return { success: false, error };
+        }
+      },
+
+      signup: async (name, email, password) => {
+        set({ isLoading: true, error: null });
+        try {
+          const { data } = await api.post('/api/auth/signup', { name, email, password });
+          localStorage.setItem('syncnest_token', data.token);
+          set({ user: data.user, token: data.token, isLoading: false });
+          return { success: true };
+        } catch (err) {
+          const error = err.response?.data?.error || 'Signup failed';
+          set({ isLoading: false, error });
+          return { success: false, error };
+        }
+      },
+
+      logout: () => {
+        localStorage.removeItem('syncnest_token');
+        set({ user: null, token: null });
+      },
+
+      fetchMe: async () => {
+        const token = localStorage.getItem('syncnest_token');
+        if (!token) return;
+        try {
+          const { data } = await api.get('/api/auth/me');
+          set({ user: data.user, token });
+        } catch {
+          localStorage.removeItem('syncnest_token');
+          set({ user: null, token: null });
+        }
+      },
+    }),
+    {
+      name: 'syncnest-auth',
+      partialize: (state) => ({ user: state.user, token: state.token }),
+    }
+  )
+);
