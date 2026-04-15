@@ -40,10 +40,21 @@ export default function App() {
     showCollectionModal,
     showEnvironmentPanel,
     showInviteModal,
+    theme,
   } = useUIStore();
 
   // Fetch user on mount
   useEffect(() => { fetchMe(); }, []);
+
+  // Apply theme class to <html> so CSS variables switch correctly
+  useEffect(() => {
+    const root = document.documentElement;
+    if (theme === 'light') {
+      root.classList.add('light');
+    } else {
+      root.classList.remove('light');
+    }
+  }, [theme]);
 
   // Connect socket when user logs in
   useEffect(() => {
@@ -88,13 +99,25 @@ export default function App() {
     return (
       <>
         <AuthPage />
-        <Toaster position="bottom-right" toastOptions={{ style: { background: 'hsl(220, 14%, 18%)', color: 'white', border: '1px solid hsl(220, 13%, 25%)', borderRadius: '12px', fontSize: '13px' } }} />
+        <Toaster
+          position="bottom-right"
+          toastOptions={{
+            style: {
+              background: theme === 'light' ? '#FFFFFF' : '#1C2128',
+              color: theme === 'light' ? '#1F2328' : '#E6EDF3',
+              border: `1px solid ${theme === 'light' ? '#D0D7DE' : '#30363D'}`,
+              borderRadius: '12px',
+              fontSize: '13px',
+              fontFamily: 'Poppins, sans-serif',
+            },
+          }}
+        />
       </>
     );
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-surface-900">
+    <div className="flex h-screen overflow-hidden" style={{ background: 'var(--bg-primary)' }}>
       {/* Sidebar */}
       <div style={{ width: sidebarWidth }} className="flex-shrink-0 h-full overflow-hidden flex flex-col">
         <Sidebar />
@@ -119,7 +142,7 @@ export default function App() {
       {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         {/* Top bar */}
-        <div className="flex items-center justify-between h-10 px-3 border-b border-surface-700/50 bg-surface-900 flex-shrink-0">
+        <div className="flex items-center justify-between h-10 px-3 border-b border-[var(--border-1)] bg-surface-900 flex-shrink-0">
           <div className="flex items-center gap-2">
             {currentTeam && (
               <span className="text-surface-500 text-xs">
@@ -161,7 +184,7 @@ export default function App() {
         />
 
         {/* Response viewer */}
-        <div style={{ height: responseHeight }} className="flex-shrink-0 border-t border-surface-700/50 overflow-hidden bg-surface-850">
+        <div style={{ height: responseHeight }} className="flex-shrink-0 border-t border-[var(--border-1)] overflow-hidden bg-surface-850">
           <ResponseViewer />
         </div>
       </div>
@@ -179,11 +202,12 @@ export default function App() {
         position="bottom-right"
         toastOptions={{
           style: {
-            background: 'hsl(220, 14%, 18%)',
-            color: 'white',
-            border: '1px solid hsl(220, 13%, 25%)',
+            background: theme === 'light' ? '#FFFFFF' : '#1C2128',
+            color: theme === 'light' ? '#1F2328' : '#E6EDF3',
+            border: `1px solid ${theme === 'light' ? '#D0D7DE' : '#30363D'}`,
             borderRadius: '12px',
             fontSize: '13px',
+            fontFamily: 'Poppins, sans-serif',
           },
         }}
       />

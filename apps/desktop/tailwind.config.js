@@ -5,72 +5,95 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['Poppins', 'system-ui', 'sans-serif'],
         mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
       },
       colors: {
-        // SyncNest dark palette
+        // ── Design system tokens (CSS-variable backed) ────────────────
+        bg: {
+          primary:   'var(--bg-primary)',
+          secondary: 'var(--bg-secondary)',
+          tertiary:  'var(--bg-tertiary)',
+        },
         surface: {
-          50:  'hsl(220, 13%, 95%)',
-          100: 'hsl(220, 13%, 91%)',
-          200: 'hsl(220, 13%, 80%)',
-          300: 'hsl(220, 13%, 65%)',
-          400: 'hsl(220, 13%, 50%)',
-          500: 'hsl(220, 13%, 35%)',
-          600: 'hsl(220, 13%, 25%)',
-          700: 'hsl(220, 14%, 18%)',
-          750: 'hsl(220, 14%, 14%)',
-          800: 'hsl(220, 15%, 11%)',
-          850: 'hsl(220, 16%, 9%)',
-          900: 'hsl(220, 17%, 7%)',
-          950: 'hsl(220, 18%, 5%)',
+          1: 'var(--surface-1)',
+          2: 'var(--surface-2)',
+          3: 'var(--surface-3)',
+          // Legacy numeric scale mapped to dynamic tokens for theme switching
+          50:  'var(--bg-primary)',
+          100: 'var(--bg-secondary)',
+          200: 'var(--surface-1)',
+          300: 'var(--border-1)',
+          400: 'var(--text-muted)',
+          500: 'var(--text-secondary)',
+          600: 'var(--surface-3)', // Often used for hover state
+          700: 'var(--border-1)',  // Most 'border-surface-700' will now use border-1
+          750: 'var(--surface-2)', // Often used for secondary active backgrounds
+          800: 'var(--bg-tertiary)', // Often used for inputs & nested areas
+          850: 'var(--surface-1)', // Standard panels/cards
+          900: 'var(--bg-primary)', // Base app backgrounds
+          950: '#0A0A0A',
         },
+        border: {
+          1: 'var(--border-1)',
+          2: 'var(--border-2)',
+        },
+        tx: {
+          primary:   'var(--text-primary)',
+          secondary: 'var(--text-secondary)',
+          muted:     'var(--text-muted)',
+        },
+        accent: {
+          DEFAULT: 'var(--accent)',
+          hover:   'var(--accent-hover)',
+        },
+
+        // ── Brand scale → pure neutral gray (NO purple) ──────────────
+        // Replaces all old purple brand-* with neutral grays so every
+        // existing className (bg-brand-500, text-brand-300, etc.) stays
+        // valid but renders as gray/white instead of purple.
         brand: {
-          50:  'hsl(250, 100%, 97%)',
-          100: 'hsl(250, 95%, 92%)',
-          200: 'hsl(250, 90%, 82%)',
-          300: 'hsl(250, 85%, 70%)',
-          400: 'hsl(250, 80%, 60%)',
-          500: 'hsl(250, 75%, 52%)', // Primary
-          600: 'hsl(250, 70%, 45%)',
-          700: 'hsl(250, 65%, 38%)',
-          800: 'hsl(250, 60%, 30%)',
-          900: 'hsl(250, 55%, 22%)',
+          50:  '#FAFAFA',
+          100: '#F5F5F5',
+          200: '#E5E5E5',
+          300: '#D4D4D4',  // soft off-white  – used for 'text-brand-300' labels
+          400: '#A3A3A3',  // mid-gray        – used for icons, subtle text
+          500: 'var(--accent)',   // main CTA – off-white in dark / near-black in light
+          600: '#737373',  // darker gray     – used in 'to-brand-600' gradients
+          700: '#525252',
+          800: '#404040',
+          900: '#262626',
         },
-        success: { DEFAULT: 'hsl(142, 71%, 45%)', dark: 'hsl(142, 71%, 35%)' },
-        warning: { DEFAULT: 'hsl(38, 92%, 50%)', dark: 'hsl(38, 92%, 40%)' },
-        danger:  { DEFAULT: 'hsl(0, 84%, 60%)', dark: 'hsl(0, 84%, 50%)' },
-        info:    { DEFAULT: 'hsl(199, 89%, 48%)', dark: 'hsl(199, 89%, 38%)' },
+
+        // ── Semantic status colors ────────────────────────────────────
+        success: { DEFAULT: 'var(--success)' },
+        warning: { DEFAULT: 'var(--warning)' },
+        danger:  { DEFAULT: 'var(--error)' },
+        info:    { DEFAULT: '#39C5CF' },
       },
       borderRadius: {
-        '2xl': '1rem',
-        '3xl': '1.5rem',
+        'lg': '6px',
+        'xl': '8px',
+        '2xl': '10px',
+        '3xl': '14px',
       },
       animation: {
-        'fade-in':      'fadeIn 0.2s ease-in-out',
-        'slide-in-left':'slideInLeft 0.3s ease-out',
-        'slide-in-right':'slideInRight 0.3s ease-out',
-        'slide-up':     'slideUp 0.3s ease-out',
-        'pulse-slow':   'pulse 3s infinite',
-        'spin-slow':    'spin 3s linear infinite',
-        'bounce-subtle':'bounceSubtle 1s ease-in-out infinite',
+        'fade-in':       'fadeIn 0.2s ease-in-out',
+        'slide-in-left': 'slideInLeft 0.2s ease-out',
+        'slide-in-right':'slideInRight 0.2s ease-out',
+        'slide-up':      'slideUp 0.2s ease-out',
       },
       keyframes: {
-        fadeIn:       { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
-        slideInLeft:  { '0%': { transform: 'translateX(-20px)', opacity: '0' }, '100%': { transform: 'translateX(0)', opacity: '1' } },
-        slideInRight: { '0%': { transform: 'translateX(20px)', opacity: '0' }, '100%': { transform: 'translateX(0)', opacity: '1' } },
-        slideUp:      { '0%': { transform: 'translateY(10px)', opacity: '0' }, '100%': { transform: 'translateY(0)', opacity: '1' } },
-        bounceSubtle: { '0%,100%': { transform: 'translateY(0)' }, '50%': { transform: 'translateY(-4px)' } },
+        fadeIn:       { '0%': { opacity: '0' },                                 '100%': { opacity: '1' } },
+        slideInLeft:  { '0%': { transform: 'translateX(-10px)', opacity: '0' }, '100%': { transform: 'translateX(0)', opacity: '1' } },
+        slideInRight: { '0%': { transform: 'translateX(10px)', opacity: '0' },  '100%': { transform: 'translateX(0)', opacity: '1' } },
+        slideUp:      { '0%': { transform: 'translateY(6px)', opacity: '0' },   '100%': { transform: 'translateY(0)', opacity: '1' } },
       },
       boxShadow: {
-        'glass':    '0 4px 30px rgba(0, 0, 0, 0.4)',
-        'glow':     '0 0 20px rgba(139, 92, 246, 0.3)',
-        'glow-lg':  '0 0 40px rgba(139, 92, 246, 0.4)',
-        'inner-lg': 'inset 0 2px 8px rgba(0, 0, 0, 0.4)',
+        'glass':    '0 12px 40px rgba(0,0,0,0.25)', /* Softer, wider spread, less dark */
+        'glass-sm': '0 4px 16px rgba(0,0,0,0.06)',
       },
-      backdropBlur: {
-        xs: '2px',
-      },
+      backdropBlur: { xs: '2px' },
     },
   },
   plugins: [],

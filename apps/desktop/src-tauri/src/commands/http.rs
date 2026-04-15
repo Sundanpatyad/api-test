@@ -86,39 +86,26 @@ pub struct ExecuteResponse {
 // ── Command ───────────────────────────────────────────────────────────────────
 
 #[tauri::command]
-pub async fn execute_request(payload: ExecuteRequestPayload) -> Result<ExecuteResponse, String> {
+pub async fn execute_request(
+    payload: ExecuteRequestPayload,
+    client: tauri::State<'_, reqwest::Client>,
+    cookie_jar: tauri::State<'_, crate::AppCookieJar>,
+) -> Result<ExecuteResponse, String> {
     // 1. SSRF protection
     validate_url(&payload.url).map_err(|e| match e {
         SsrfError::InvalidUrl(msg) => format!("SSRF_INVALID_URL: {}", msg),
         SsrfError::BlockedHost(host) => format!("SSRF_BLOCKED: {} is a blocked internal address", host),
     })?;
 
-    // 2. Build URL with query params
-    let mut url = payload.url.clone();
-    if let Some(params) = &payload.params {
-        let enabled: Vec<_> = params.iter()
-            .filter(|p| p.enabled.unwrap_or(true) && !p.key.is_empty())
-            .collect();
-        if !enabled.is_empty() {
-            let sep = if url.contains('?') { '&' } else { '?' };
-            let qs: String = enabled.iter()
-                .map(|p| format!("{}={}", percent_encode(&p.key), percent_encode(&p.value)))
-                .collect::<Vec<_>>()
-                .join("&");
-            url = format!("{}{}{}", url, sep, qs);
-        }
-    }
+    // 2. URL already contains query params visually thanks to 2-way UI binding
+    let url = payload.url.clone();
 
     // 3. HTTP method
     let method = Method::from_str(&payload.method.to_uppercase())
         .map_err(|_| format!("Invalid HTTP method: {}", payload.method))?;
 
-    // 4. Build client
+    // 4. Client timeout
     let timeout_secs = payload.timeout_ms.unwrap_or(30_000) / 1000;
-    let client = Client::builder()
-        .timeout(std::time::Duration::from_secs(timeout_secs.max(5).min(60)))
-        .build()
-        .map_err(|e| e.to_string())?;
 
     // 5. Build headers
     let mut header_map = HeaderMap::new();
@@ -180,8 +167,35 @@ pub async fn execute_request(payload: ExecuteRequestPayload) -> Result<ExecuteRe
         }
     }
 
+    // Extract Host for Cookie Jar
+    let parsed_url = url::Url::parse(&url).map_err(|_| "Invalid URL format".to_string())?;
+    let host = parsed_url.host_str().unwrap_or("").to_string();
+
+    // Attach saved cookies for this host
+    if !host.is_empty() {
+        if let Ok(jar) = cookie_jar.0.lock() {
+            if let Some(cookies) = jar.get(&host) {
+                if !cookies.is_empty() {
+                    let mut cookie_components = Vec::new();
+                    for (k, v) in cookies.iter() {
+                        if v.is_empty() {
+                            cookie_components.push(k.clone());
+                        } else {
+                            cookie_components.push(format!("{}={}", k, v));
+                        }
+                    }
+                    if let Ok(val) = HeaderValue::from_str(&cookie_components.join("; ")) {
+                        header_map.insert(reqwest::header::COOKIE, val);
+                    }
+                }
+            }
+        }
+    }
+
     // 6. Build request
-    let mut req = client.request(method, &url).headers(header_map);
+    let mut req = client.request(method, &url)
+        .headers(header_map)
+        .timeout(std::time::Duration::from_secs(timeout_secs.max(5).min(60)));
 
     // 7. Body
     if let Some(body) = &payload.body {
@@ -211,8 +225,37 @@ pub async fn execute_request(payload: ExecuteRequestPayload) -> Result<ExecuteRe
     let status_text = response.status().canonical_reason().unwrap_or("Unknown").to_string();
 
     let mut resp_headers = HashMap::new();
+    
+    // Handle returning Set-Cookies
+    if !host.is_empty() {
+        let set_cookies = response.headers().get_all(reqwest::header::SET_COOKIE);
+        let mut new_cookies = Vec::new();
+        for cookie in set_cookies.iter() {
+            if let Ok(c_str) = cookie.to_str() {
+                new_cookies.push(c_str.to_string());
+                
+                // Parse key=value
+                let parts: Vec<&str> = c_str.split(';').collect();
+                if let Some(first_part) = parts.first() {
+                    let kv: Vec<&str> = first_part.splitn(2, '=').collect();
+                    if let Ok(mut jar) = cookie_jar.0.lock() {
+                        let host_jar = jar.entry(host.clone()).or_insert_with(HashMap::new);
+                        let key = kv[0].trim().to_string();
+                        let val = if kv.len() > 1 { kv[1].trim().to_string() } else { "".to_string() };
+                        host_jar.insert(key, val);
+                    }
+                }
+            }
+        }
+        if !new_cookies.is_empty() {
+            resp_headers.insert("Set-Cookie".to_string(), new_cookies.join("\n"));
+        }
+    }
+
     for (k, v) in response.headers().iter() {
-        resp_headers.insert(k.to_string(), v.to_str().unwrap_or("").to_string());
+        if k != reqwest::header::SET_COOKIE {
+            resp_headers.insert(k.to_string(), v.to_str().unwrap_or("").to_string());
+        }
     }
 
     let body_bytes = response.bytes().await.map_err(|e| e.to_string())?;

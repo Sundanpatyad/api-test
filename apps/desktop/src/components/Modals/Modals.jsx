@@ -229,12 +229,12 @@ export function InviteModal() {
             <div className="flex flex-col gap-1 max-h-52 overflow-y-auto pr-1">
               {/* Owner row */}
               {currentTeam.ownerId && (
-                <div className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl bg-surface-800/60 border border-surface-700/40">
-                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center text-white text-xs flex-shrink-0">
+                <div className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl bg-surface-800 border border-[var(--border-1)]">
+                  <div className="w-7 h-7 rounded-full bg-[var(--surface-3)] flex items-center justify-center text-tx-primary text-xs flex-shrink-0">
                     {(currentTeam.ownerId?.name || currentTeam.ownerId)?.[0]?.toUpperCase() || '?'}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs text-white truncate">
+                    <p className="text-xs text-tx-primary truncate">
                       {currentTeam.ownerId?.name || 'Owner'}
                       {(currentTeam.ownerId?._id || currentTeam.ownerId) === user?._id && (
                         <span className="text-surface-500 ml-1">(you)</span>
@@ -256,12 +256,12 @@ export function InviteModal() {
                 const memberEmail = m.userId?.email || '';
 
                 return (
-                  <div key={memberId} className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl bg-surface-800/60 border border-surface-700/40">
-                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-surface-500 to-surface-700 flex items-center justify-center text-white text-xs flex-shrink-0">
+                  <div key={memberId} className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl bg-[var(--surface-2)] border border-[var(--border-1)]">
+                    <div className="w-7 h-7 rounded-full bg-[var(--surface-3)] flex items-center justify-center text-tx-primary text-xs flex-shrink-0">
                       {memberName[0]?.toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs text-white truncate">
+                      <p className="text-xs text-tx-primary truncate">
                         {memberName}
                         {isYou && <span className="text-surface-500 ml-1">(you)</span>}
                       </p>
@@ -361,8 +361,8 @@ function ModalWrapper({ children, onClose, title }) {
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="bg-surface-850 border border-surface-700 rounded-2xl shadow-glass w-full max-w-md animate-slide-up">
         <div className="flex items-center justify-between px-5 py-4 border-b border-surface-700">
-          <h2 className="text-sm font-semibold text-white">{title}</h2>
-          <button onClick={onClose} className="text-surface-500 hover:text-white transition-colors">
+          <h2 className="text-sm font-semibold text-tx-primary">{title}</h2>
+          <button onClick={onClose} className="text-surface-500 hover:text-tx-primary transition-colors">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg>
           </button>
         </div>

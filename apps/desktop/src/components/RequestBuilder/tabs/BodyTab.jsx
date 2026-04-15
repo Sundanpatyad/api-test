@@ -1,4 +1,5 @@
 import { useRequestStore } from '@/store/requestStore';
+import { useUIStore } from '@/store/uiStore';
 import Editor from '@monaco-editor/react';
 
 const BODY_MODES = [
@@ -12,6 +13,7 @@ const RAW_LANGUAGES = ['json', 'text', 'xml', 'html'];
 
 export default function BodyTab() {
   const { currentRequest, updateBody } = useRequestStore();
+  const { theme } = useUIStore();
   const body = currentRequest.body || { mode: 'none', raw: '', rawLanguage: 'json' };
 
   const setMode = (mode) => updateBody({ mode });
@@ -21,15 +23,15 @@ export default function BodyTab() {
   return (
     <div className="flex flex-col h-full">
       {/* Mode selector */}
-      <div className="flex items-center gap-1 p-3 border-b border-surface-700/30">
+      <div className="flex items-center gap-1 p-3 border-b border-[var(--border-1)]">
         {BODY_MODES.map((m) => (
           <button
             key={m.id}
             onClick={() => setMode(m.id)}
             className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${
               body.mode === m.id
-                ? 'bg-brand-500/20 text-brand-300 border border-brand-500/30'
-                : 'text-surface-500 hover:text-white'
+                ? 'bg-[var(--surface-3)] text-tx-primary border border-[var(--border-2)]'
+                : 'text-surface-500 hover:text-tx-primary border border-transparent'
             }`}
           >
             {m.label}
@@ -44,8 +46,8 @@ export default function BodyTab() {
                 onClick={() => setLanguage(lang)}
                 className={`px-2 py-1 rounded text-xs transition-all ${
                   body.rawLanguage === lang
-                    ? 'bg-surface-700 text-white'
-                    : 'text-surface-500 hover:text-white'
+                    ? 'bg-surface-700 text-tx-primary'
+                    : 'text-surface-500 hover:text-tx-primary'
                 }`}
               >
                 {lang}
@@ -69,7 +71,7 @@ export default function BodyTab() {
             language={body.rawLanguage === 'json' ? 'json' : body.rawLanguage}
             value={body.raw || ''}
             onChange={setRaw}
-            theme="vs-dark"
+            theme={theme === 'light' ? 'light' : 'vs-dark'}
             options={{
               minimap: { enabled: false },
               fontSize: 13,

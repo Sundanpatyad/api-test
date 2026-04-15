@@ -95,9 +95,9 @@ export default function ImportModal() {
             <svg className="w-4 h-4 text-warning" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
             </svg>
-            <h2 className="text-sm font-semibold text-white">Import Postman Collection</h2>
+            <h2 className="text-sm font-semibold text-tx-primary">Import Postman Collection</h2>
           </div>
-          <button onClick={() => setShowImportModal(false)} className="text-surface-500 hover:text-white transition-colors">
+          <button onClick={() => setShowImportModal(false)} className="text-surface-500 hover:text-tx-primary transition-colors">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg>
           </button>
         </div>
@@ -125,7 +125,7 @@ export default function ImportModal() {
                   </svg>
                 </div>
                 <div className="text-center">
-                  <p className="text-sm font-medium text-white">
+                  <p className="text-sm font-medium text-tx-primary">
                     {isDragActive ? 'Drop your collection here' : 'Drag & drop or click to select'}
                   </p>
                   <p className="text-surface-500 text-xs mt-1">Postman Collection JSON, max 10MB</p>
@@ -150,7 +150,7 @@ export default function ImportModal() {
                     <svg className="w-4 h-4 text-warning" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
                   </div>
                   <div>
-                    <h3 className="text-sm font-semibold text-white">{parsed.collectionMeta.name}</h3>
+                    <h3 className="text-sm font-semibold text-tx-primary">{parsed.collectionMeta.name}</h3>
                     {parsed.collectionMeta.description && (
                       <p className="text-surface-500 text-xs">{parsed.collectionMeta.description}</p>
                     )}
@@ -164,7 +164,7 @@ export default function ImportModal() {
 
               {/* Destination */}
               <div className="text-xs text-surface-400 bg-surface-800/50 rounded-xl px-3 py-2.5">
-                Importing to: <span className="text-white font-medium">{currentTeam?.name}</span> → <span className="text-white font-medium">{currentProject?.name || '(No project selected)'}</span>
+                Importing to: <span className="text-tx-primary font-medium">{currentTeam?.name}</span> → <span className="text-tx-primary font-medium">{currentProject?.name || '(No project selected)'}</span>
               </div>
 
               {!currentProject && (
@@ -199,7 +199,7 @@ export default function ImportModal() {
                 <svg className="w-7 h-7 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7"/></svg>
               </div>
               <div className="text-center">
-                <p className="text-white font-semibold">Import Successful!</p>
+                <p className="text-tx-primary font-semibold">Import Successful!</p>
                 <p className="text-surface-400 text-sm mt-1">{parsed.requests.length} requests imported to your collection.</p>
               </div>
               <button onClick={() => setShowImportModal(false)} className="btn-primary px-8">Done</button>
@@ -216,7 +216,7 @@ function Stat({ icon, label, value }) {
     <div className="flex items-center gap-2">
       <span className="text-lg">{icon}</span>
       <div>
-        <p className="text-lg font-bold text-white">{value}</p>
+        <p className="text-lg font-bold text-tx-primary">{value}</p>
         <p className="text-[10px] text-surface-500">{label}</p>
       </div>
     </div>

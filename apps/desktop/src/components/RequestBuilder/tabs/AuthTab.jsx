@@ -19,7 +19,7 @@ export default function AuthTab() {
               className={`px-3 py-1.5 rounded-lg text-xs font-medium capitalize transition-all ${
                 auth.type === type
                   ? 'bg-brand-500/20 text-brand-300 border border-brand-500/30'
-                  : 'bg-surface-800 text-surface-500 hover:text-white border border-surface-700'
+                  : 'bg-surface-800 text-surface-500 hover:text-tx-primary border border-surface-700'
               }`}
             >
               {type === 'apikey' ? 'API Key' : type === 'bearer' ? 'Bearer Token' : type.charAt(0).toUpperCase() + type.slice(1)}
@@ -102,7 +102,7 @@ export default function AuthTab() {
                   className={`text-xs px-3 py-1.5 rounded-lg transition-all capitalize ${
                     auth.apikey?.in === loc
                       ? 'bg-brand-500/20 text-brand-300 border border-brand-500/30'
-                      : 'bg-surface-800 text-surface-500 border border-surface-700 hover:text-white'
+                      : 'bg-surface-800 text-surface-500 border border-surface-700 hover:text-tx-primary'
                   }`}
                 >
                   {loc === 'header' ? 'Header' : 'Query Param'}

@@ -29,7 +29,7 @@ export default function SplashScreen({ onComplete }) {
   }, [onComplete]);
 
   return (
-    <div className="fixed inset-0 bg-surface-950 flex flex-col items-center justify-center z-50">
+    <div className="fixed inset-0 bg-surface-900 flex flex-col items-center justify-center z-50">
       {/* Background glow */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-brand-500/10 rounded-full blur-3xl animate-pulse-slow" />
@@ -51,7 +51,7 @@ export default function SplashScreen({ onComplete }) {
             <div className="absolute -inset-1 rounded-2xl bg-brand-500/30 blur-lg -z-10" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-white tracking-tight">SyncNest</h1>
+            <h1 className="text-3xl font-bold text-tx-primary tracking-tight">SyncNest</h1>
             <p className="text-brand-300 text-sm font-medium tracking-widest uppercase">API Studio</p>
           </div>
         </div>

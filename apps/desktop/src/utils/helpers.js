@@ -6,9 +6,22 @@ export function formatBody(body, contentType = '') {
 
   if (contentType.includes('application/json') || isJson(body)) {
     try {
+      // standard single-object JSON parse
       return JSON.stringify(JSON.parse(body), null, 2);
     } catch {
-      return body;
+      // Fallback: it might be NDJSON (Newline Delimited JSON)
+      try {
+        const lines = body.split('\n').filter(line => line.trim() !== '');
+        if (lines.length > 1) {
+          const formattedLines = lines.map(line => {
+            return JSON.stringify(JSON.parse(line), null, 2);
+          });
+          return formattedLines.join('\n'); // join the cleanly formatted blocks
+        }
+      } catch (err) {
+        // If it's truly broken JSON, return the raw unformatted string
+        return body;
+      }
     }
   }
   return body;

@@ -18,11 +18,11 @@ const METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'];
 
 const METHOD_COLORS = {
   GET:     'text-success',
-  POST:    'text-brand-300',
+  POST:    'text-[#58A6FF]',
   PUT:     'text-warning',
-  PATCH:   'text-orange-400',
+  PATCH:   'text-[#A8A8A8]',
   DELETE:  'text-danger',
-  HEAD:    'text-surface-400',
+  HEAD:    'text-surface-500',
   OPTIONS: 'text-info',
 };
 
@@ -42,6 +42,14 @@ export default function RequestBuilder() {
 
     setIsExecuting(true);
     setResponse(null);
+    let isCancelled = false;
+    useRequestStore.setState({
+      cancelCurrentRequest: () => {
+        isCancelled = true;
+        setIsExecuting(false);
+        setResponse({ status: 'Cancelled', statusText: '', headers: {}, body: 'Request was cancelled by user.', responseTimeMs: 0, sizeBytes: 0 });
+      }
+    });
 
     try {
       // Resolve environment variables
@@ -75,12 +83,14 @@ export default function RequestBuilder() {
       };
 
       const response = await executeHttpRequest(payload);
+      if (isCancelled) return;
 
       setResponse(response);
       addToHistory({
         id: uuidv4(),
         request: { ...currentRequest, url: resolvedUrl },
-        response,
+        // Do not store the massive response text body in localStorage history!
+        response: { ...response, body: '[Body hidden in history]' },
         timestamp: Date.now(),
       });
 
@@ -97,14 +107,23 @@ export default function RequestBuilder() {
       } else if (errorMsg.includes('SSRF_INVALID_URL')) {
         toast.error('Invalid URL: Only http/https are allowed');
       } else {
-        toast.error(`Request failed: ${errorMsg}`);
+        toast.error(`Error: ${errorMsg}`);
       }
-
-      setResponse({ error: errorMsg, status: 0 });
+      if (!isCancelled) {
+        setResponse({
+          status: 'Error',
+          statusText: '',
+          headers: {},
+          body: errorMsg,
+          responseTimeMs: 0,
+          sizeBytes: 0,
+        });
+      }
     } finally {
-      setIsExecuting(false);
+      if (!isCancelled) setIsExecuting(false);
+      useRequestStore.setState({ cancelCurrentRequest: null });
     }
-  }, [currentRequest, resolveVariables]);
+  }, [currentRequest, activeEnvironment, executeHttpRequest, resolveVariables, setResponse, setIsExecuting, addToHistory, currentTeam, user, emitRequestUpdate]);
 
   const handleKeyDown = useCallback((e) => {
     if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
@@ -157,7 +176,7 @@ export default function RequestBuilder() {
         <div className="relative">
           <button
             onClick={() => setShowMethodDropdown(!showMethodDropdown)}
-            className={`flex items-center gap-1.5 bg-surface-800 border border-surface-700 rounded-xl px-3 py-2 text-sm font-bold ${METHOD_COLORS[currentRequest.method]} hover:border-surface-600 transition-all min-w-[90px] justify-between`}
+            className={`flex items-center gap-1.5 bg-[var(--surface-2)] border border-[var(--border-1)] rounded-lg px-3 py-1.5 text-sm font-bold ${METHOD_COLORS[currentRequest.method]} hover:border-[var(--border-2)] transition-all min-w-[90px] justify-between`}
           >
             {currentRequest.method}
             <svg className="w-3 h-3 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -165,7 +184,7 @@ export default function RequestBuilder() {
             </svg>
           </button>
           {showMethodDropdown && (
-            <div className="absolute top-full left-0 mt-1 bg-surface-850 border border-surface-700 rounded-xl shadow-glass z-50 py-1 min-w-[110px] animate-in">
+            <div className="absolute top-full left-0 mt-1 bg-[var(--surface-1)] border border-[var(--border-1)] rounded-lg shadow-glass z-50 py-1 min-w-[110px] animate-in">
               {METHODS.map((m) => (
                 <button
                   key={m}
@@ -208,7 +227,7 @@ export default function RequestBuilder() {
       )}
 
       {/* Tabs */}
-      <div className="border-b border-surface-700/50 px-3">
+      <div className="border-b border-[var(--border-1)] px-3">
         <div className="flex items-center gap-0.5">
           {tabs.map((tab) => (
             <button
@@ -216,17 +235,20 @@ export default function RequestBuilder() {
               onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 transition-all ${
                 activeTab === tab.id
-                  ? 'border-brand-500 text-white'
+                  ? 'border-[var(--accent)] text-[var(--text-primary)]'
                   : 'border-transparent text-surface-500 hover:text-surface-300'
               }`}
             >
               {tab.label}
               {tab.count > 0 && (
-                <span className="bg-brand-500/20 text-brand-300 text-[9px] px-1.5 py-0.5 rounded-full font-bold">
+                <span
+                  className="text-[9px] px-1.5 py-0.5 rounded-full"
+                  style={{ background: 'var(--surface-3)', color: 'var(--text-secondary)' }}
+                >
                   {tab.count}
                 </span>
               )}
-              {tab.badge && <span className="text-brand-400 text-xs">{tab.badge}</span>}
+              {tab.badge && <span className="text-[var(--text-muted)] text-xs">{tab.badge}</span>}
             </button>
           ))}
         </div>
@@ -244,29 +266,31 @@ export default function RequestBuilder() {
 }
 
 function SendButton({ onSend }) {
-  const { isExecuting } = useRequestStore();
+  const { isExecuting, cancelCurrentRequest } = useRequestStore();
+  
+  if (isExecuting) {
+    return (
+      <button
+        onClick={() => cancelCurrentRequest && cancelCurrentRequest()}
+        className="btn-primary relative flex items-center gap-2 px-5 py-1.5 rounded-lg font-medium transition-all duration-150 active:scale-95 group min-w-[90px] justify-center !bg-danger/90 hover:!bg-danger border-none"
+      >
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+        <span className="text-sm shadow-sm font-semibold">Cancel</span>
+      </button>
+    );
+  }
+
   return (
     <button
       onClick={onSend}
-      disabled={isExecuting}
-      className="relative flex items-center gap-2 bg-gradient-to-r from-brand-500 to-brand-400 hover:from-brand-400 hover:to-brand-300 text-white font-semibold px-5 py-2 rounded-xl transition-all duration-150 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed shadow-glow group min-w-[90px] justify-center"
+      className="btn-primary relative flex items-center gap-2 px-5 py-1.5 rounded-lg font-medium transition-all duration-150 active:scale-95 group min-w-[90px] justify-center"
     >
-      {isExecuting ? (
-        <>
-          <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-          </svg>
-          <span className="text-sm">Sending</span>
-        </>
-      ) : (
-        <>
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7"/>
-          </svg>
-          <span className="text-sm">Send</span>
-        </>
-      )}
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7"/>
+      </svg>
+      <span className="text-sm">Send</span>
       <span className="absolute -bottom-6 right-0 text-[9px] text-surface-600 hidden group-hover:block whitespace-nowrap">⌘ + Enter</span>
     </button>
   );

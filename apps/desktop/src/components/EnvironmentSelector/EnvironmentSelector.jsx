@@ -42,8 +42,8 @@ export default function EnvironmentSelector() {
         onClick={() => setOpen(!open)}
         className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-medium transition-all ${
           activeEnvironment
-            ? 'bg-brand-500/15 border-brand-500/40 text-brand-300 hover:bg-brand-500/20'
-            : 'bg-surface-800 border-surface-700 text-surface-400 hover:text-white hover:border-surface-600'
+            ? 'bg-[var(--surface-3)] border-[var(--border-2)] text-tx-primary hover:bg-[var(--surface-2)]'
+            : 'bg-[var(--surface-2)] border-transparent text-surface-400 hover:text-tx-primary'
         }`}
         title="Select active environment"
       >
@@ -93,8 +93,8 @@ export default function EnvironmentSelector() {
             onClick={() => { setActiveEnvironment(null); setOpen(false); }}
             className={`flex items-center gap-2 w-full px-3 py-2 text-xs transition-all ${
               !activeEnvironment
-                ? 'text-white bg-surface-700'
-                : 'text-surface-400 hover:text-white hover:bg-surface-800'
+                ? 'text-tx-primary bg-surface-700'
+                : 'text-surface-400 hover:text-tx-primary hover:bg-surface-800'
             }`}
           >
             <div className="w-1.5 h-1.5 rounded-full bg-surface-600 flex-shrink-0" />
@@ -119,8 +119,8 @@ export default function EnvironmentSelector() {
               onClick={() => handleSelect(env)}
               className={`flex items-center gap-2 w-full px-3 py-2 text-xs transition-all ${
                 activeEnvironment?._id === env._id
-                  ? 'text-white bg-surface-700'
-                  : 'text-surface-400 hover:text-white hover:bg-surface-800'
+                  ? 'text-tx-primary bg-surface-700'
+                  : 'text-surface-400 hover:text-tx-primary hover:bg-surface-800'
               }`}
             >
               <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${

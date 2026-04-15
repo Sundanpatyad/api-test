@@ -25,13 +25,8 @@ export async function executeHttpRequest(payload) {
 async function executeFetchFallback(payload) {
   const { method, url, headers = [], params = [], body, auth, timeoutMs = 30000 } = payload;
 
-  // Build URL with query params
-  let finalUrl = url;
-  const enabledParams = params.filter((p) => p.enabled !== false && p.key);
-  if (enabledParams.length > 0) {
-    const qs = new URLSearchParams(enabledParams.map((p) => [p.key, p.value])).toString();
-    finalUrl += (finalUrl.includes('?') ? '&' : '?') + qs;
-  }
+  // URL already contains query params visually thanks to 2-way UI binding
+  const finalUrl = url;
 
   // Build headers
   const reqHeaders = new Headers();
@@ -76,6 +71,7 @@ async function executeFetchFallback(payload) {
       method: method.toUpperCase(),
       headers: reqHeaders,
       body: ['GET', 'HEAD'].includes(method.toUpperCase()) ? undefined : reqBody,
+      credentials: 'include',
       signal: controller.signal,
     });
 

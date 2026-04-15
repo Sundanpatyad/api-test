@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import Editor from '@monaco-editor/react';
 import { useRequestStore } from '@/store/requestStore';
+import { useUIStore } from '@/store/uiStore';
 import { getStatusClass, formatSize, formatTime, formatBody } from '@/utils/helpers';
 
 const RESPONSE_TABS = ['Pretty', 'Raw', 'Headers'];
 
 export default function ResponseViewer() {
   const { response, isExecuting } = useRequestStore();
+  const { theme } = useUIStore();
   const [activeTab, setActiveTab] = useState('Pretty');
 
   if (isExecuting) {
@@ -29,7 +31,7 @@ export default function ResponseViewer() {
   return (
     <div className="flex flex-col h-full">
       {/* Status bar */}
-      <div className="flex items-center gap-3 px-3 py-2 border-b border-surface-700/50 bg-surface-800/30">
+      <div className="flex items-center gap-3 px-3 py-2 border-b border-[var(--border-1)] bg-[var(--surface-2)]">
         <span className={statusClass}>{response.status} {response.statusText}</span>
         <div className="w-px h-3.5 bg-surface-700" />
         <span className="text-surface-400 text-xs flex items-center gap-1">
@@ -50,8 +52,8 @@ export default function ResponseViewer() {
               onClick={() => setActiveTab(tab)}
               className={`px-2.5 py-1 rounded text-xs font-medium transition-all ${
                 activeTab === tab
-                  ? 'bg-surface-700 text-white'
-                  : 'text-surface-500 hover:text-white'
+                  ? 'bg-surface-700 text-tx-primary'
+                  : 'text-surface-500 hover:text-tx-primary'
               }`}
             >
               {tab}
@@ -67,7 +69,7 @@ export default function ResponseViewer() {
             height="100%"
             language={lang}
             value={prettyBody}
-            theme="vs-dark"
+            theme={theme === 'light' ? 'light' : 'vs-dark'}
             options={{
               readOnly: true,
               minimap: { enabled: false },

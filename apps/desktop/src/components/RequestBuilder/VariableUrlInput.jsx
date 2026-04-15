@@ -35,9 +35,12 @@ export default function VariableUrlInput({ value, onChange, placeholder }) {
     <div className="relative flex-1">
       {/* Container — provides border + background */}
       <div
-        className={`flex items-center w-full bg-surface-800 border rounded-xl px-3 py-2 font-mono text-sm transition-colors focus-within:border-brand-500/60 ${hasUnresolved ? 'border-orange-400/40' : 'border-surface-700'
-          }`}
-        style={{ minHeight: '38px' }}
+        className={`flex items-center w-full px-3 py-1.5 font-mono text-sm outline-none transition-all duration-150 border rounded-lg ${
+          hasUnresolved 
+            ? 'border-warning/40 bg-[var(--bg-tertiary)]' 
+            : 'border-[var(--border-1)] bg-[var(--bg-tertiary)] focus-within:border-[var(--accent)] focus-within:ring-2 focus-within:ring-[var(--accent)]/10'
+        }`}
+        style={{ minHeight: '36px' }}
       >
         {/* Rendered text with colored variables — sits in flow */}
         <div className="relative w-full overflow-hidden whitespace-pre" style={{ lineHeight: '1.25rem' }}>
@@ -57,11 +60,11 @@ export default function VariableUrlInput({ value, onChange, placeholder }) {
           {/* Colored mirror — rendered behind the input */}
           <span aria-hidden="true" className="pointer-events-none select-none">
             {value === '' ? (
-              <span className="text-surface-600">{placeholder}</span>
+              <span style={{ color: 'var(--text-muted)' }}>{placeholder}</span>
             ) : (
               segments.map((seg, i) =>
                 seg.type === 'text' ? (
-                  <span key={i} className="text-white">{seg.text}</span>
+                  <span key={i} className="text-tx-primary">{seg.text}</span>
                 ) : (
                   // Variable token — colored + hoverable for tooltip
                   <span
@@ -117,7 +120,7 @@ export default function VariableUrlInput({ value, onChange, placeholder }) {
               </p>
             ) : (
               <p className="text-surface-500">
-                Not defined in <span className="text-white">{activeEnvironment?.name || 'active environment'}</span>
+                Not defined in <span className="text-tx-primary">{activeEnvironment?.name || 'active environment'}</span>
               </p>
             )}
           </div>

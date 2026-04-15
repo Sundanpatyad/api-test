@@ -150,12 +150,12 @@ export default function EnvironmentPanel() {
             <svg className="w-4 h-4 text-brand-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
             </svg>
-            <h2 className="text-sm font-semibold text-white">Environments</h2>
+            <h2 className="text-sm font-semibold text-tx-primary">Environments</h2>
             <span className="text-surface-500 text-xs">
               {currentProject?.name || 'No project selected'}
             </span>
           </div>
-          <button onClick={() => setShowEnvironmentPanel(false)} className="text-surface-500 hover:text-white transition-colors">
+          <button onClick={() => setShowEnvironmentPanel(false)} className="text-surface-500 hover:text-tx-primary transition-colors">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>
@@ -172,8 +172,8 @@ export default function EnvironmentPanel() {
                     onClick={() => handleSelectEnv(env)}
                     className={`flex-1 text-left px-2 py-1.5 rounded-lg text-xs transition-all ${
                       selectedEnvId === env._id
-                        ? 'bg-surface-700 text-white'
-                        : 'text-surface-400 hover:text-white hover:bg-surface-800'
+                        ? 'bg-surface-700 text-tx-primary'
+                        : 'text-surface-400 hover:text-tx-primary hover:bg-surface-800'
                     }`}
                   >
                     <div className="flex items-center gap-1.5">
@@ -208,7 +208,7 @@ export default function EnvironmentPanel() {
             </div>
 
             {/* Create button */}
-            <div className="p-2 border-t border-surface-700/50 flex-shrink-0">
+            <div className="p-2 border-t border-[var(--border-1)] flex-shrink-0">
               {showCreate ? (
                 <form onSubmit={handleCreate} className="flex flex-col gap-1.5">
                   <input
@@ -264,7 +264,7 @@ export default function EnvironmentPanel() {
           {selectedEnv ? (
             <div className="flex-1 flex flex-col overflow-hidden">
               {/* Env header */}
-              <div className="flex items-center justify-between px-4 py-2.5 border-b border-surface-700/50 flex-shrink-0">
+              <div className="flex items-center justify-between px-4 py-2.5 border-b border-[var(--border-1)] flex-shrink-0">
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full" style={{ backgroundColor: selectedEnv.color || '#6366f1' }} />
                   {editingName ? (
@@ -279,7 +279,7 @@ export default function EnvironmentPanel() {
                   ) : (
                     <button
                       onDoubleClick={() => setEditingName(true)}
-                      className="text-sm font-semibold text-white hover:text-brand-300 transition-colors"
+                      className="text-sm font-semibold text-tx-primary hover:text-brand-300 transition-colors"
                       title="Double-click to rename"
                     >
                       {selectedEnv.name}
@@ -295,7 +295,7 @@ export default function EnvironmentPanel() {
                       Set Active
                     </button>
                   )}
-                  <button onClick={handleDuplicate} className="text-xs text-surface-400 hover:text-white border border-surface-700 hover:border-surface-600 px-2 py-1 rounded-lg transition-all" title="Duplicate">
+                  <button onClick={handleDuplicate} className="text-xs text-surface-400 hover:text-tx-primary border border-surface-700 hover:border-surface-600 px-2 py-1 rounded-lg transition-all" title="Duplicate">
                     ⎘ Copy
                   </button>
                   <button onClick={handleDelete} className="text-xs text-surface-400 hover:text-danger border border-surface-700 hover:border-danger/50 px-2 py-1 rounded-lg transition-all">
@@ -342,7 +342,7 @@ export default function EnvironmentPanel() {
                       className={`text-sm px-2 py-1 rounded-lg transition-all ${
                         v.isSecret
                           ? 'text-warning bg-warning/10 border border-warning/30'
-                          : 'text-surface-600 hover:text-white border border-surface-700'
+                          : 'text-surface-600 hover:text-tx-primary border border-surface-700'
                       }`}
                       title={v.isSecret ? 'Secret (click to make visible)' : 'Click to make secret'}
                     >
@@ -370,7 +370,7 @@ export default function EnvironmentPanel() {
               </div>
 
               {/* Footer */}
-              <div className="px-4 py-3 border-t border-surface-700/50 flex items-center justify-between flex-shrink-0">
+              <div className="px-4 py-3 border-t border-[var(--border-1)] flex items-center justify-between flex-shrink-0">
                 <button onClick={addVar} className="text-xs text-brand-400 hover:text-brand-300 transition-colors flex items-center gap-1">
                   <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
                   Add Variable
