@@ -78,6 +78,14 @@ io.on('connection', (socket) => {
     console.log(`[Socket] collection_updated in ${room} by ${userId}`);
   });
 
+  // ── API DOC UPDATED ─────────────────────────────────────────────
+  socket.on('update_apidoc', ({ teamId, doc, userId }) => {
+    if (!teamId || !doc) return;
+    const room = `team:${teamId}`;
+    socket.to(room).emit('apidoc_updated', { doc, userId, timestamp: Date.now() });
+    console.log(`[Socket] apidoc_updated in ${room} by ${userId}`);
+  });
+
   // ── COLLECTION IMPORTED ─────────────────────────────────────────
   socket.on('import_collection', ({ teamId, collection, requestCount, userId }) => {
     if (!teamId || !collection) return;
@@ -104,6 +112,15 @@ io.on('connection', (socket) => {
 
   socket.on('typing_stop', ({ teamId, requestId, userId }) => {
     socket.to(`team:${teamId}`).emit('user_stopped_typing', { requestId, userId });
+  });
+
+  // ── API DOC TYPING INDICATOR ────────────────────────────────────
+  socket.on('apidoc_typing_start', ({ teamId, docId, endpointId, userId }) => {
+    socket.to(`team:${teamId}`).emit('apidoc_user_typing', { docId, endpointId, userId });
+  });
+
+  socket.on('apidoc_typing_stop', ({ teamId, docId, endpointId, userId }) => {
+    socket.to(`team:${teamId}`).emit('apidoc_user_stopped_typing', { docId, endpointId, userId });
   });
 
   // ── DISCONNECT ──────────────────────────────────────────────────

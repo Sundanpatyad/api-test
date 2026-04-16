@@ -30,6 +30,16 @@ const NAV_ITEMS = [
     ),
   },
   {
+    id: 'docs',
+    label: 'API Docs',
+    icon: (
+      <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+    ),
+  },
+  {
     id: 'analytics',
     label: 'Analytics',
     icon: (
@@ -46,16 +56,6 @@ const NAV_ITEMS = [
       <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
           d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-      </svg>
-    ),
-  },
-  {
-    id: 'docs',
-    label: 'Documentation',
-    icon: (
-      <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
-          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
       </svg>
     ),
   },
@@ -96,9 +96,8 @@ export default function SidebarV2({
   const { setCurrentRequest } = useRequestStore();
   const { disconnect } = useSocketStore();
   const { isConnected } = useSocketStore();
-  const { theme, toggleTheme, toggleLayout } = useUIStore();
+  const { theme, toggleTheme, toggleLayout, activeV2Nav, setActiveV2Nav } = useUIStore();
 
-  const [activeNav, setActiveNav] = useState('collections');
   const [expandedCollections, setExpandedCollections] = useState(new Set());
   const [expandedFolders, setExpandedFolders] = useState(new Set());
   const [searchQuery, setSearchQuery] = useState('');
@@ -170,12 +169,12 @@ export default function SidebarV2({
       {/* Nav items */}
       <nav className="sdbv2-nav">
         {NAV_ITEMS.map((item) => {
-          const isActive = activeNav === item.id;
+          const isActive = activeV2Nav === item.id;
           return (
             <button
               key={item.id}
               onClick={() => {
-                setActiveNav(item.id);
+                setActiveV2Nav(item.id);
                 if (item.id === 'environments') onOpenEnvPanel?.();
               }}
               className={`sdbv2-nav-item ${isActive ? 'sdbv2-nav-item--active' : ''}`}
@@ -189,7 +188,7 @@ export default function SidebarV2({
       </nav>
 
       {/* Collections tree (shown when "collections" nav is active) */}
-      {activeNav === 'collections' && (
+      {activeV2Nav === 'collections' && (
         <div className="sdbv2-tree">
           {/* Search */}
           <div className="sdbv2-search-wrap">

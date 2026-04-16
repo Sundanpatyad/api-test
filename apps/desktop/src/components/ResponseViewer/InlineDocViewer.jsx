@@ -1,0 +1,231 @@
+import { useState, useEffect } from 'react';
+import Editor from '@monaco-editor/react';
+import { useRequestStore } from '@/store/requestStore';
+import { useUIStore } from '@/store/uiStore';
+import { useTeamStore } from '@/store/teamStore';
+import { useProjectStore } from '@/store/projectStore';
+import { useAuthStore } from '@/store/authStore';
+
+export default function InlineDocViewer() {
+  const { currentRequest, updateField, saveRequest } = useRequestStore();
+  const { theme } = useUIStore();
+  const { currentTeam } = useTeamStore();
+  const { currentProject } = useProjectStore();
+  const { user } = useAuthStore();
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [description, setDescription] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (currentRequest) {
+      setDescription(currentRequest.description || '');
+      setIsEditing(false);
+    }
+  }, [currentRequest?.id]);
+
+  if (!currentRequest) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full gap-3 text-center p-6 bg-surface-1">
+        <p className="text-surface-400 text-sm">Select a request to view documentation</p>
+      </div>
+    );
+  }
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    updateField('description', description);
+    
+    // We delay the save by 50ms to ensure Zustand state has propagated 
+    // to get() inside saveRequest.
+    setTimeout(async () => {
+      await saveRequest();
+      setIsSaving(false);
+      setIsEditing(false);
+    }, 50);
+  };
+
+  const methodColor = {
+    GET: '#3FB950', POST: '#58A6FF', PUT: '#E3B341', PATCH: '#A8A8A8',
+    DELETE: '#F85149', HEAD: '#5A5A5A', OPTIONS: '#39C5CF',
+  }[currentRequest.method] || '#9A9A9A';
+
+  // Construct fake but useful Swagger JSON payload for view
+  const swaggerPreview = {
+    openapi: "3.0.0",
+    info: {
+      title: currentRequest.name,
+      description: description,
+      version: "1.0.0"
+    },
+    paths: {
+      [currentRequest.url || '/']: {
+        [currentRequest.method.toLowerCase()]: {
+          summary: currentRequest.name,
+          description: description,
+          parameters: currentRequest.params?.filter(p => p.enabled && p.key).map(p => ({
+            name: p.key,
+            in: "query",
+            description: p.description || "",
+            schema: { type: "string" }
+          })),
+          requestBody: ['POST', 'PUT', 'PATCH'].includes(currentRequest.method) ? {
+            content: {
+               "application/json": {
+                 schema: currentRequest.body?.raw ? (() => { try { return JSON.parse(currentRequest.body.raw) } catch { return {} }})() : {}
+               }
+            }
+          } : undefined
+        }
+      }
+    }
+  };
+
+  return (
+    <div className="flex flex-col h-full bg-surface-1 overflow-y-auto">
+      {/* Top Banner mapping swagger-like tags */}
+      <div className="px-5 py-4 border-b border-[var(--border-1)] bg-surface-2">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-3">
+             <span style={{ backgroundColor: `${methodColor}20`, color: methodColor, border: `1px solid ${methodColor}40` }} className="text-[11px] font-bold px-2 py-0.5 rounded uppercase font-mono">
+               {currentRequest.method}
+             </span>
+             <h2 className="text-sm font-semibold text-tx-primary">{currentRequest.name}</h2>
+          </div>
+          <div className="flex items-center gap-2">
+            {isEditing ? (
+              <>
+                <button onClick={() => { setIsEditing(false); setDescription(currentRequest.description || ''); }} className="px-3 py-1 text-xs text-surface-400 hover:text-tx-primary transition-colors rounded">Cancel</button>
+                <button onClick={handleSave} disabled={isSaving} className="px-3 py-1 text-xs bg-[var(--accent)] hover:brightness-110 text-white rounded font-medium shadow-sm transition-all">{isSaving ? 'Saving...' : 'Save Docs'}</button>
+              </>
+            ) : (
+              <button onClick={() => setIsEditing(true)} className="px-3 py-1 text-xs flex items-center gap-1.5 border border-[var(--border-1)] bg-surface-3 hover:bg-surface-4 text-tx-primary rounded font-medium transition-colors">
+                <svg width="12" height="12" fill="none" viewBox="0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg> Edit
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Auto Detected Metas */}
+        <div className="flex flex-wrap gap-x-4 gap-y-2 mt-4">
+           <div className="flex flex-col gap-0.5"><span className="text-[10px] text-surface-400 uppercase tracking-wider font-semibold">Team</span><span className="text-xs text-tx-secondary">{currentTeam?.name || 'Unknown'}</span></div>
+           <div className="flex flex-col gap-0.5"><span className="text-[10px] text-surface-400 uppercase tracking-wider font-semibold">Project</span><span className="text-xs text-tx-secondary">{currentProject?.name || 'Unknown'}</span></div>
+           <div className="flex flex-col gap-0.5"><span className="text-[10px] text-surface-400 uppercase tracking-wider font-semibold">Auth</span><span className="text-xs text-tx-secondary uppercase">{currentRequest.auth?.type || 'none'}</span></div>
+           <div className="flex flex-col gap-0.5"><span className="text-[10px] text-surface-400 uppercase tracking-wider font-semibold">Author</span><span className="text-xs text-tx-secondary">{user?.name || 'You'}</span></div>
+        </div>
+      </div>
+
+      <div className="p-5 flex-1 flex flex-col gap-6">
+        
+        {/* Description Editor / Viewer */}
+        <div className="flex flex-col gap-2">
+           <h3 className="text-[11px] uppercase tracking-wider font-bold text-surface-400">Documentation Overview</h3>
+           {isEditing ? (
+             <div className="border border-[var(--border-1)] rounded-lg overflow-hidden bg-[#1e1e1e] h-48 relative">
+                <Editor
+                  height="100%"
+                  defaultLanguage="markdown"
+                  theme={theme === 'dark' ? 'vs-dark' : 'light'}
+                  value={description}
+                  onChange={setDescription}
+                  options={{ minimap: { enabled: false }, fontSize: 13, wordWrap: 'on', padding: { top: 12 } }}
+                />
+             </div>
+           ) : (
+             <div className="text-sm text-tx-secondary whitespace-pre-wrap rounded-lg bg-surface-2 border border-[var(--border-2)] p-4 cursor-text hover:border-surface-400 transition-colors" onClick={() => setIsEditing(true)}>
+               {description || <span className="italic opacity-50">No documentation currently laid out. Click here to add description using Markdown.</span>}
+             </div>
+           )}
+        </div>
+
+        {/* Explicit Payload Information */}
+        {!isEditing && (
+           <div className="flex flex-col gap-4 mt-2">
+              {/* Headers & Params */}
+              {(currentRequest.headers?.filter(h => h.enabled && h.key).length > 0 || currentRequest.params?.filter(p => p.enabled && p.key).length > 0) && (
+                <div className="flex flex-col gap-2">
+                   <h3 className="text-[11px] uppercase tracking-wider font-bold text-surface-400">Parameters & Headers</h3>
+                   <div className="bg-surface-2 border border-[var(--border-2)] rounded-lg overflow-hidden">
+                      <table className="w-full text-xs text-left">
+                         <thead>
+                            <tr className="border-b border-[var(--border-2)] bg-surface-3">
+                               <th className="px-3 py-2 text-surface-500 font-semibold w-1/4">Name</th>
+                               <th className="px-3 py-2 text-surface-500 font-semibold w-1/4">Type</th>
+                               <th className="px-3 py-2 text-surface-500 font-semibold">Value</th>
+                            </tr>
+                         </thead>
+                         <tbody>
+                             {currentRequest.params?.filter(p => p.enabled && p.key).map((p, i) => (
+                              <tr key={`p-${i}`} className="border-b border-[var(--border-1)] last:border-0 hover:bg-surface-3/50">
+                                 <td className="px-3 py-2 font-mono text-brand-400">{p.key}</td>
+                                 <td className="px-3 py-2 text-tx-secondary opacity-70">Query</td>
+                                 <td className="px-3 py-2 text-tx-secondary font-mono break-all">{p.value || '-'}</td>
+                              </tr>
+                            ))}
+                            {currentRequest.headers?.filter(h => h.enabled && h.key).map((h, i) => (
+                              <tr key={`h-${i}`} className="border-b border-[var(--border-1)] last:border-0 hover:bg-surface-3/50">
+                                 <td className="px-3 py-2 font-mono text-accent">{h.key}</td>
+                                 <td className="px-3 py-2 text-tx-secondary opacity-70">Header</td>
+                                 <td className="px-3 py-2 text-tx-secondary font-mono break-all">{h.value || '-'}</td>
+                              </tr>
+                            ))}
+                         </tbody>
+                      </table>
+                   </div>
+                </div>
+              )}
+
+              {/* Request Body */}
+              {currentRequest.body?.mode !== 'none' && (
+                <div className="flex flex-col gap-2 mt-2">
+                   <h3 className="text-[11px] uppercase tracking-wider font-bold text-surface-400">Request Body Payload ({currentRequest.body?.mode})</h3>
+                   <div className="bg-surface-2 border border-[var(--border-2)] rounded-lg p-3 text-xs font-mono text-tx-secondary overflow-x-auto selection:bg-surface-400">
+                      {currentRequest.body?.mode === 'raw' ? (
+                         <pre>{currentRequest.body?.raw || '{}'}</pre>
+                      ) : (
+                         <span className="opacity-50">Form data structure is active</span>
+                      )}
+                   </div>
+                </div>
+              )}
+           </div>
+        )}
+        
+        {/* OpenAPI Swagger Auto Gen Block */}
+        <div className="flex flex-col gap-2 mt-4">
+           <div className="flex justify-between items-center">
+              <h3 className="text-[11px] uppercase tracking-wider font-bold text-surface-400">Auto-Generated OpenAPI (Swagger)</h3>
+              <button 
+                  onClick={() => { navigator.clipboard.writeText(JSON.stringify(swaggerPreview, null, 2)); alert('Copied!'); }} 
+                  className="text-[10px] text-surface-400 hover:text-accent font-medium flex items-center gap-1"
+               >
+                 <svg width="10" height="10" fill="currentColor" viewBox="0 0 24 24"><path d="M16 1H4C2.9 1 2 1.9 2 3v14h2V3h12V1zm3 4H8C6.9 5 6 5.9 6 7v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" /></svg> Copy JSON
+              </button>
+           </div>
+           
+           <div 
+             className="border border-[var(--border-1)] rounded-lg overflow-auto bg-[#1e1e1e] opacity-90 relative flex flex-col"
+             style={{ height: '256px', minHeight: '150px', maxHeight: '800px', resize: 'vertical' }}
+           >
+              <Editor
+                height="100%"
+                defaultLanguage="json"
+                theme={theme === 'dark' ? 'vs-dark' : 'light'}
+                value={JSON.stringify(swaggerPreview, null, 2)}
+                options={{ 
+                  readOnly: true, 
+                  minimap: { enabled: false }, 
+                  fontSize: 11.5, 
+                  tabSize: 2, 
+                  padding: { top: 12, bottom: 12 },
+                  automaticLayout: true,
+                  scrollBeyondLastLine: false 
+                }}
+              />
+           </div>
+        </div>
+
+      </div>
+    </div>
+  );
+}

@@ -4,6 +4,7 @@ import { useEnvironmentStore } from '@/store/environmentStore';
 export default function VariableUrlInput({ value, onChange, placeholder }) {
   const { activeEnvironment } = useEnvironmentStore();
   const inputRef = useRef(null);
+  const mirrorRef = useRef(null);
   const [tooltip, setTooltip] = useState(null); // { text, x, y }
 
   const segments = useMemo(() => {
@@ -32,7 +33,7 @@ export default function VariableUrlInput({ value, onChange, placeholder }) {
   const hasUnresolved = segments.some(s => s.type === 'var' && !s.found);
 
   return (
-    <div className="relative flex-1">
+    <div className="relative flex-1 min-w-0">
       {/* Container — provides border + background */}
       <div
         className={`flex items-center w-full px-3 py-1.5 font-mono text-sm outline-none transition-all duration-150 border rounded-lg ${
@@ -42,23 +43,27 @@ export default function VariableUrlInput({ value, onChange, placeholder }) {
         }`}
         style={{ minHeight: '36px' }}
       >
-        {/* Rendered text with colored variables — sits in flow */}
-        <div className="relative w-full overflow-hidden whitespace-pre" style={{ lineHeight: '1.25rem' }}>
-          {/* Transparent overlay input — captures all typing */}
-          <input
-            ref={inputRef}
-            type="text"
-            placeholder={placeholder}
-            value={value}
-            onChange={onChange}
-            className="absolute inset-0 w-full h-full bg-transparent border-0 outline-0 font-mono text-sm pl-0 pr-0"
-            style={{ color: 'transparent', caretColor: '#e2e8f0', letterSpacing: 'inherit' }}
-            spellCheck={false}
-            autoComplete="off"
-          />
+        {/* Scrollable Container */}
+        <div className="w-full overflow-x-auto whitespace-pre custom-scrollbar pb-0.5" style={{ lineHeight: '1.25rem' }}>
+          
+          {/* Sizing wrapper — dynamically expands to text width */}
+          <div className="relative min-w-full w-max">
+            
+            {/* Transparent input — perfectly stretches to cover the text */}
+            <input
+              ref={inputRef}
+              type="text"
+              placeholder={placeholder}
+              value={value}
+              onChange={onChange}
+              className="absolute inset-0 bg-transparent border-0 outline-0 font-mono text-sm pl-0 pr-0"
+              style={{ color: 'transparent', caretColor: '#e2e8f0', letterSpacing: 'inherit', width: '100%', height: '100%' }}
+              spellCheck={false}
+              autoComplete="off"
+            />
 
-          {/* Colored mirror — rendered behind the input */}
-          <span aria-hidden="true" className="pointer-events-none select-none">
+            {/* Colored mirror — acts as the structural foundation */}
+            <div aria-hidden="true" className="pointer-events-none select-none">
             {value === '' ? (
               <span style={{ color: 'var(--text-muted)' }}>{placeholder}</span>
             ) : (
@@ -88,7 +93,8 @@ export default function VariableUrlInput({ value, onChange, placeholder }) {
                 )
               )
             )}
-          </span>
+            </div>
+          </div>
         </div>
 
         {/* Warning icon */}

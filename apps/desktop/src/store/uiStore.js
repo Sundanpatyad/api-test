@@ -19,6 +19,7 @@ export const useUIStore = create(
       layoutVersion: 'v2',              // 'v1' | 'v2'
       sidebarV2Open: true,              // V2 left sidebar open/closed
       workspaceOrientation: 'vertical', // 'vertical' | 'horizontal'
+      activeV2Nav: 'collections',       // 'collections', 'docs', 'environments', etc.
 
       setSidebarWidth:        (w) => set({ sidebarWidth: Math.max(200, Math.min(400, w)) }),
       setResponseHeight:      (h) => set({ responseHeight: Math.max(150, Math.min(600, h)) }),
@@ -31,6 +32,7 @@ export const useUIStore = create(
       setShowInviteModal:     (v) => set({ showInviteModal: v }),
       setIsLoading:           (v) => set({ isLoading: v }),
       setActiveMainTab:       (v) => set({ activeMainTab: v }),
+      setActiveV2Nav:         (v) => set({ activeV2Nav: v }),
       setLayoutVersion:       (v) => set({ layoutVersion: v }),
 
       toggleTheme: () =>
