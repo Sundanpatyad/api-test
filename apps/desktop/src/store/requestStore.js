@@ -1,7 +1,11 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { v4 as uuidv4 } from 'uuid';
 import api from '@/lib/api';
+import { localStorageService } from '@/services/localStorageService';
+import { syncService } from '@/services/syncService';
+import { v4 as uuidv4 } from 'uuid';
+import { useConnectivityStore } from '@/store/connectivityStore';
+import toast from 'react-hot-toast';
 
 const defaultRequest = () => ({
   _id: null,
@@ -72,17 +76,32 @@ export const useRequestStore = create(
       cancelCurrentRequest: null,
       history: [],
       activeTab: 'params',
+      noActiveRequest: false,
 
-      setCurrentRequest: (req) => 
-        set({ 
-          currentRequest: { 
-            ...defaultRequest(), 
-            ...req,
-            url: syncUrlFromParams(req.url || '', req.params || []) 
-          } 
-        }),
+      setCurrentRequest: (req) => {
+        // Ensure every param and header row has a unique `id`.
+        // Rows from the backend only carry MongoDB `_id` — normalise here so
+        // ParamsTab / HeadersTab can use `p.id` as a stable React key.
+        const ensureIds = (arr = []) =>
+          arr.map((item) => ({
+            ...item,
+            id: item.id || (item._id ? String(item._id) : uuidv4()),
+          }));
 
-      updateField: (field, value) =>
+        const newReq = {
+          ...defaultRequest(),
+          ...req,
+          params: ensureIds(req.params),
+          headers: ensureIds(req.headers),
+          url: syncUrlFromParams(req.url || '', req.params || [])
+        };
+        set({ currentRequest: newReq, noActiveRequest: false });
+        localStorageService.saveCurrentRequest(newReq);
+      },
+
+      setNoActiveRequest: (value) => set({ noActiveRequest: value }),
+
+      updateField: (field, value) => {
         set((state) => {
           const req = { ...state.currentRequest, [field]: value };
           if (field === 'url') {
@@ -90,8 +109,18 @@ export const useRequestStore = create(
           } else if (field === 'params') {
             req.url = syncUrlFromParams(req.url, value);
           }
+          
+          // Real-time sync with Sidebar (CollectionStore)
+          if (field === 'name' && (req._id || req.collectionId)) {
+            // Use import inside to avoid circular dependency
+            import('@/store/collectionStore').then(({ useCollectionStore }) => {
+              useCollectionStore.getState().updateRequest(req);
+            });
+          }
+          
           return { currentRequest: req };
-        }),
+        });
+      },
 
       updateBody: (bodyUpdate) =>
         set((state) => ({
@@ -127,28 +156,292 @@ export const useRequestStore = create(
           };
         }),
 
-      newRequest: () => set({ currentRequest: defaultRequest(), response: null }),
+      newRequest: () => {
+        const newReq = defaultRequest();
+        set({ currentRequest: newReq, response: null, noActiveRequest: false });
+        localStorageService.saveCurrentRequest(newReq);
+      },
 
       saveRequest: async () => {
         const req = get().currentRequest;
+        const { hasInternet } = useConnectivityStore.getState();
+        const isExisting = req._id && !req._id.includes('-');
+
+        // Block saving existing requests while offline
+        if (isExisting && !hasInternet) {
+          toast.error('Cannot save changes to existing requests while offline');
+          return { success: false, error: 'Offline' };
+        }
+
         try {
           if (req._id) {
-            const { data } = await api.put(`/api/request/${req._id}`, req);
+            const { data } = await api.put(`/api/request/${req._id}`, req, {
+              offlineMock: { request: req }
+            });
             set({ currentRequest: data.request });
+            localStorageService.saveCurrentRequest(data.request);
+            const { useSocketStore } = await import('@/store/socketStore');
+            const { useAuthStore } = await import('@/store/authStore');
+            const { useTeamStore } = await import('@/store/teamStore');
+            useSocketStore.getState().emitRequestUpdate(
+              useTeamStore.getState().currentTeam?._id, 
+              data.request, 
+              useAuthStore.getState().user?._id
+            );
             return { success: true };
           } else if (req.collectionId) {
-            const { data } = await api.post('/api/request', req);
+            const tempId = uuidv4();
+            const { data } = await api.post('/api/request', req, {
+              offlineMock: { request: { ...req, _id: tempId }, tempId, resourceType: 'request' }
+            });
             set({ currentRequest: data.request });
+            localStorageService.saveCurrentRequest(data.request);
+            const { useSocketStore } = await import('@/store/socketStore');
+            const { useAuthStore } = await import('@/store/authStore');
+            const { useTeamStore } = await import('@/store/teamStore');
+            useSocketStore.getState().emitRequestCreated(
+              useTeamStore.getState().currentTeam?._id, 
+              data.request, 
+              useAuthStore.getState().user?._id
+            );
             return { success: true, request: data.request };
           }
         } catch (err) {
           return { success: false, error: err.response?.data?.error || 'Save failed' };
         }
       },
+
+      createRequest: async (requestData) => {
+        const tempId = uuidv4();
+        const { collectionId } = requestData;
+        
+        const tempRequest = { ...requestData, _id: tempId, isOffline: true };
+        
+        // Optimistically add to collection store
+        const { useCollectionStore } = await import('@/store/collectionStore');
+        const collectionStore = useCollectionStore.getState();
+        collectionStore.addRequest(tempRequest);
+        try {
+          const { data } = await api.post('/api/request', requestData, {
+            offlineMock: { request: tempRequest, tempId, resourceType: 'request' }
+          });
+          
+          if (data.request?._id) {
+            syncService.registerIdMapping(tempId, data.request._id);
+            
+            // Replace temp request with real one in collection store
+            collectionStore.removeRequest(tempId, collectionId);
+            collectionStore.addRequest(data.request);
+
+            const { useSocketStore } = await import('@/store/socketStore');
+            const { useAuthStore } = await import('@/store/authStore');
+            const { useTeamStore } = await import('@/store/teamStore');
+            useSocketStore.getState().emitRequestCreated(
+              useTeamStore.getState().currentTeam?._id, 
+              data.request, 
+              useAuthStore.getState().user?._id
+            );
+          }
+          
+          return { success: true, request: data.request };
+        } catch (err) {
+          // Revert optimistic update only on real server errors (e.g. 400 Bad Request)
+          // If it was a network error, the interceptor would have resolved it and we wouldn't be here.
+          collectionStore.removeRequest(tempId, collectionId);
+          return { success: false, error: err.response?.data?.error || 'Failed to create request' };
+        }
+      },
+
+      updateRequestName: async (id, name) => {
+        const currentReq = get().currentRequest;
+        const isTempId = id?.includes('-');
+        const { hasInternet } = useConnectivityStore.getState();
+
+        // Block updating existing requests while offline
+        if (!isTempId && !hasInternet) {
+          toast.error('Cannot rename existing requests while offline');
+          return { success: false, error: 'Offline' };
+        }
+        
+        // Optimistic update
+        if (currentReq?._id === id) {
+          set({ currentRequest: { ...currentReq, name } });
+        }
+        try {
+          const { data } = await api.put(`/api/request/${id}`, { name }, {
+            offlineMock: { request: { ...currentReq, _id: id, name } }
+          });
+          if (currentReq?._id === id) {
+            const updated = { ...currentReq, name };
+            set({ currentRequest: updated });
+            localStorageService.saveCurrentRequest(updated);
+          }
+          return { success: true, request: data.request };
+        } catch (err) {
+          return { success: false, error: err.response?.data?.error || 'Failed to update request' };
+        }
+      },
+
+      refreshRequest: async (id) => {
+        if (!id) return { success: false, error: 'No request ID' };
+        try {
+          const { data } = await api.get(`/api/request/${id}`);
+          const currentReq = get().currentRequest;
+          if (currentReq?._id === id) {
+            set({ currentRequest: data.request });
+            localStorageService.saveCurrentRequest(data.request);
+          }
+          // Also save to collection requests cache
+          if (data.request?.collectionId) {
+            const existingRequests = localStorageService.getRequests(data.request.collectionId);
+            const updatedRequests = existingRequests.map(r => r._id === id ? data.request : r);
+            localStorageService.saveRequests(data.request.collectionId, updatedRequests);
+          }
+          localStorageService.updateLastSync();
+          return { success: true, request: data.request, fromCache: false };
+        } catch (err) {
+          // Try to get from localStorage
+          const cachedRequest = localStorageService.get(localStorageService.KEYS.CURRENT_REQUEST);
+          if (cachedRequest?._id === id) {
+            const currentReq = get().currentRequest;
+            if (currentReq?._id === id) {
+              set({ currentRequest: cachedRequest });
+            }
+            return { 
+              success: true, 
+              request: cachedRequest, 
+              fromCache: true,
+              error: 'Failed to refresh. Using cached data.' 
+            };
+          }
+          return { 
+            success: false, 
+            fromCache: false,
+            error: err.response?.data?.error || 'Failed to refresh request' 
+          };
+        }
+      },
+
+      getCachedRequest: (id, collectionId) => {
+        // Try current request first
+        const currentReq = get().currentRequest;
+        if (currentReq?._id === id) return currentReq;
+        
+        // Try collection requests
+        if (collectionId) {
+          const collectionRequests = localStorageService.getRequests(collectionId);
+          const found = collectionRequests.find(r => r._id === id);
+          if (found) return found;
+        }
+        
+        // Try all stored requests
+        const allRequests = localStorageService.get(localStorageService.KEYS.REQUESTS) || {};
+        for (const collId in allRequests) {
+          const found = allRequests[collId].find(r => r._id === id);
+          if (found) return found;
+        }
+        
+        return null;
+      },
+
+      deleteRequest: async (id, collectionId) => {
+        const isTempId = id?.includes('-');
+        
+        // Optimistically remove from localStorage
+        if (collectionId) {
+          const stored = localStorageService.getRequests(collectionId);
+          localStorageService.saveRequests(collectionId, stored.filter((r) => r._id !== id));
+        }
+        
+        try {
+          if (isTempId) {
+            // Just remove from queue if pending
+            return { success: true };
+          }
+          
+          await api.delete(`/api/request/${id}`, { 
+            offlineMock: { success: true, id, collectionId, resourceType: 'request' } 
+          });
+          
+          const { useSocketStore } = await import('@/store/socketStore');
+          const { useAuthStore } = await import('@/store/authStore');
+          const { useTeamStore } = await import('@/store/teamStore');
+          useSocketStore.getState().emitRequestDeleted(
+            useTeamStore.getState().currentTeam?._id, 
+            collectionId,
+            id,
+            useAuthStore.getState().user?._id
+          );
+          
+          return { success: true };
+        } catch (err) {
+          // Revert on error - restore to localStorage
+          if (collectionId) {
+            const stored = localStorageService.getRequests(collectionId);
+            const existing = stored.find(r => r._id === id);
+            if (existing) {
+              localStorageService.saveRequests(collectionId, [...stored, existing]);
+            }
+          }
+          return { success: false, error: err.response?.data?.error || 'Failed to delete request' };
+        }
+      },
+      
+      // Helper to reconcile IDs after sync
+      reconcileIds: (requests, idMap) => {
+        return requests.map(request => {
+          const realId = idMap[request._id];
+          if (realId) {
+            return { ...request, _id: realId };
+          }
+          return request;
+        });
+      },
+      
+      // Check if server data has items we don't have locally (or deleted items)
+      syncWithServerData: (serverRequests, collectionId) => {
+        const currentRequests = localStorageService.getRequests(collectionId);
+        const serverRequestIds = new Set(serverRequests.map(r => r._id));
+        const idMap = syncService.idMap;
+        
+        // Find requests that exist locally but not on server
+        const requestsToRemove = currentRequests.filter(request => {
+          const isTempId = request._id?.includes('-');
+          if (isTempId) return false;
+          return !serverRequestIds.has(request._id) && !idMap[request._id];
+        });
+        
+        const reconciledServerRequests = get().reconcileIds(serverRequests, idMap);
+        const tempIdRequests = currentRequests.filter(r => r._id?.includes('-') && !idMap[r._id]);
+        
+        const merged = [...reconciledServerRequests];
+        tempIdRequests.forEach(tempRequest => {
+          if (!merged.find(r => r._id === tempRequest._id)) {
+            merged.push(tempRequest);
+          }
+        });
+        
+        // Save merged to localStorage
+        localStorageService.saveRequests(collectionId, merged);
+        
+        return merged;
+      },
     }),
     {
       name: 'syncnest-request',
       partialize: (state) => ({ currentRequest: state.currentRequest, history: state.history }),
+      merge: (persistedState, currentState) => {
+        if (persistedState?.currentRequest) {
+          const ensureIds = (arr = []) =>
+            arr.map((item) => ({
+              ...item,
+              id: item.id || (item._id ? String(item._id) : uuidv4()),
+            }));
+          persistedState.currentRequest.params = ensureIds(persistedState.currentRequest.params);
+          persistedState.currentRequest.headers = ensureIds(persistedState.currentRequest.headers);
+        }
+        return { ...currentState, ...persistedState };
+      },
     }
   )
 );

@@ -20,6 +20,12 @@ import CreateTeamModal, {
 } from '@/components/Modals/Modals';
 import EnvironmentSelector from '@/components/EnvironmentSelector/EnvironmentSelector';
 import LayoutV2 from '@/components/LayoutV2/LayoutV2';
+import ContextMenu from '@/components/ContextMenu/ContextMenu';
+import ConfirmDialog from '@/components/ConfirmDialog/ConfirmDialog';
+import EditNameModal from '@/components/EditNameModal/EditNameModal';
+import SyncStatusTag from '@/components/SyncStatusTag/SyncStatusTag';
+import OfflineSyncManager from '@/components/OfflineSyncManager/OfflineSyncManager';
+import { useProjectStore } from '@/store/projectStore';
 
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
@@ -27,9 +33,24 @@ export default function App() {
   const dragRef = useRef(null);
 
   const { user, fetchMe } = useAuthStore();
-  const { connect, isConnected, joinTeam, onRequestUpdated, onCollectionUpdated, onCollectionImported } = useSocketStore();
-  const { currentTeam } = useTeamStore();
-  const { updateRequest, updateCollection } = useCollectionStore();
+  const { 
+    connect, 
+    isConnected, 
+    joinTeam, 
+    onRequestUpdated, 
+    onCollectionUpdated, 
+    onCollectionImported,
+    onTeamUpdated,
+    onTeamDeleted,
+    onProjectUpdated,
+    onProjectDeleted,
+    onCollectionDeleted,
+    onRequestDeleted,
+    onRequestCreated
+  } = useSocketStore();
+  const { currentTeam, initFromStorage: initTeams, updateTeamName, deleteTeam, fetchTeams, teams } = useTeamStore();
+  const { initFromStorage: initProjects, updateProjectName, deleteProject, fetchProjects, projects } = useProjectStore();
+  const { updateRequest, updateCollection, deleteCollection, addRequest } = useCollectionStore();
   const {
     sidebarWidth,
     setSidebarWidth,
@@ -41,13 +62,47 @@ export default function App() {
     showCollectionModal,
     showEnvironmentPanel,
     showInviteModal,
+    showConfirmDialog,
+    showEditNameModal,
     theme,
     layoutVersion,
     toggleLayout,
   } = useUIStore();
 
-  // Fetch user on mount
-  useEffect(() => { fetchMe(); }, []);
+  // Fetch user on mount and initialize data from localStorage
+  useEffect(() => { 
+    const initData = async () => {
+      // Robust offline check: Skip session API if hardware or system thinks we are offline
+      if (navigator.onLine) {
+        try {
+          // Wrap in a small timeout to avoid long hangs on unreliable connections
+          await Promise.race([
+            fetchMe(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Auth Timeout')), 5000))
+          ]);
+        } catch (e) {
+          console.log('[App] Auth check skipped or timed out:', e.message);
+        }
+      }
+      // Initialize stores from localStorage for offline-first experience
+      initTeams();
+      initProjects();
+    };
+    initData();
+  }, []);
+
+  // Fetch from API if localStorage is empty (first time load)
+  useEffect(() => {
+    if (user && teams.length === 0) {
+      fetchTeams();
+    }
+  }, [user, teams.length]);
+
+  useEffect(() => {
+    if (user && currentTeam && projects.length === 0) {
+      fetchProjects(currentTeam._id);
+    }
+  }, [user, currentTeam, projects.length]);
 
   // Apply theme class to <html> so CSS variables switch correctly
   useEffect(() => {
@@ -94,6 +149,43 @@ export default function App() {
     };
   }, [isConnected]);
 
+  // Additional real-time sync listeners for teams, projects, collections, requests
+  useEffect(() => {
+    if (!isConnected) return;
+
+    const offTeamUpdated = onTeamUpdated(({ team }) => {
+      updateTeamName(team._id, team.name);
+    });
+    const offTeamDeleted = onTeamDeleted(({ teamId }) => {
+      deleteTeam(teamId);
+    });
+    const offProjectUpdated = onProjectUpdated(({ project }) => {
+      updateProjectName(project._id, project.name);
+    });
+    const offProjectDeleted = onProjectDeleted(({ projectId }) => {
+      deleteProject(projectId);
+    });
+    const offCollectionDeleted = onCollectionDeleted(({ collectionId }) => {
+      deleteCollection(collectionId);
+    });
+    const offRequestDeleted = onRequestDeleted(({ requestId }) => {
+      // Request is removed from collection store
+    });
+    const offRequestCreated = onRequestCreated(({ request }) => {
+      addRequest(request);
+    });
+
+    return () => {
+      offTeamUpdated?.();
+      offTeamDeleted?.();
+      offProjectUpdated?.();
+      offProjectDeleted?.();
+      offCollectionDeleted?.();
+      offRequestDeleted?.();
+      offRequestCreated?.();
+    };
+  }, [isConnected]);
+
   if (showSplash) {
     return <SplashScreen onComplete={() => setShowSplash(false)} />;
   }
@@ -123,6 +215,7 @@ export default function App() {
   if (layoutVersion === 'v2') {
     return (
       <>
+        <OfflineSyncManager />
         <LayoutV2
           onShowTeamModal={() => useUIStore.getState().setShowTeamModal(true)}
           onShowProjectModal={() => useUIStore.getState().setShowProjectModal(true)}
@@ -138,6 +231,9 @@ export default function App() {
         {showProjectModal      && <CreateProjectModal />}
         {showCollectionModal   && <CreateCollectionModal />}
         {showInviteModal       && <InviteModal />}
+        <ContextMenu />
+        <ConfirmDialog />
+        <EditNameModal />
 
         <Toaster
           position="bottom-right"
@@ -158,7 +254,9 @@ export default function App() {
 
   // ─── V1 Layout (Classic — unchanged) ───────────────────────────
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: 'var(--bg-primary)' }}>
+    <>
+      <OfflineSyncManager />
+      <div className="flex h-screen overflow-hidden" style={{ background: 'var(--bg-primary)' }}>
       {/* Sidebar */}
       <div style={{ width: sidebarWidth }} className="flex-shrink-0 h-full overflow-hidden flex flex-col">
         <Sidebar />
@@ -195,6 +293,7 @@ export default function App() {
 
           {/* Right side */}
           <div className="flex items-center gap-2">
+            <SyncStatusTag />
             <EnvironmentSelector />
             {!isTauri() && (
               <div className="flex items-center gap-1.5 bg-warning/10 border border-warning/20 text-warning text-[10px] px-2.5 py-1 rounded-lg">
@@ -255,6 +354,9 @@ export default function App() {
       {showProjectModal      && <CreateProjectModal />}
       {showCollectionModal   && <CreateCollectionModal />}
       {showInviteModal       && <InviteModal />}
+      <ContextMenu />
+      <ConfirmDialog />
+      <EditNameModal />
 
       {/* Toast notifications */}
       <Toaster
@@ -271,5 +373,6 @@ export default function App() {
         }}
       />
     </div>
+    </>
   );
 }

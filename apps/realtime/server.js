@@ -62,7 +62,14 @@ io.on('connection', (socket) => {
     }
   });
 
-  // ── REQUEST UPDATED ─────────────────────────────────────────────
+  // ── REQUEST EVENTS ─────────────────────────────────────────────
+  socket.on('create_request', ({ teamId, request, userId }) => {
+    if (!teamId || !request) return;
+    const room = `team:${teamId}`;
+    socket.to(room).emit('request_created', { request, userId, timestamp: Date.now() });
+    console.log(`[Socket] request_created in ${room} by ${userId}`);
+  });
+
   socket.on('update_request', ({ teamId, request, userId }) => {
     if (!teamId || !request) return;
     const room = `team:${teamId}`;
@@ -70,12 +77,65 @@ io.on('connection', (socket) => {
     console.log(`[Socket] request_updated in ${room} by ${userId}`);
   });
 
-  // ── COLLECTION UPDATED ──────────────────────────────────────────
+  socket.on('delete_request', ({ teamId, collectionId, requestId, userId }) => {
+    if (!teamId || !requestId) return;
+    const room = `team:${teamId}`;
+    socket.to(room).emit('request_deleted', { collectionId, requestId, userId, timestamp: Date.now() });
+    console.log(`[Socket] request_deleted in ${room} by ${userId}`);
+  });
+
+  // ── COLLECTION EVENTS ──────────────────────────────────────────
+  socket.on('create_collection', ({ teamId, collection, userId }) => {
+    if (!teamId || !collection) return;
+    const room = `team:${teamId}`;
+    socket.to(room).emit('collection_created', { collection, userId, timestamp: Date.now() });
+    console.log(`[Socket] collection_created in ${room} by ${userId}`);
+  });
+
   socket.on('update_collection', ({ teamId, collection, userId }) => {
     if (!teamId || !collection) return;
     const room = `team:${teamId}`;
     socket.to(room).emit('collection_updated', { collection, userId, timestamp: Date.now() });
     console.log(`[Socket] collection_updated in ${room} by ${userId}`);
+  });
+
+  socket.on('delete_collection', ({ teamId, collectionId, userId }) => {
+    if (!teamId || !collectionId) return;
+    const room = `team:${teamId}`;
+    socket.to(room).emit('collection_deleted', { collectionId, userId, timestamp: Date.now() });
+    console.log(`[Socket] collection_deleted in ${room} by ${userId}`);
+  });
+
+  // ── PROJECT EVENTS ─────────────────────────────────────────────
+  socket.on('create_project', ({ teamId, project, userId }) => {
+    if (!teamId || !project) return;
+    const room = `team:${teamId}`;
+    socket.to(room).emit('project_created', { project, userId, timestamp: Date.now() });
+  });
+
+  socket.on('update_project', ({ teamId, project, userId }) => {
+    if (!teamId || !project) return;
+    const room = `team:${teamId}`;
+    socket.to(room).emit('project_updated', { project, userId, timestamp: Date.now() });
+  });
+
+  socket.on('delete_project', ({ teamId, projectId, userId }) => {
+    if (!teamId || !projectId) return;
+    const room = `team:${teamId}`;
+    socket.to(room).emit('project_deleted', { projectId, userId, timestamp: Date.now() });
+  });
+
+  // ── TEAM EVENTS ────────────────────────────────────────────────
+  socket.on('update_team', ({ teamId, team, userId }) => {
+    if (!teamId || !team) return;
+    const room = `team:${teamId}`;
+    socket.to(room).emit('team_updated', { team, userId, timestamp: Date.now() });
+  });
+
+  socket.on('delete_team', ({ teamId, userId }) => {
+    if (!teamId) return;
+    const room = `team:${teamId}`;
+    socket.to(room).emit('team_deleted', { teamId, userId, timestamp: Date.now() });
   });
 
   // ── API DOC UPDATED ─────────────────────────────────────────────

@@ -29,7 +29,14 @@ export async function PUT(request, { params }) {
     const body = await request.json();
     const project = await Project.findById(params.id);
     if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 });
-    if (project.ownerId.toString() !== user.id) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    
+    // Check if user is owner or admin of the project
+    const isOwner = project.ownerId.toString() === user.id;
+    const isAdmin = project.members?.some(m => 
+      m.userId.toString() === user.id && m.role === 'admin'
+    );
+    
+    if (!isOwner && !isAdmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     const updated = await Project.findByIdAndUpdate(params.id, body, { new: true });
     return NextResponse.json({ project: updated });
@@ -46,7 +53,14 @@ export async function DELETE(request, { params }) {
     await connectDB();
     const project = await Project.findById(params.id);
     if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 });
-    if (project.ownerId.toString() !== user.id) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    
+    // Check if user is owner or admin of the project
+    const isOwner = project.ownerId.toString() === user.id;
+    const isAdmin = project.members?.some(m => 
+      m.userId.toString() === user.id && m.role === 'admin'
+    );
+    
+    if (!isOwner && !isAdmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     await Project.findByIdAndDelete(params.id);
     return NextResponse.json({ message: 'Project deleted' });

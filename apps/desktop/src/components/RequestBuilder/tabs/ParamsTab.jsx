@@ -43,8 +43,8 @@ export default function ParamsTab() {
   const setParams = (newParams) => updateField('params', newParams);
 
   const addRow = () => setParams([...params, { id: uuidv4(), key: '', value: '', enabled: true }]);
-  const updateRow = (id, updated) => setParams(params.map((p) => (p.id === id ? updated : p)));
-  const deleteRow = (id) => setParams(params.filter((p) => p.id !== id));
+  const updateRow = (id, updated) => setParams(params.map((p) => ((p.id || p._id) === id ? updated : p)));
+  const deleteRow = (id) => setParams(params.filter((p) => (p.id || p._id) !== id));
 
   return (
     <div className="p-3 flex flex-col gap-2">
@@ -55,16 +55,19 @@ export default function ParamsTab() {
           Add
         </button>
       </div>
-      {params.map((p) => (
-        <KeyValueRow
-          key={p.id}
-          item={p}
-          onChange={(updated) => updateRow(p.id, updated)}
-          onDelete={() => deleteRow(p.id)}
-          keyPlaceholder="param_key"
-          valuePlaceholder="value"
-        />
-      ))}
+      {params.map((p, index) => {
+        const rowId = p.id || p._id;
+        return (
+          <KeyValueRow
+            key={rowId || index}
+            item={p}
+            onChange={(updated) => updateRow(rowId, updated)}
+            onDelete={() => deleteRow(rowId)}
+            keyPlaceholder="param_key"
+            valuePlaceholder="value"
+          />
+        );
+      })}
       {params.length === 0 && (
         <p className="text-surface-600 text-xs text-center py-4">No query parameters. Click Add to create one.</p>
       )}
