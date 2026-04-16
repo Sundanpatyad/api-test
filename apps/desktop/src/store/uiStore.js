@@ -14,27 +14,47 @@ export const useUIStore = create(
       showEnvironmentPanel: false,
       showInviteModal: false,
       isLoading: false,
-      activeMainTab: 'request', // 'request' | 'history'
-      theme: 'dark', // 'dark' | 'light'
+      activeMainTab: 'request',         // 'request' | 'history'
+      theme: 'dark',                    // 'dark' | 'light'
+      layoutVersion: 'v2',              // 'v1' | 'v2'
+      sidebarV2Open: true,              // V2 left sidebar open/closed
+      workspaceOrientation: 'vertical', // 'vertical' | 'horizontal'
 
-      setSidebarWidth:       (w) => set({ sidebarWidth: Math.max(200, Math.min(400, w)) }),
-      setResponseHeight:     (h) => set({ responseHeight: Math.max(150, Math.min(600, h)) }),
-      toggleSidebar:         () => set((s) => ({ isSidebarCollapsed: !s.isSidebarCollapsed })),
-      setShowImportModal:    (v) => set({ showImportModal: v }),
-      setShowTeamModal:      (v) => set({ showTeamModal: v }),
-      setShowProjectModal:   (v) => set({ showProjectModal: v }),
-      setShowCollectionModal:(v) => set({ showCollectionModal: v }),
+      setSidebarWidth:        (w) => set({ sidebarWidth: Math.max(200, Math.min(400, w)) }),
+      setResponseHeight:      (h) => set({ responseHeight: Math.max(150, Math.min(600, h)) }),
+      toggleSidebar:          () => set((s) => ({ isSidebarCollapsed: !s.isSidebarCollapsed })),
+      setShowImportModal:     (v) => set({ showImportModal: v }),
+      setShowTeamModal:       (v) => set({ showTeamModal: v }),
+      setShowProjectModal:    (v) => set({ showProjectModal: v }),
+      setShowCollectionModal: (v) => set({ showCollectionModal: v }),
       setShowEnvironmentPanel:(v) => set({ showEnvironmentPanel: v }),
-      setShowInviteModal:    (v) => set({ showInviteModal: v }),
-      setIsLoading:          (v) => set({ isLoading: v }),
-      setActiveMainTab:      (v) => set({ activeMainTab: v }),
+      setShowInviteModal:     (v) => set({ showInviteModal: v }),
+      setIsLoading:           (v) => set({ isLoading: v }),
+      setActiveMainTab:       (v) => set({ activeMainTab: v }),
+      setLayoutVersion:       (v) => set({ layoutVersion: v }),
 
       toggleTheme: () =>
         set((s) => ({ theme: s.theme === 'dark' ? 'light' : 'dark' })),
+
+      toggleLayout: () =>
+        set((s) => ({ layoutVersion: s.layoutVersion === 'v1' ? 'v2' : 'v1' })),
+
+      toggleSidebarV2: () =>
+        set((s) => ({ sidebarV2Open: !s.sidebarV2Open })),
+
+      toggleOrientation: () =>
+        set((s) => ({
+          workspaceOrientation: s.workspaceOrientation === 'vertical' ? 'horizontal' : 'vertical',
+        })),
     }),
     {
       name: 'syncnest-ui',
-      partialize: (state) => ({ theme: state.theme }),
+      partialize: (state) => ({
+        theme: state.theme,
+        layoutVersion: state.layoutVersion,
+        sidebarV2Open: state.sidebarV2Open,
+        workspaceOrientation: state.workspaceOrientation,
+      }),
     }
   )
 );

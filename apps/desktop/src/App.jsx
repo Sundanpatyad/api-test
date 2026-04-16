@@ -19,6 +19,7 @@ import CreateTeamModal, {
   InviteModal,
 } from '@/components/Modals/Modals';
 import EnvironmentSelector from '@/components/EnvironmentSelector/EnvironmentSelector';
+import LayoutV2 from '@/components/LayoutV2/LayoutV2';
 
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
@@ -41,6 +42,8 @@ export default function App() {
     showEnvironmentPanel,
     showInviteModal,
     theme,
+    layoutVersion,
+    toggleLayout,
   } = useUIStore();
 
   // Fetch user on mount
@@ -116,6 +119,44 @@ export default function App() {
     );
   }
 
+  // ─── V2 Layout ─────────────────────────────────────────────────
+  if (layoutVersion === 'v2') {
+    return (
+      <>
+        <LayoutV2
+          onShowTeamModal={() => useUIStore.getState().setShowTeamModal(true)}
+          onShowProjectModal={() => useUIStore.getState().setShowProjectModal(true)}
+          onShowCollectionModal={() => useUIStore.getState().setShowCollectionModal(true)}
+          onShowImportModal={() => useUIStore.getState().setShowImportModal(true)}
+          onOpenEnvPanel={() => useUIStore.getState().setShowEnvironmentPanel(true)}
+        />
+
+        {/* Shared Modals */}
+        {showEnvironmentPanel  && <EnvironmentPanel />}
+        {showImportModal       && <ImportModal />}
+        {showTeamModal         && <CreateTeamModal />}
+        {showProjectModal      && <CreateProjectModal />}
+        {showCollectionModal   && <CreateCollectionModal />}
+        {showInviteModal       && <InviteModal />}
+
+        <Toaster
+          position="bottom-right"
+          toastOptions={{
+            style: {
+              background: theme === 'light' ? '#FFFFFF' : '#1C2128',
+              color: theme === 'light' ? '#1F2328' : '#E6EDF3',
+              border: `1px solid ${theme === 'light' ? '#D0D7DE' : '#30363D'}`,
+              borderRadius: '12px',
+              fontSize: '13px',
+              fontFamily: 'Poppins, sans-serif',
+            },
+          }}
+        />
+      </>
+    );
+  }
+
+  // ─── V1 Layout (Classic — unchanged) ───────────────────────────
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: 'var(--bg-primary)' }}>
       {/* Sidebar */}
@@ -141,7 +182,7 @@ export default function App() {
 
       {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-        {/* Top bar */}
+        {/* Top bar — V1 with added layout toggle */}
         <div className="flex items-center justify-between h-10 px-3 border-b border-[var(--border-1)] bg-surface-900 flex-shrink-0">
           <div className="flex items-center gap-2">
             {currentTeam && (
@@ -152,7 +193,7 @@ export default function App() {
             <div className={`w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-success' : 'bg-surface-600'} animate-pulse-slow`} title={isConnected ? 'Real-time connected' : 'Offline'} />
           </div>
 
-          {/* Right side: env selector + browser mode banner */}
+          {/* Right side */}
           <div className="flex items-center gap-2">
             <EnvironmentSelector />
             {!isTauri() && (
@@ -161,6 +202,24 @@ export default function App() {
                 Browser mode
               </div>
             )}
+            {/* ← Switch to V2 */}
+            <button
+              onClick={toggleLayout}
+              title="Switch to New Layout (V2)"
+              className="flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-lg transition-all"
+              style={{
+                background: 'var(--surface-2)',
+                border: '1px solid var(--border-1)',
+                color: 'var(--text-secondary)',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-primary)'; e.currentTarget.style.borderColor = 'var(--border-2)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.borderColor = 'var(--border-1)'; }}
+            >
+              <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zM14 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+              </svg>
+              New UI
+            </button>
           </div>
         </div>
 

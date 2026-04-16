@@ -10,6 +10,7 @@ export default function ResponseViewer() {
   const { response, isExecuting } = useRequestStore();
   const { theme } = useUIStore();
   const [activeTab, setActiveTab] = useState('Pretty');
+  const [copied, setCopied] = useState(false);
 
   if (isExecuting) {
     return <LoadingState />;
@@ -28,6 +29,21 @@ export default function ResponseViewer() {
   const statusClass = getStatusClass(response.status);
   const lang = contentType.includes('json') ? 'json' : contentType.includes('xml') ? 'xml' : contentType.includes('html') ? 'html' : 'plaintext';
 
+  const handleCopy = () => {
+    let text = '';
+    if (activeTab === 'Headers') {
+      text = JSON.stringify(response.headers || {}, null, 2);
+    } else if (activeTab === 'Pretty') {
+      text = prettyBody;
+    } else {
+      text = response.body || '';
+    }
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
   return (
     <div className="flex flex-col h-full">
       {/* Status bar */}
@@ -44,8 +60,48 @@ export default function ResponseViewer() {
           {formatSize(response.sizeBytes)}
         </span>
 
-        {/* Tabs */}
-        <div className="ml-auto flex items-center gap-0.5">
+        {/* Copy button + Tabs */}
+        <div className="ml-auto flex items-center gap-1.5">
+          {/* Copy response */}
+          <button
+            onClick={handleCopy}
+            title="Copy response"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '5px',
+              padding: '3px 9px',
+              borderRadius: '6px',
+              fontSize: '11px',
+              fontFamily: 'Poppins, sans-serif',
+              fontWeight: 500,
+              border: `1px solid ${copied ? 'var(--success)' : 'var(--border-1)'}`,
+              background: copied ? 'rgba(63,185,80,0.1)' : 'var(--surface-3)',
+              color: copied ? 'var(--success)' : 'var(--text-secondary)',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {copied ? (
+              /* Checkmark */
+              <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+              </svg>
+            ) : (
+              /* Copy icon */
+              <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+            )}
+            {copied ? 'Copied!' : 'Copy'}
+          </button>
+
+          {/* Divider */}
+          <div style={{ width: 1, height: 14, background: 'var(--border-1)' }} />
+
+          {/* Tabs */}
           {RESPONSE_TABS.map((tab) => (
             <button
               key={tab}

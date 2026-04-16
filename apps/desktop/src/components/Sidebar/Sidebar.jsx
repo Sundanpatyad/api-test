@@ -25,6 +25,7 @@ export default function Sidebar() {
     setShowInviteModal,
     theme,
     toggleTheme,
+    toggleLayout,
   } = useUIStore();
 
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -323,6 +324,22 @@ export default function Sidebar() {
             </svg>
           )}
           {theme === 'dark' ? 'Light mode' : 'Dark mode'}
+        </button>
+
+        {/* Layout toggle — switch to V2 */}
+        <button
+          onClick={toggleLayout}
+          title="Switch to New Layout (V2)"
+          className="flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs transition-all"
+          style={{ color: 'var(--text-secondary)' }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-primary)'; e.currentTarget.style.background = 'var(--surface-3)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.background = ''; }}
+        >
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+              d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zM14 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+          </svg>
+          New UI ✦
         </button>
 
         {/* User card with logout */}
