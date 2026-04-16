@@ -45,6 +45,19 @@ export const useCollectionStore = create((set, get) => ({
     }));
   },
 
+  updateCollectionName: async (id, name) => {
+    try {
+      const { data } = await api.put(`/api/collection/${id}`, { name });
+      set((state) => ({
+        collections: state.collections.map((c) => (c._id === id ? data.collection : c)),
+        currentCollection: state.currentCollection?._id === id ? data.collection : state.currentCollection,
+      }));
+      return { success: true, collection: data.collection };
+    } catch (err) {
+      return { success: false, error: err.response?.data?.error || 'Failed to update collection' };
+    }
+  },
+
   addRequest: (request) => {
     set((state) => ({ requests: [...state.requests, request] }));
   },

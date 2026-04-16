@@ -145,6 +145,41 @@ export const useRequestStore = create(
           return { success: false, error: err.response?.data?.error || 'Save failed' };
         }
       },
+
+      createRequest: async (requestData) => {
+        try {
+          const { data } = await api.post('/api/request', requestData);
+          return { success: true, request: data.request };
+        } catch (err) {
+          return { success: false, error: err.response?.data?.error || 'Failed to create request' };
+        }
+      },
+
+      updateRequestName: async (id, name) => {
+        try {
+          const { data } = await api.put(`/api/request/${id}`, { name });
+          const currentReq = get().currentRequest;
+          if (currentReq?._id === id) {
+            set({ currentRequest: { ...currentReq, name } });
+          }
+          return { success: true, request: data.request };
+        } catch (err) {
+          return { success: false, error: err.response?.data?.error || 'Failed to update request' };
+        }
+      },
+
+      deleteRequest: async (id) => {
+        try {
+          await api.delete(`/api/request/${id}`);
+          const currentReq = get().currentRequest;
+          if (currentReq?._id === id) {
+            set({ currentRequest: defaultRequest(), response: null });
+          }
+          return { success: true };
+        } catch (err) {
+          return { success: false, error: err.response?.data?.error || 'Failed to delete request' };
+        }
+      },
     }),
     {
       name: 'syncnest-request',

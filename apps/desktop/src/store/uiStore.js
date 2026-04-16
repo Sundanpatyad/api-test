@@ -13,6 +13,11 @@ export const useUIStore = create(
       showCollectionModal: false,
       showEnvironmentPanel: false,
       showInviteModal: false,
+      showConfirmDialog: false,
+      showEditNameModal: false,
+      confirmDialogConfig: null,
+      editNameModalConfig: null,
+      contextMenu: null,
       isLoading: false,
       activeMainTab: 'request',         // 'request' | 'history'
       theme: 'dark',                    // 'dark' | 'light'
@@ -30,6 +35,10 @@ export const useUIStore = create(
       setShowCollectionModal: (v) => set({ showCollectionModal: v }),
       setShowEnvironmentPanel:(v) => set({ showEnvironmentPanel: v }),
       setShowInviteModal:     (v) => set({ showInviteModal: v }),
+      setShowConfirmDialog:   (v, config = null) => set({ showConfirmDialog: v, confirmDialogConfig: config }),
+      setShowEditNameModal:   (v, config = null) => set({ showEditNameModal: v, editNameModalConfig: config }),
+      setContextMenu:         (config) => set({ contextMenu: config }),
+      closeContextMenu:       () => set({ contextMenu: null }),
       setIsLoading:           (v) => set({ isLoading: v }),
       setActiveMainTab:       (v) => set({ activeMainTab: v }),
       setActiveV2Nav:         (v) => set({ activeV2Nav: v }),

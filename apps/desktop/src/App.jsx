@@ -20,6 +20,9 @@ import CreateTeamModal, {
 } from '@/components/Modals/Modals';
 import EnvironmentSelector from '@/components/EnvironmentSelector/EnvironmentSelector';
 import LayoutV2 from '@/components/LayoutV2/LayoutV2';
+import ContextMenu from '@/components/ContextMenu/ContextMenu';
+import ConfirmDialog from '@/components/ConfirmDialog/ConfirmDialog';
+import EditNameModal from '@/components/EditNameModal/EditNameModal';
 
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
@@ -41,6 +44,8 @@ export default function App() {
     showCollectionModal,
     showEnvironmentPanel,
     showInviteModal,
+    showConfirmDialog,
+    showEditNameModal,
     theme,
     layoutVersion,
     toggleLayout,
@@ -138,6 +143,9 @@ export default function App() {
         {showProjectModal      && <CreateProjectModal />}
         {showCollectionModal   && <CreateCollectionModal />}
         {showInviteModal       && <InviteModal />}
+        <ContextMenu />
+        <ConfirmDialog />
+        <EditNameModal />
 
         <Toaster
           position="bottom-right"
@@ -255,6 +263,9 @@ export default function App() {
       {showProjectModal      && <CreateProjectModal />}
       {showCollectionModal   && <CreateCollectionModal />}
       {showInviteModal       && <InviteModal />}
+      <ContextMenu />
+      <ConfirmDialog />
+      <EditNameModal />
 
       {/* Toast notifications */}
       <Toaster

@@ -8,6 +8,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useSocketStore } from '@/store/socketStore';
 import toast from 'react-hot-toast';
 import api from '@/lib/api';
+import { v4 as uuidv4 } from 'uuid';
 
 const NAV_ITEMS = [
   {
@@ -92,13 +93,51 @@ export default function SidebarV2({
   width,
 }) {
   const { user, logout } = useAuthStore();
-  const { teams, currentTeam, fetchTeams, setCurrentTeam } = useTeamStore();
-  const { projects, currentProject, fetchProjects, setCurrentProject } = useProjectStore();
-  const { collections, currentCollection, fetchCollections, fetchCollectionRequests, requests } = useCollectionStore();
-  const { setCurrentRequest, currentRequest } = useRequestStore();
+  const { 
+    teams, 
+    currentTeam, 
+    fetchTeams, 
+    setCurrentTeam, 
+    updateTeamName, 
+    deleteTeam 
+  } = useTeamStore();
+  const { 
+    projects, 
+    currentProject, 
+    fetchProjects, 
+    setCurrentProject, 
+    updateProjectName, 
+    deleteProject 
+  } = useProjectStore();
+  const { 
+    collections, 
+    currentCollection, 
+    fetchCollections, 
+    fetchCollectionRequests, 
+    requests,
+    updateCollectionName,
+    deleteCollection,
+    addRequest
+  } = useCollectionStore();
+  const { 
+    setCurrentRequest, 
+    currentRequest,
+    createRequest,
+    updateRequestName,
+    deleteRequest
+  } = useRequestStore();
   const { disconnect } = useSocketStore();
   const { isConnected } = useSocketStore();
-  const { theme, toggleTheme, toggleLayout, activeV2Nav, setActiveV2Nav } = useUIStore();
+  const { 
+    theme, 
+    toggleTheme, 
+    toggleLayout, 
+    activeV2Nav, 
+    setActiveV2Nav,
+    setContextMenu,
+    setShowConfirmDialog,
+    setShowEditNameModal
+  } = useUIStore();
 
   const [expandedCollections, setExpandedCollections] = useState(new Set());
   const [expandedFolders, setExpandedFolders] = useState(new Set());
@@ -113,6 +152,227 @@ export default function SidebarV2({
   useEffect(() => { fetchTeams(); }, []);
   useEffect(() => { if (currentTeam) fetchProjects(currentTeam._id); }, [currentTeam?._id]);
   useEffect(() => { if (currentProject) fetchCollections(currentProject._id); }, [currentProject?._id]);
+
+  // ── Permission helpers ──────────────────
+  const isTeamOwner = (team) => team?.ownerId?._id === user?._id || team?.ownerId === user?._id;
+  const isTeamAdmin = (team) => {
+    if (isTeamOwner(team)) return true;
+    return team?.members?.some(m => 
+      (m.userId?._id || m.userId) === user?._id && m.role === 'admin'
+    );
+  };
+  const isProjectAdmin = (project) => {
+    if (project?.ownerId?._id === user?._id || project?.ownerId === user?._id) return true;
+    return project?.members?.some(m => 
+      (m.userId?._id || m.userId) === user?._id && m.role === 'admin'
+    );
+  };
+
+  // ── Context Menu Handlers ──────────────────
+  const showTeamContextMenu = (e, team) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isTeamOwner(team)) return; // Only owner can edit/delete team
+    
+    setContextMenu({
+      x: e.clientX,
+      y: e.clientY,
+      items: [
+        {
+          id: 'edit',
+          label: 'Edit Name',
+          icon: <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>,
+          onClick: () => setShowEditNameModal(true, {
+            title: 'Edit Team Name',
+            itemType: 'Team',
+            currentName: team.name,
+            onSave: async (name) => {
+              const result = await updateTeamName(team._id, name);
+              if (result.success) toast.success('Team renamed');
+              else toast.error(result.error);
+            }
+          })
+        },
+        { id: 'divider', divider: true },
+        {
+          id: 'delete',
+          label: 'Delete Team',
+          danger: true,
+          icon: <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>,
+          onClick: () => setShowConfirmDialog(true, {
+            title: 'Delete Team?',
+            message: 'This will permanently delete the team and all its projects, collections, and requests.',
+            itemName: team.name,
+            onConfirm: async () => {
+              const result = await deleteTeam(team._id);
+              if (result.success) toast.success('Team deleted');
+              else toast.error(result.error);
+            }
+          })
+        }
+      ]
+    });
+  };
+
+  const showProjectContextMenu = (e, project) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isProjectAdmin(project)) return; // Only admins can edit/delete project
+    
+    setContextMenu({
+      x: e.clientX,
+      y: e.clientY,
+      items: [
+        {
+          id: 'edit',
+          label: 'Edit Name',
+          icon: <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>,
+          onClick: () => setShowEditNameModal(true, {
+            title: 'Edit Project Name',
+            itemType: 'Project',
+            currentName: project.name,
+            onSave: async (name) => {
+              const result = await updateProjectName(project._id, name);
+              if (result.success) toast.success('Project renamed');
+              else toast.error(result.error);
+            }
+          })
+        },
+        { id: 'divider', divider: true },
+        {
+          id: 'delete',
+          label: 'Delete Project',
+          danger: true,
+          icon: <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>,
+          onClick: () => setShowConfirmDialog(true, {
+            title: 'Delete Project?',
+            message: 'This will permanently delete the project and all its collections and requests.',
+            itemName: project.name,
+            onConfirm: async () => {
+              const result = await deleteProject(project._id);
+              if (result.success) toast.success('Project deleted');
+              else toast.error(result.error);
+            }
+          })
+        }
+      ]
+    });
+  };
+
+  const showCollectionContextMenu = (e, collection) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    setContextMenu({
+      x: e.clientX,
+      y: e.clientY,
+      items: [
+        {
+          id: 'add-request',
+          label: 'Add Request',
+          icon: <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>,
+          onClick: async () => {
+            const newRequest = {
+              name: 'New Request',
+              method: 'GET',
+              url: '',
+              collectionId: collection._id,
+              projectId: currentProject._id,
+              teamId: currentTeam._id,
+              headers: [{ id: uuidv4(), key: '', value: '', enabled: true }],
+              params: [{ id: uuidv4(), key: '', value: '', enabled: true }],
+              body: { mode: 'none', raw: '', rawLanguage: 'json', formData: [], urlencoded: [] },
+              auth: { type: 'none' }
+            };
+            const result = await createRequest(newRequest);
+            if (result.success) {
+              addRequest(result.request);
+              setCurrentRequest(result.request);
+              toast.success('Request created');
+            } else {
+              toast.error(result.error);
+            }
+          }
+        },
+        {
+          id: 'edit',
+          label: 'Edit Name',
+          icon: <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>,
+          onClick: () => setShowEditNameModal(true, {
+            title: 'Edit Collection Name',
+            itemType: 'Collection',
+            currentName: collection.name,
+            onSave: async (name) => {
+              const result = await updateCollectionName(collection._id, name);
+              if (result.success) toast.success('Collection renamed');
+              else toast.error(result.error);
+            }
+          })
+        },
+        { id: 'divider', divider: true },
+        {
+          id: 'delete',
+          label: 'Delete Collection',
+          danger: true,
+          icon: <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>,
+          onClick: () => setShowConfirmDialog(true, {
+            title: 'Delete Collection?',
+            message: 'This will permanently delete the collection and all its requests.',
+            itemName: collection.name,
+            onConfirm: async () => {
+              const result = await deleteCollection(collection._id);
+              if (result.success) toast.success('Collection deleted');
+              else toast.error(result.error);
+            }
+          })
+        }
+      ]
+    });
+  };
+
+  const showRequestContextMenu = (e, request) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    setContextMenu({
+      x: e.clientX,
+      y: e.clientY,
+      items: [
+        {
+          id: 'edit',
+          label: 'Edit Name',
+          icon: <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>,
+          onClick: () => setShowEditNameModal(true, {
+            title: 'Edit Request Name',
+            itemType: 'Request',
+            currentName: request.name,
+            onSave: async (name) => {
+              const result = await updateRequestName(request._id, name);
+              if (result.success) toast.success('Request renamed');
+              else toast.error(result.error);
+            }
+          })
+        },
+        { id: 'divider', divider: true },
+        {
+          id: 'delete',
+          label: 'Delete Request',
+          danger: true,
+          icon: <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>,
+          onClick: () => setShowConfirmDialog(true, {
+            title: 'Delete Request?',
+            message: 'This will permanently delete this request.',
+            itemName: request.name,
+            onConfirm: async () => {
+              const result = await deleteRequest(request._id);
+              if (result.success) toast.success('Request deleted');
+              else toast.error(result.error);
+            }
+          })
+        }
+      ]
+    });
+  };
 
   const handleLogout = () => {
     disconnect();
@@ -284,6 +544,7 @@ export default function SidebarV2({
                             if (isActive) setCurrentTeam(null);
                             else setCurrentTeam(team);
                           }}
+                          onContextMenu={(e) => showTeamContextMenu(e, team)}
                           className={`sdbv2-tree-row team-row ${isActive ? 'sdbv2-tree-row--active' : ''}`}
                           style={isActive ? { outline: '1px solid rgba(255,255,255,0.12)', outlineOffset: '-1px' } : undefined}
                         >
@@ -324,6 +585,7 @@ export default function SidebarV2({
                               if (isActive) setCurrentProject(null);
                               else setCurrentProject(proj);
                             }}
+                            onContextMenu={(e) => showProjectContextMenu(e, proj)}
                             className={`sdbv2-tree-row proj-row ${isActive ? 'sdbv2-tree-row--active' : ''}`}
                             style={isActive ? { outline: `1px solid ${proj.color || 'rgba(99,102,241,0.35)'}`, outlineOffset: '-1px' } : undefined}
                           >
@@ -357,7 +619,9 @@ export default function SidebarV2({
                       const isExp = expandedCollections.has(col._id);
                       return (
                         <div key={col._id}>
-                          <button onClick={() => toggleCollection(col)}
+                          <button 
+                            onClick={() => toggleCollection(col)}
+                            onContextMenu={(e) => showCollectionContextMenu(e, col)}
                             className={`sdbv2-tree-row ${currentCollection?._id === col._id ? 'sdbv2-tree-row--active' : ''}`}>
                             <svg className={`sdbv2-chevron ${isExp ? 'sdbv2-chevron--open' : ''}`} width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -389,7 +653,13 @@ export default function SidebarV2({
                                 );
                               })}
                               {requests.filter(r => r.collectionId === col._id && !r.folderId).map(req => (
-                                <SidebarRequest key={req._id} request={req} onSelect={setCurrentRequest} isActive={currentRequest?._id === req._id} />
+                                <SidebarRequest 
+                                  key={req._id} 
+                                  request={req} 
+                                  onSelect={setCurrentRequest} 
+                                  isActive={currentRequest?._id === req._id}
+                                  onContextMenu={(e) => showRequestContextMenu(e, req)}
+                                />
                               ))}
                             </div>
                           )}
@@ -408,10 +678,14 @@ export default function SidebarV2({
   );
 }
 
-function SidebarRequest({ request, onSelect, isActive }) {
+function SidebarRequest({ request, onSelect, isActive, onContextMenu }) {
   const color = METHOD_COLORS[request.method] || '#9A9A9A';
   return (
-    <button onClick={() => onSelect(request)} className={`sdbv2-tree-row sdbv2-req-row ${isActive ? 'sdbv2-tree-row--active' : ''}`}>
+    <button 
+      onClick={() => onSelect(request)} 
+      onContextMenu={onContextMenu}
+      className={`sdbv2-tree-row sdbv2-req-row ${isActive ? 'sdbv2-tree-row--active' : ''}`}
+    >
       <span className="sdbv2-method-badge" style={{ color, background: `${color}18` }}>
         {request.method}
       </span>

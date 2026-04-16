@@ -29,6 +29,19 @@ export const useProjectStore = create((set, get) => ({
 
   setCurrentProject: (project) => set({ currentProject: project }),
 
+  updateProjectName: async (id, name) => {
+    try {
+      const { data } = await api.put(`/api/project/${id}`, { name });
+      set((state) => ({
+        projects: state.projects.map((p) => (p._id === id ? data.project : p)),
+        currentProject: state.currentProject?._id === id ? data.project : state.currentProject,
+      }));
+      return { success: true, project: data.project };
+    } catch (err) {
+      return { success: false, error: err.response?.data?.error || 'Failed to update project' };
+    }
+  },
+
   deleteProject: async (id) => {
     try {
       await api.delete(`/api/project/${id}`);

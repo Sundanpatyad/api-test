@@ -47,6 +47,32 @@ export const useTeamStore = create((set, get) => ({
 
   setCurrentTeam: (team) => set({ currentTeam: team }),
 
+  updateTeamName: async (id, name) => {
+    try {
+      const { data } = await api.put(`/api/team/${id}`, { name });
+      set((state) => ({
+        teams: state.teams.map((t) => (t._id === id ? data.team : t)),
+        currentTeam: state.currentTeam?._id === id ? data.team : state.currentTeam,
+      }));
+      return { success: true, team: data.team };
+    } catch (err) {
+      return { success: false, error: err.response?.data?.error || 'Failed to update team' };
+    }
+  },
+
+  deleteTeam: async (id) => {
+    try {
+      await api.delete(`/api/team/${id}`);
+      set((state) => ({
+        teams: state.teams.filter((t) => t._id !== id),
+        currentTeam: state.currentTeam?._id === id ? null : state.currentTeam,
+      }));
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.response?.data?.error || 'Failed to delete team' };
+    }
+  },
+
   inviteMember: async (teamId, email, role = 'developer') => {
     try {
       const { data } = await api.post(`/api/team/${teamId}/invite`, { email, role });
