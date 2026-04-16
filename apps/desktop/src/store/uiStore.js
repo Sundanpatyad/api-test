@@ -56,6 +56,7 @@ export const useUIStore = create(
         layoutVersion: state.layoutVersion,
         sidebarV2Open: state.sidebarV2Open,
         workspaceOrientation: state.workspaceOrientation,
+        sidebarWidth: state.sidebarWidth,
       }),
     }
   )

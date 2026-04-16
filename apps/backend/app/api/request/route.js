@@ -12,12 +12,26 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const collectionId = searchParams.get('collectionId');
     const projectId = searchParams.get('projectId');
+    const teamId = searchParams.get('teamId');
+    const search = searchParams.get('search');
 
     const query = {};
     if (collectionId) query.collectionId = collectionId;
     if (projectId) query.projectId = projectId;
+    if (teamId) query.teamId = teamId;
+    
+    if (search) {
+      const safeSearch = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      query.$or = [
+        { name: { $regex: safeSearch, $options: 'i' } },
+        { url: { $regex: safeSearch, $options: 'i' } }
+      ];
+    }
 
-    const requests = await Request.find(query).sort({ order: 1, createdAt: 1 });
+    const mQuery = Request.find(query).sort({ order: 1, createdAt: 1 });
+    if (search) mQuery.limit(50); // limit global project searches to top 50 hits
+    
+    const requests = await mQuery;
     return NextResponse.json({ requests });
   } catch (err) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

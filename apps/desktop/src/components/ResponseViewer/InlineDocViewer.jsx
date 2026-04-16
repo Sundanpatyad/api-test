@@ -95,12 +95,68 @@ export default function InlineDocViewer() {
           <div className="flex items-center gap-2">
             {isEditing ? (
               <>
-                <button onClick={() => { setIsEditing(false); setDescription(currentRequest.description || ''); }} className="px-3 py-1 text-xs text-surface-400 hover:text-tx-primary transition-colors rounded">Cancel</button>
-                <button onClick={handleSave} disabled={isSaving} className="px-3 py-1 text-xs bg-[var(--accent)] hover:brightness-110 text-white rounded font-medium shadow-sm transition-all">{isSaving ? 'Saving...' : 'Save Docs'}</button>
+                <button
+                  onClick={() => { setIsEditing(false); setDescription(currentRequest.description || ''); }}
+                  style={{
+                    padding: '4px 12px',
+                    fontSize: '11px',
+                    background: 'transparent',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    borderRadius: '6px',
+                    color: 'rgba(255,255,255,0.5)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s',
+                    fontFamily: 'Poppins, sans-serif',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.color = 'rgba(255,255,255,0.9)'}
+                  onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.5)'}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={isSaving}
+                  style={{
+                    padding: '4px 12px',
+                    fontSize: '11px',
+                    background: 'var(--accent)',
+                    border: 'none',
+                    borderRadius: '6px',
+                    color: '#fff',
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                    fontFamily: 'Poppins, sans-serif',
+                    opacity: isSaving ? 0.6 : 1,
+                    transition: 'opacity 0.15s',
+                  }}
+                >
+                  {isSaving ? 'Saving...' : 'Save Docs'}
+                </button>
               </>
             ) : (
-              <button onClick={() => setIsEditing(true)} className="px-3 py-1 text-xs flex items-center gap-1.5 border border-[var(--border-1)] bg-surface-3 hover:bg-surface-4 text-tx-primary rounded font-medium transition-colors">
-                <svg width="12" height="12" fill="none" viewBox="0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg> Edit
+              <button
+                onClick={() => setIsEditing(true)}
+                style={{
+                  padding: '4px 10px',
+                  fontSize: '11px',
+                  background: 'rgba(255,255,255,0.05)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: '6px',
+                  color: 'rgba(255,255,255,0.7)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  fontFamily: 'Poppins, sans-serif',
+                  transition: 'all 0.15s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.09)'; e.currentTarget.style.color = 'rgba(255,255,255,0.95)'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = 'rgba(255,255,255,0.7)'; }}
+              >
+                <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                </svg>
+                Edit
               </button>
             )}
           </div>

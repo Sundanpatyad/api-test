@@ -1,8 +1,12 @@
+import { useState, useEffect, useRef } from 'react';
 import { useUIStore } from '@/store/uiStore';
 import { useAuthStore } from '@/store/authStore';
 import { useSocketStore } from '@/store/socketStore';
 import { useTeamStore } from '@/store/teamStore';
+import { useProjectStore } from '@/store/projectStore';
+import { useRequestStore } from '@/store/requestStore';
 import { isTauri } from '@/lib/executor';
+import api from '@/lib/api';
 import EnvironmentSelector from '@/components/EnvironmentSelector/EnvironmentSelector';
 
 export default function TopBarV2({ onToggleSidebar, sidebarOpen, orientation, onToggleOrientation }) {
@@ -10,6 +14,62 @@ export default function TopBarV2({ onToggleSidebar, sidebarOpen, orientation, on
   const { user } = useAuthStore();
   const { isConnected } = useSocketStore();
   const { currentTeam } = useTeamStore();
+  const { currentProject } = useProjectStore();
+  const { setCurrentRequest } = useRequestStore();
+
+  const [globalSearch, setGlobalSearch] = useState('');
+  const [searchResults, setSearchResults] = useState(null);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const searchContainerRef = useRef(null);
+  const searchInputRef = useRef(null);
+
+  // Keyboard shortcut Cmd+K
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        setShowDropdown(true);
+      }
+      if (e.key === 'Escape') {
+        setShowDropdown(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // Click outside listener
+  useEffect(() => {
+    const handleClick = (e) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  // Global search fetcher (scoped to project)
+  useEffect(() => {
+    if (!globalSearch.trim() || !currentProject) {
+      setSearchResults(null);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const { data } = await api.get(`/api/request?projectId=${currentProject._id}&search=${encodeURIComponent(globalSearch.trim())}`);
+        setSearchResults(data.requests || []);
+      } catch (err) {
+        console.error('Global search failed');
+      } finally {
+        setIsSearching(false);
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [globalSearch, currentProject?._id]);
 
   return (
     <header className="v2-header">
@@ -35,18 +95,63 @@ export default function TopBarV2({ onToggleSidebar, sidebarOpen, orientation, on
       </div>
 
       {/* Center — Search */}
-      <div className="v2-header-search">
-        <div className="v2-search-box">
+      <div className="v2-header-search" ref={searchContainerRef} style={{ position: 'relative' }}>
+        <div className="v2-search-box" onClick={() => { searchInputRef.current?.focus(); setShowDropdown(true); }}>
           <svg className="v2-search-icon" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
           <input
+            ref={searchInputRef}
             className="v2-search-input"
-            placeholder="Search APIs, endpoints, logs..."
-            readOnly
+            placeholder="Search APIs, endpoints..."
+            value={globalSearch}
+            onChange={(e) => { setGlobalSearch(e.target.value); setShowDropdown(true); }}
+            onFocus={() => setShowDropdown(true)}
           />
           <kbd className="v2-search-kbd">⌘K</kbd>
         </div>
+
+        {/* Global Search Dropdown */}
+        {showDropdown && globalSearch.trim().length > 0 && (
+          <div className="absolute top-full left-0 right-0 mt-2 bg-surface-1 border border-[var(--border-2)] rounded-lg shadow-glass overflow-hidden z-[9999] max-h-96 flex flex-col">
+            <div className="px-3 py-2 text-[10px] font-bold text-surface-400 uppercase tracking-wider bg-surface-2 border-b border-[var(--border-2)] flex justify-between items-center">
+              <span>{currentProject?.name} Search Results</span>
+              <span className="text-[9px] opacity-70">Project scope</span>
+            </div>
+            
+            <div className="overflow-y-auto p-1.5 flex flex-col gap-0.5">
+              {isSearching ? (
+                <div className="p-4 text-xs text-center text-surface-400">Scanning Project...</div>
+              ) : searchResults?.length > 0 ? (
+                searchResults.map(req => {
+                  const color = req.method === 'GET' ? '#3FB950' : req.method === 'POST' ? '#58A6FF' : req.method === 'PUT' ? '#E3B341' : req.method === 'DELETE' ? '#F85149' : '#A8A8A8';
+                  return (
+                    <button
+                      key={req._id}
+                      onClick={() => {
+                        setCurrentRequest(req);
+                        setShowDropdown(false);
+                        setGlobalSearch('');
+                        searchInputRef.current?.blur();
+                      }}
+                      className="flex items-center gap-3 px-2 py-2 text-left hover:bg-surface-3 rounded-lg cursor-pointer transition-colors"
+                    >
+                      <span className="text-[10px] uppercase font-bold w-12 text-center rounded px-1 py-0.5 flex-shrink-0" style={{ color, background: `${color}15` }}>
+                        {req.method}
+                      </span>
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-[13px] font-semibold text-tx-primary truncate leading-tight">{req.name}</span>
+                        <span className="text-[10px] text-surface-400 font-mono truncate">{req.url || 'No URL configured'}</span>
+                      </div>
+                    </button>
+                  );
+                })
+              ) : (
+                <div className="p-4 text-xs text-center text-surface-400">No endpoints found in this project</div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Right — controls */}

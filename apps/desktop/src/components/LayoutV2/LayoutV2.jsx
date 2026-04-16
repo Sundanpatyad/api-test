@@ -20,6 +20,8 @@ export default function LayoutV2({
   const {
     responseHeight,
     setResponseHeight,
+    sidebarWidth,
+    setSidebarWidth,
     sidebarV2Open,
     toggleSidebarV2,
     workspaceOrientation,
@@ -52,13 +54,32 @@ export default function LayoutV2({
 
         {/* Left sidebar (collapsible) */}
         {sidebarV2Open && (
-          <SidebarV2
-            onShowTeamModal={onShowTeamModal}
-            onShowProjectModal={onShowProjectModal}
-            onShowCollectionModal={onShowCollectionModal}
-            onShowImportModal={onShowImportModal}
-            onOpenEnvPanel={onOpenEnvPanel}
-          />
+          <>
+            <SidebarV2
+              onShowTeamModal={onShowTeamModal}
+              onShowProjectModal={onShowProjectModal}
+              onShowCollectionModal={onShowCollectionModal}
+              onShowImportModal={onShowImportModal}
+              onOpenEnvPanel={onOpenEnvPanel}
+              width={sidebarWidth}
+            />
+            {/* Sidebar Drag Handle */}
+            <div
+              className="v2-drag-col"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                const startX = e.clientX;
+                const startW = sidebarWidth;
+                const onMove = (e) => setSidebarWidth(startW + (e.clientX - startX));
+                const onUp = () => {
+                  window.removeEventListener('mousemove', onMove);
+                  window.removeEventListener('mouseup', onUp);
+                };
+                window.addEventListener('mousemove', onMove);
+                window.addEventListener('mouseup', onUp);
+              }}
+            />
+          </>
         )}
 
         {/* Main workspace */}
