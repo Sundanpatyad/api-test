@@ -325,10 +325,13 @@ export default function EnvironmentPanel() {
                     />
                     <input
                       type="text"
-                      placeholder="VARIABLE_KEY"
+                      placeholder="variable_key"
                       value={v.key}
                       onChange={(e) => updateVar(i, { ...v, key: e.target.value })}
                       className={`input py-1.5 text-xs font-mono ${!v.enabled ? 'opacity-50' : ''}`}
+                      autoCapitalize="off"
+                      autoCorrect="off"
+                      spellCheck={false}
                     />
                     <input
                       type={v.isSecret ? 'password' : 'text'}
@@ -336,6 +339,9 @@ export default function EnvironmentPanel() {
                       value={v.value}
                       onChange={(e) => updateVar(i, { ...v, value: e.target.value })}
                       className={`input py-1.5 text-xs font-mono ${!v.enabled ? 'opacity-50' : ''}`}
+                      autoCapitalize="off"
+                      autoCorrect="off"
+                      spellCheck={false}
                     />
                     <button
                       onClick={() => updateVar(i, { ...v, isSecret: !v.isSecret })}

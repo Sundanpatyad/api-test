@@ -8,6 +8,7 @@ import { useRequestStore } from '@/store/requestStore';
 import { isTauri } from '@/lib/executor';
 import api from '@/lib/api';
 import EnvironmentSelector from '@/components/EnvironmentSelector/EnvironmentSelector';
+import SyncStatusTag from '@/components/SyncStatusTag/SyncStatusTag';
 
 export default function TopBarV2({ onToggleSidebar, sidebarOpen, orientation, onToggleOrientation }) {
   const { theme, toggleTheme, toggleLayout } = useUIStore();
@@ -156,6 +157,9 @@ export default function TopBarV2({ onToggleSidebar, sidebarOpen, orientation, on
 
       {/* Right — controls */}
       <div className="v2-header-right">
+        {/* Sync Status */}
+        <SyncStatusTag />
+
         {/* Environment selector */}
         <EnvironmentSelector />
 

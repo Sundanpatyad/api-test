@@ -48,8 +48,8 @@ export default function HeadersTab() {
 
   const setHeaders = (h) => updateField('headers', h);
   const addRow = () => setHeaders([...headers, { id: uuidv4(), key: '', value: '', enabled: true }]);
-  const updateRow = (id, updated) => setHeaders(headers.map((h) => (h.id === id ? updated : h)));
-  const deleteRow = (id) => setHeaders(headers.filter((h) => h.id !== id));
+  const updateRow = (id, updated) => setHeaders(headers.map((h) => ((h.id || h._id) === id ? updated : h)));
+  const deleteRow = (id) => setHeaders(headers.filter((h) => (h.id || h._id) !== id));
 
   return (
     <div className="p-3 flex flex-col gap-2">
@@ -65,14 +65,17 @@ export default function HeadersTab() {
         </button>
       </div>
 
-      {headers.map((h) => (
-        <HeaderRow
-          key={h.id}
-          item={h}
-          onChange={(updated) => updateRow(h.id, updated)}
-          onDelete={() => deleteRow(h.id)}
-        />
-      ))}
+      {headers.map((h, index) => {
+        const rowId = h.id || h._id;
+        return (
+          <HeaderRow
+            key={rowId || index}
+            item={h}
+            onChange={(updated) => updateRow(rowId, updated)}
+            onDelete={() => deleteRow(rowId)}
+          />
+        );
+      })}
       {headers.length === 0 && (
         <p className="text-surface-600 text-xs text-center py-4">No headers added yet.</p>
       )}

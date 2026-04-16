@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { useSyncQueueStore } from '@/store/syncQueueStore';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
@@ -22,7 +23,21 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       localStorage.removeItem('syncnest_token');
       window.location.href = '/';
+      return Promise.reject(error);
     }
+
+    // Offline Queue Interceptor Handler
+    const isNetworkError = !navigator.onLine || error.code === 'ERR_NETWORK' || error.message === 'Network Error';
+    if (isNetworkError && error.config && error.config.offlineMock && !error.config.disableOfflineMock) {
+      console.log('[API] Offline mutation intercepted, queuing to sync Queue:', error.config.url);
+      
+      // Enqueue to background worker
+      useSyncQueueStore.getState().enqueue(error.config);
+      
+      // Resolve seamlessly so the UI proceeds with optimistic updates
+      return Promise.resolve({ data: error.config.offlineMock });
+    }
+
     return Promise.reject(error);
   }
 );

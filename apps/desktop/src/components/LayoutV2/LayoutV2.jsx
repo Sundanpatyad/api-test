@@ -56,6 +56,7 @@ export default function LayoutV2({
         {sidebarV2Open && (
           <>
             <SidebarV2
+              key="sidebar-v2"
               onShowTeamModal={onShowTeamModal}
               onShowProjectModal={onShowProjectModal}
               onShowCollectionModal={onShowCollectionModal}

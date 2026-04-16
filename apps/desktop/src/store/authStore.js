@@ -46,10 +46,22 @@ export const useAuthStore = create(
       fetchMe: async () => {
         const token = localStorage.getItem('syncnest_token');
         if (!token) return;
+
+        if (!navigator.onLine) {
+          // App initialized without an internet connection,
+          // simply rely on persisted zustand state rather than kicking them out.
+          return;
+        }
+
         try {
           const { data } = await api.get('/api/auth/me');
           set({ user: data.user, token });
-        } catch {
+        } catch (err) {
+          // If the internet drops the instant the request fires
+          if (err.message === 'Network Error' || err.code === 'ERR_NETWORK') {
+            return;
+          }
+          
           localStorage.removeItem('syncnest_token');
           set({ user: null, token: null });
         }

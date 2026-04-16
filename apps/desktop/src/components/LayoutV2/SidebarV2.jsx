@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTeamStore } from '@/store/teamStore';
 import { useProjectStore } from '@/store/projectStore';
 import { useCollectionStore } from '@/store/collectionStore';
@@ -9,6 +9,7 @@ import { useSocketStore } from '@/store/socketStore';
 import toast from 'react-hot-toast';
 import api from '@/lib/api';
 import { v4 as uuidv4 } from 'uuid';
+import RefreshButton from '@/components/RefreshButton/RefreshButton';
 
 const NAV_ITEMS = [
   {
@@ -99,7 +100,9 @@ export default function SidebarV2({
     fetchTeams, 
     setCurrentTeam, 
     updateTeamName, 
-    deleteTeam 
+    deleteTeam,
+    isRefreshing: isRefreshingTeams,
+    refreshTeams
   } = useTeamStore();
   const { 
     projects, 
@@ -107,7 +110,9 @@ export default function SidebarV2({
     fetchProjects, 
     setCurrentProject, 
     updateProjectName, 
-    deleteProject 
+    deleteProject,
+    isRefreshing: isRefreshingProjects,
+    refreshProjects
   } = useProjectStore();
   const { 
     collections, 
@@ -117,14 +122,20 @@ export default function SidebarV2({
     requests,
     updateCollectionName,
     deleteCollection,
-    addRequest
+    removeRequest,
+    addRequest,
+    isRefreshing: isRefreshingCollections,
+    refreshCollections,
+    refreshCollectionRequests,
+    loadCollectionRequestsFromStorage
   } = useCollectionStore();
   const { 
     setCurrentRequest, 
     currentRequest,
     createRequest,
     updateRequestName,
-    deleteRequest
+    deleteRequest,
+    setNoActiveRequest
   } = useRequestStore();
   const { disconnect } = useSocketStore();
   const { isConnected } = useSocketStore();
@@ -139,19 +150,77 @@ export default function SidebarV2({
     setShowEditNameModal
   } = useUIStore();
 
-  const [expandedCollections, setExpandedCollections] = useState(new Set());
+  const [expandedCollections, setExpandedCollections] = useState(() => {
+    const saved = localStorage.getItem('sidebar_expanded_collections');
+    return saved ? new Set(JSON.parse(saved)) : new Set();
+  });
+  const expandedCollectionsRef = useRef(expandedCollections);
   const [expandedFolders, setExpandedFolders] = useState(new Set());
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState(null);
   const [isSearching, setIsSearching] = useState(false);
   const [showLogout, setShowLogout] = useState(false);
-  const [showTeamsSection, setShowTeamsSection] = useState(true);
-  const [showProjectsSection, setShowProjectsSection] = useState(true);
+  
+  // Load section expansion state from localStorage
+  const [showTeamsSection, setShowTeamsSection] = useState(() => {
+    const saved = localStorage.getItem('sidebar_teams_expanded');
+    return saved !== null ? saved === 'true' : true;
+  });
+  const [showProjectsSection, setShowProjectsSection] = useState(() => {
+    const saved = localStorage.getItem('sidebar_projects_expanded');
+    return saved !== null ? saved === 'true' : true;
+  });
+  
+  // Persist section expansion state to localStorage
+  useEffect(() => {
+    localStorage.setItem('sidebar_teams_expanded', showTeamsSection);
+  }, [showTeamsSection]);
+  
+  useEffect(() => {
+    localStorage.setItem('sidebar_projects_expanded', showProjectsSection);
+  }, [showProjectsSection]);
 
   // ── Data fetching ──────────────────
   useEffect(() => { fetchTeams(); }, []);
   useEffect(() => { if (currentTeam) fetchProjects(currentTeam._id); }, [currentTeam?._id]);
   useEffect(() => { if (currentProject) fetchCollections(currentProject._id); }, [currentProject?._id]);
+
+  // ── Update ref when expandedCollections changes ──────────────────
+  useEffect(() => {
+    expandedCollectionsRef.current = expandedCollections;
+  }, [expandedCollections]);
+
+  // ── Listen for storage events to sync expanded collections ──────────────────
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const saved = localStorage.getItem('sidebar_expanded_collections');
+      if (saved) {
+        const expandedIds = JSON.parse(saved);
+        setExpandedCollections(new Set(expandedIds));
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
+  // ── Listen for collection import events to auto-expand ──────────────────
+  useEffect(() => {
+    const handleCollectionImported = (e) => {
+      const collectionId = e.detail;
+      const currentExpanded = expandedCollectionsRef.current;
+      if (collectionId && !currentExpanded.has(collectionId)) {
+        const next = new Set([...currentExpanded, collectionId]);
+        setExpandedCollections(next);
+        localStorage.setItem('sidebar_expanded_collections', JSON.stringify([...next]));
+        // Fetch requests from API for the newly imported collection
+        fetchCollectionRequests(collectionId, true);
+      }
+    };
+
+    window.addEventListener('collection-imported', handleCollectionImported);
+    return () => window.removeEventListener('collection-imported', handleCollectionImported);
+  }, []);
 
   // ── Permission helpers ──────────────────
   const isTeamOwner = (team) => team?.ownerId?._id === user?._id || team?.ownerId === user?._id;
@@ -286,7 +355,6 @@ export default function SidebarV2({
             };
             const result = await createRequest(newRequest);
             if (result.success) {
-              addRequest(result.request);
               setCurrentRequest(result.request);
               toast.success('Request created');
             } else {
@@ -348,8 +416,11 @@ export default function SidebarV2({
             currentName: request.name,
             onSave: async (name) => {
               const result = await updateRequestName(request._id, name);
-              if (result.success) toast.success('Request renamed');
-              else toast.error(result.error);
+              if (result.success) {
+                toast.success('Request renamed');
+              } else {
+                toast.error(result.error);
+              }
             }
           })
         },
@@ -364,9 +435,31 @@ export default function SidebarV2({
             message: 'This will permanently delete this request.',
             itemName: request.name,
             onConfirm: async () => {
-              const result = await deleteRequest(request._id);
-              if (result.success) toast.success('Request deleted');
-              else toast.error(result.error);
+              const result = await deleteRequest(request._id, request.collectionId);
+              if (result.success) {
+                // 1. Remove from collection store state + localStorage
+                removeRequest(request._id, request.collectionId);
+
+                toast.success('Request deleted');
+
+                // 2. If this was the currently open request, navigate away
+                if (currentRequest?._id === request._id) {
+                  // Find all remaining requests in the same collection
+                  const siblings = useCollectionStore.getState().requests.filter(
+                    (r) => r.collectionId === request.collectionId && r._id !== request._id
+                  );
+
+                  if (siblings.length > 0) {
+                    // Open the last one (closest sibling in list order)
+                    setCurrentRequest(siblings[siblings.length - 1]);
+                  } else {
+                    // No requests left — show empty state
+                    setNoActiveRequest(true);
+                  }
+                }
+              } else {
+                toast.error(result.error);
+              }
             }
           })
         }
@@ -386,9 +479,13 @@ export default function SidebarV2({
       const next = new Set(expandedCollections);
       next.delete(id);
       setExpandedCollections(next);
+      localStorage.setItem('sidebar_expanded_collections', JSON.stringify([...next]));
     } else {
-      setExpandedCollections(new Set([...expandedCollections, id]));
-      await fetchCollectionRequests(id);
+      const next = new Set([...expandedCollections, id]);
+      setExpandedCollections(next);
+      localStorage.setItem('sidebar_expanded_collections', JSON.stringify([...next]));
+      // Only load from storage/state. API is only called on manual refresh.
+      loadCollectionRequestsFromStorage(id);
     }
   };
 
@@ -530,9 +627,28 @@ export default function SidebarV2({
                     </svg>
                     <span className="sdbv2-section-label">Teams</span>
                   </div>
-                  <button className="sdbv2-section-add" onClick={(e) => { e.stopPropagation(); onShowTeamModal(); }} title="New team">
-                    <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-                  </button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <RefreshButton 
+                      onRefresh={async () => {
+                        console.log('Sidebar: Before refresh, teams:', teams.length);
+                        const result = await refreshTeams();
+                        console.log('Sidebar: After refresh result:', result, 'teams now:', teams.length);
+                        if (result.fromCache) {
+                          toast(result.error, { icon: '📦', style: { background: '#E3B341', color: '#000' } });
+                        } else if (result.success) {
+                          toast.success('Teams synced');
+                        } else {
+                          toast.error(result.error || 'Refresh failed');
+                        }
+                      }} 
+                      loading={isRefreshingTeams}
+                      tooltip="Refresh teams"
+                      size={12}
+                    />
+                    <button className="sdbv2-section-add" onClick={(e) => { e.stopPropagation(); onShowTeamModal(); }} title="New team">
+                      <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                    </button>
+                  </div>
                 </div>
                 {showTeamsSection && (
                   <div className="animate-in" style={{ paddingLeft: '8px' }}>
@@ -571,9 +687,24 @@ export default function SidebarV2({
                       </svg>
                       <span className="sdbv2-section-label">Projects</span>
                     </div>
-                    <button className="sdbv2-section-add" onClick={(e) => { e.stopPropagation(); onShowProjectModal(); }} title="New project">
-                      <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-                    </button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <RefreshButton 
+                        onRefresh={async () => {
+                          const result = await refreshProjects(currentTeam._id);
+                          if (result.fromCache) {
+                            toast(result.error, { icon: '📦', style: { background: '#E3B341', color: '#000' } });
+                          } else if (result.success) {
+                            toast.success('Projects synced');
+                          }
+                        }} 
+                        loading={isRefreshingProjects}
+                        tooltip="Refresh projects"
+                        size={12}
+                      />
+                      <button className="sdbv2-section-add" onClick={(e) => { e.stopPropagation(); onShowProjectModal(); }} title="New project">
+                        <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                      </button>
+                    </div>
                   </div>
                   {showProjectsSection && (
                     <div className="animate-in" style={{ paddingLeft: '8px' }}>
@@ -605,7 +736,20 @@ export default function SidebarV2({
                 <div className="sdbv2-section">
                   <div className="sdbv2-section-head">
                     <span className="sdbv2-section-label">Collections</span>
-                    <div style={{ display: 'flex', gap: 4 }}>
+                    <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                      <RefreshButton 
+                        onRefresh={async () => {
+                          const result = await refreshCollections(currentProject._id);
+                          if (result.fromCache) {
+                            toast(result.error, { icon: '📦', style: { background: '#E3B341', color: '#000' } });
+                          } else if (result.success) {
+                            toast.success('Collections synced');
+                          }
+                        }} 
+                        loading={isRefreshingCollections}
+                        tooltip="Refresh collections"
+                        size={12}
+                      />
                       <button className="sdbv2-section-add" onClick={onShowImportModal} title="Import">
                         <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
                       </button>

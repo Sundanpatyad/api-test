@@ -27,7 +27,7 @@ const METHOD_COLORS = {
 };
 
 export default function RequestBuilder() {
-  const { currentRequest, updateField, activeTab, setActiveTab, setIsExecuting, setResponse, addToHistory, saveRequest } = useRequestStore();
+  const { currentRequest, updateField, activeTab, setActiveTab, setIsExecuting, setResponse, addToHistory, saveRequest, noActiveRequest, setNoActiveRequest, newRequest } = useRequestStore();
   const { resolveVariables, activeEnvironment } = useEnvironmentStore();
   const { emitRequestUpdate } = useSocketStore();
   const { currentTeam } = useTeamStore();
@@ -146,6 +146,99 @@ export default function RequestBuilder() {
     { id: 'auth',     label: 'Auth',     badge: currentRequest.auth?.type !== 'none' ? '●' : null },
   ];
 
+  // ── Empty State (all requests in collection deleted) ──────────────
+  if (noActiveRequest) {
+    return (
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '100%',
+          gap: '20px',
+          background: 'var(--bg-primary)',
+          padding: '40px',
+          textAlign: 'center',
+        }}
+      >
+        {/* Icon */}
+        <div
+          style={{
+            width: 64,
+            height: 64,
+            borderRadius: '18px',
+            background: 'var(--surface-2)',
+            border: '1px solid var(--border-1)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: '4px',
+          }}
+        >
+          <svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ color: 'var(--text-muted)' }}>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+          </svg>
+        </div>
+
+        {/* Heading */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <h3
+            style={{
+              margin: 0,
+              fontSize: '15px',
+              fontWeight: 600,
+              color: 'var(--text-primary)',
+              fontFamily: 'Poppins, sans-serif',
+            }}
+          >
+            No request available
+          </h3>
+          <p
+            style={{
+              margin: 0,
+              fontSize: '12px',
+              color: 'var(--text-muted)',
+              lineHeight: 1.5,
+              maxWidth: '260px',
+            }}
+          >
+            This collection is empty. Create a new request to get started.
+          </p>
+        </div>
+
+        {/* CTA */}
+        <button
+          onClick={() => { newRequest(); }}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '10px 22px',
+            borderRadius: '10px',
+            background: 'var(--accent)',
+            border: 'none',
+            color: '#fff',
+            fontSize: '13px',
+            fontWeight: 600,
+            cursor: 'pointer',
+            fontFamily: 'Poppins, sans-serif',
+            boxShadow: '0 4px 14px rgba(99,102,241,0.35)',
+            transition: 'opacity 0.15s, transform 0.15s',
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.88'; e.currentTarget.style.transform = 'scale(1.03)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'scale(1)'; }}
+        >
+          <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          Create New Request
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-full" onKeyDown={handleKeyDown}>
       {/* Request name + actions */}
@@ -173,10 +266,10 @@ export default function RequestBuilder() {
       {/* URL bar */}
       <div className="flex items-center gap-2 px-3 pb-2">
         {/* Method dropdown */}
-        <div className="relative">
+        <div className="relative h-9">
           <button
             onClick={() => setShowMethodDropdown(!showMethodDropdown)}
-            className={`flex items-center gap-1.5 bg-[var(--surface-2)] border border-[var(--border-1)] rounded-lg px-3 py-1.5 text-sm font-bold ${METHOD_COLORS[currentRequest.method]} hover:border-[var(--border-2)] transition-all min-w-[90px] justify-between`}
+            className={`flex items-center gap-1.5 bg-[var(--surface-2)] border border-[var(--border-1)] rounded-lg px-3 h-9 text-sm font-bold ${METHOD_COLORS[currentRequest.method]} hover:border-[var(--border-2)] transition-all min-w-[90px] justify-between`}
           >
             {currentRequest.method}
             <svg className="w-3 h-3 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -199,11 +292,13 @@ export default function RequestBuilder() {
         </div>
 
         {/* URL input */}
-        <VariableUrlInput
-          value={currentRequest.url}
-          onChange={(e) => updateField('url', e.target.value)}
-          placeholder="https://api.example.com/endpoint  or  {{base_url}}/path"
-        />
+        <div className="flex-1 min-w-0 h-9">
+          <VariableUrlInput
+            value={currentRequest.url}
+            onChange={(e) => updateField('url', e.target.value)}
+            placeholder="https://api.example.com/endpoint  or  {{base_url}}/path"
+          />
+        </div>
 
         {/* Send button */}
         <SendButton onSend={executeRequest} />
@@ -272,12 +367,12 @@ function SendButton({ onSend }) {
     return (
       <button
         onClick={() => cancelCurrentRequest && cancelCurrentRequest()}
-        className="btn-primary relative flex items-center gap-2 px-5 py-1.5 rounded-lg font-medium transition-all duration-150 active:scale-95 group min-w-[90px] justify-center !bg-danger/90 hover:!bg-danger border-none"
+        className="btn-primary relative flex items-center gap-2 px-5 h-9 rounded-lg font-medium transition-all duration-150 active:scale-95 group min-w-[90px] justify-center !bg-danger/90 hover:!bg-danger border-none"
       >
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
         </svg>
-        <span className="text-sm shadow-sm font-semibold">Cancel</span>
+        Cancel
       </button>
     );
   }
@@ -285,7 +380,7 @@ function SendButton({ onSend }) {
   return (
     <button
       onClick={onSend}
-      className="btn-primary relative flex items-center gap-2 px-5 py-1.5 rounded-lg font-medium transition-all duration-150 active:scale-95 group min-w-[90px] justify-center"
+      className="btn-primary relative flex items-center gap-2 px-5 h-9 rounded-lg font-medium transition-all duration-150 active:scale-95 group min-w-[90px] justify-center"
     >
       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7"/>

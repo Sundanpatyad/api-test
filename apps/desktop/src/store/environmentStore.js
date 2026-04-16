@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import api from '@/lib/api';
+import { v4 as uuidv4 } from 'uuid';
 
 export const useEnvironmentStore = create(
   persist(
@@ -36,7 +37,8 @@ export const useEnvironmentStore = create(
       // ── Create environment ─────────────────────────────────────────────────
       createEnvironment: async (name, projectId, teamId, options = {}) => {
         try {
-          const { data } = await api.post('/api/environment', {
+          const tempId = uuidv4();
+          const p = {
             name,
             projectId,
             teamId,
@@ -44,6 +46,9 @@ export const useEnvironmentStore = create(
             color: options.color || '#6366f1',
             isGlobal: options.isGlobal || false,
             variables: options.variables || [],
+          };
+          const { data } = await api.post('/api/environment', p, {
+             offlineMock: { environment: { ...p, _id: tempId }, tempId, resourceType: 'environment' }
           });
           set((state) => ({
             environments: [...state.environments, data.environment],
@@ -57,7 +62,10 @@ export const useEnvironmentStore = create(
       // ── Update environment (name, description, color) ─────────────────────
       updateEnvironment: async (id, updates) => {
         try {
-          const { data } = await api.put(`/api/environment/${id}`, updates);
+          const existing = get().environments.find(e => e._id === id);
+          const { data } = await api.put(`/api/environment/${id}`, updates, {
+            offlineMock: { environment: { ...existing, ...updates } }
+          });
           const updated = data.environment;
           set((state) => ({
             environments: state.environments.map((e) => (e._id === id ? updated : e)),
@@ -73,7 +81,10 @@ export const useEnvironmentStore = create(
       // ── Save variables (bulk replace) ─────────────────────────────────────
       saveVariables: async (id, variables) => {
         try {
-          const { data } = await api.put(`/api/environment/${id}/variables`, { variables });
+          const existing = get().environments.find(e => e._id === id);
+          const { data } = await api.put(`/api/environment/${id}/variables`, { variables }, {
+             offlineMock: { environment: { ...existing, variables } }
+          });
           const updated = data.environment;
           set((state) => ({
             environments: state.environments.map((e) => (e._id === id ? updated : e)),
@@ -107,7 +118,11 @@ export const useEnvironmentStore = create(
       // ── Duplicate environment ─────────────────────────────────────────────
       duplicateEnvironment: async (id, newName) => {
         try {
-          const { data } = await api.post(`/api/environment/${id}/duplicate`, { name: newName });
+          const tempId = uuidv4();
+          const existing = get().environments.find(e => e._id === id);
+          const { data } = await api.post(`/api/environment/${id}/duplicate`, { name: newName }, {
+            offlineMock: { environment: { ...existing, _id: tempId, name: newName }, tempId, resourceType: 'environment' }
+          });
           set((state) => ({
             environments: [...state.environments, data.environment],
           }));
@@ -120,7 +135,7 @@ export const useEnvironmentStore = create(
       // ── Delete environment ─────────────────────────────────────────────────
       deleteEnvironment: async (id) => {
         try {
-          await api.delete(`/api/environment/${id}`);
+          await api.delete(`/api/environment/${id}`, { offlineMock: { success: true } });
           set((state) => ({
             environments: state.environments.filter((e) => e._id !== id),
             activeEnvironment: state.activeEnvironment?._id === id ? null : state.activeEnvironment,

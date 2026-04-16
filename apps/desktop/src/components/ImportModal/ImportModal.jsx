@@ -14,7 +14,7 @@ export default function ImportModal() {
   const { setShowImportModal } = useUIStore();
   const { currentTeam } = useTeamStore();
   const { currentProject } = useProjectStore();
-  const { fetchCollections } = useCollectionStore();
+  const { fetchCollections, setCurrentCollection, fetchCollectionRequests } = useCollectionStore();
   const { emitCollectionImport } = useSocketStore();
   const { user } = useAuthStore();
 
@@ -69,12 +69,33 @@ export default function ImportModal() {
         teamId: currentTeam._id,
       });
 
-      await fetchCollections(currentProject._id);
+      // Force refresh collections to get the newly imported collection
+      await fetchCollections(currentProject._id, true);
+
+      // Set the imported collection as current and fetch its requests
+      if (data.collection) {
+        setCurrentCollection(data.collection);
+        await fetchCollectionRequests(data.collection._id, true);
+        
+        // Update expanded collections in localStorage
+        const expanded = JSON.parse(localStorage.getItem('sidebar_expanded_collections') || '[]');
+        if (!expanded.includes(data.collection._id)) {
+          expanded.push(data.collection._id);
+          localStorage.setItem('sidebar_expanded_collections', JSON.stringify(expanded));
+        }
+        
+        // Dispatch event to trigger sidebar expansion
+        window.dispatchEvent(new CustomEvent('collection-imported', { detail: data.collection._id }));
+      }
 
       // Emit to real-time room
       emitCollectionImport(currentTeam._id, data.collection, data.requestCount, user?.id);
 
       toast.success(`Imported "${data.collection.name}" — ${data.requestCount} requests`);
+      
+      // Close modal
+      setShowImportModal(false);
+      
       setStep('done');
     } catch (err) {
       toast.error(err.response?.data?.error || 'Import failed');
