@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useSyncQueueStore } from '@/store/syncQueueStore';
+import { useConnectivityStore } from '@/store/connectivityStore';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 
@@ -15,30 +16,34 @@ export default function OfflineSyncManager() {
     resolveData
   } = useSyncQueueStore();
 
+  const { hasInternet } = useConnectivityStore();
+
   useEffect(() => {
     // Attempt sync immediately if online and queue is populated
-    if (navigator.onLine && queue.length > 0 && !isSyncing) {
+    if (hasInternet && queue.length > 0 && !isSyncing) {
       processQueue();
     }
-
-    const handleOnline = () => {
-      if (queue.length > 0 && !isSyncing) {
-        processQueue();
-      }
-    };
-
-    window.addEventListener('online', handleOnline);
-    return () => window.removeEventListener('online', handleOnline);
-  }, [queue.length, isSyncing]);
+  }, [hasInternet, queue.length, isSyncing]);
 
   const processQueue = async () => {
+    // Only process if both internet and backend are reachable
+    const { hasInternet, isBackendReachable } = useConnectivityStore.getState();
+    if (!hasInternet || !isBackendReachable) return;
+
     setIsSyncing(true);
     
     // We snapshot the queue because elements might get pushed while this is running
-    const tasks = useSyncQueueStore.getState().queue;
+    const allTasks = useSyncQueueStore.getState().queue;
+    const now = Date.now();
+
+    // Filter tasks that are ready for retry based on exponential backoff
+    const tasks = allTasks.filter(item => !item.nextRetryAt || now >= item.nextRetryAt);
     
     if (tasks.length > 0) {
       toast.loading(`Syncing ${tasks.length} offline changes...`, { id: 'offline-sync' });
+    } else {
+      setIsSyncing(false);
+      return;
     }
 
     let successCount = 0;

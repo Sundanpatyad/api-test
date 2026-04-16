@@ -112,7 +112,8 @@ export default function SidebarV2({
     updateProjectName, 
     deleteProject,
     isRefreshing: isRefreshingProjects,
-    refreshProjects
+    refreshProjects,
+    getFilteredProjects
   } = useProjectStore();
   const { 
     collections, 
@@ -127,7 +128,8 @@ export default function SidebarV2({
     isRefreshing: isRefreshingCollections,
     refreshCollections,
     refreshCollectionRequests,
-    loadCollectionRequestsFromStorage
+    loadCollectionRequestsFromStorage,
+    getFilteredCollections
   } = useCollectionStore();
   const { 
     setCurrentRequest, 
@@ -179,6 +181,10 @@ export default function SidebarV2({
   useEffect(() => {
     localStorage.setItem('sidebar_projects_expanded', showProjectsSection);
   }, [showProjectsSection]);
+
+  // Filtered data based on current selection
+  const filteredProjects = currentTeam ? getFilteredProjects(currentTeam._id) : [];
+  const filteredCollections = currentProject ? getFilteredCollections(currentProject._id) : [];
 
   // ── Data fetching ──────────────────
   useEffect(() => { fetchTeams(); }, []);
@@ -484,8 +490,8 @@ export default function SidebarV2({
       const next = new Set([...expandedCollections, id]);
       setExpandedCollections(next);
       localStorage.setItem('sidebar_expanded_collections', JSON.stringify([...next]));
-      // Only load from storage/state. API is only called on manual refresh.
-      loadCollectionRequestsFromStorage(id);
+      // Automatically fetch requests from API if they aren't in local storage/state
+      fetchCollectionRequests(id);
     }
   };
 
@@ -708,7 +714,7 @@ export default function SidebarV2({
                   </div>
                   {showProjectsSection && (
                     <div className="animate-in" style={{ paddingLeft: '8px' }}>
-                      {projects.map((proj) => {
+                      {filteredProjects.map((proj) => {
                         const isActive = currentProject?._id === proj._id;
                         return (
                           <button key={proj._id} 
@@ -759,7 +765,7 @@ export default function SidebarV2({
                     </div>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                    {collections.map((col) => {
+                    {filteredCollections.map((col) => {
                       const isExp = expandedCollections.has(col._id);
                       return (
                         <div key={col._id}>

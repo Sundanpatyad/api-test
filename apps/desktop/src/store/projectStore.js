@@ -185,6 +185,12 @@ export const useProjectStore = create((set, get) => ({
     localStorageService.saveCurrentProject(project);
   },
 
+  // Get projects filtered by team ID
+  getFilteredProjects: (teamId) => {
+    if (!teamId) return [];
+    return get().projects.filter(p => String(p.teamId) === String(teamId));
+  },
+
   updateProjectName: async (id, name) => {
     const existing = get().projects.find((p) => p._id === id);
     const isTempId = id?.includes('-');

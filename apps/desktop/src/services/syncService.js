@@ -105,127 +105,134 @@ class SyncService {
     // Resolve any temp IDs in the data
     const resolvedData = this.resolveIds(data);
     
+    // Create syncApi wrapper - adds isSyncOperation flag to prevent logout on 401
+    const syncApi = {
+      post: (url, data) => api.post(url, data, { isSyncOperation: true }),
+      put: (url, data) => api.put(url, data, { isSyncOperation: true }),
+      delete: (url, config = {}) => api.delete(url, { ...config, isSyncOperation: true }),
+    };
+
     switch (type) {
       case 'create_team':
-        return this.syncCreateTeam(resolvedData);
+        return this.syncCreateTeam(resolvedData, syncApi);
       case 'create_project':
-        return this.syncCreateProject(resolvedData);
+        return this.syncCreateProject(resolvedData, syncApi);
       case 'create_collection':
-        return this.syncCreateCollection(resolvedData);
+        return this.syncCreateCollection(resolvedData, syncApi);
       case 'create_request':
-        return this.syncCreateRequest(resolvedData);
+        return this.syncCreateRequest(resolvedData, syncApi);
       case 'update_team':
-        return this.syncUpdateTeam(resolvedData);
+        return this.syncUpdateTeam(resolvedData, syncApi);
       case 'update_project':
-        return this.syncUpdateProject(resolvedData);
+        return this.syncUpdateProject(resolvedData, syncApi);
       case 'update_collection':
-        return this.syncUpdateCollection(resolvedData);
+        return this.syncUpdateCollection(resolvedData, syncApi);
       case 'update_request':
-        return this.syncUpdateRequest(resolvedData);
+        return this.syncUpdateRequest(resolvedData, syncApi);
       case 'delete_team':
-        return this.syncDeleteTeam(resolvedData);
+        return this.syncDeleteTeam(resolvedData, syncApi);
       case 'delete_project':
-        return this.syncDeleteProject(resolvedData);
+        return this.syncDeleteProject(resolvedData, syncApi);
       case 'delete_collection':
-        return this.syncDeleteCollection(resolvedData);
+        return this.syncDeleteCollection(resolvedData, syncApi);
       case 'delete_request':
-        return this.syncDeleteRequest(resolvedData);
+        return this.syncDeleteRequest(resolvedData, syncApi);
       default:
         throw new Error(`Unknown change type: ${type}`);
     }
   }
 
-  // Sync operations
-  async syncCreateTeam(data) {
+  // Sync operations - use syncApi to prevent logout on 401 errors
+  async syncCreateTeam(data, syncApi) {
     const { tempId, ...teamData } = data;
-    const response = await api.post('/api/team', teamData);
+    const response = await syncApi.post('/api/team', teamData);
     if (tempId && response.data?.team?._id) {
       this.registerIdMapping(tempId, response.data.team._id);
     }
     return response.data;
   }
 
-  async syncCreateProject(data) {
+  async syncCreateProject(data, syncApi) {
     const { tempId, ...projectData } = data;
-    const response = await api.post('/api/project', projectData);
+    const response = await syncApi.post('/api/project', projectData);
     if (tempId && response.data?.project?._id) {
       this.registerIdMapping(tempId, response.data.project._id);
     }
     return response.data;
   }
 
-  async syncCreateCollection(data) {
+  async syncCreateCollection(data, syncApi) {
     const { tempId, ...collectionData } = data;
-    const response = await api.post('/api/collection', collectionData);
+    const response = await syncApi.post('/api/collection', collectionData);
     if (tempId && response.data?.collection?._id) {
       this.registerIdMapping(tempId, response.data.collection._id);
     }
     return response.data;
   }
 
-  async syncCreateRequest(data) {
+  async syncCreateRequest(data, syncApi) {
     const { tempId, ...requestData } = data;
-    const response = await api.post('/api/request', requestData);
+    const response = await syncApi.post('/api/request', requestData);
     if (tempId && response.data?.request?._id) {
       this.registerIdMapping(tempId, response.data.request._id);
     }
     return response.data;
   }
 
-  async syncUpdateTeam(data) {
+  async syncUpdateTeam(data, syncApi) {
     const { id, ...updateData } = data;
     const realId = this.idMap[id] || id;
-    const response = await api.put(`/api/team/${realId}`, updateData);
+    const response = await syncApi.put(`/api/team/${realId}`, updateData);
     return response.data;
   }
 
-  async syncUpdateProject(data) {
+  async syncUpdateProject(data, syncApi) {
     const { id, ...updateData } = data;
     const realId = this.idMap[id] || id;
-    const response = await api.put(`/api/project/${realId}`, updateData);
+    const response = await syncApi.put(`/api/project/${realId}`, updateData);
     return response.data;
   }
 
-  async syncUpdateCollection(data) {
+  async syncUpdateCollection(data, syncApi) {
     const { id, ...updateData } = data;
     const realId = this.idMap[id] || id;
-    const response = await api.put(`/api/collection/${realId}`, updateData);
+    const response = await syncApi.put(`/api/collection/${realId}`, updateData);
     return response.data;
   }
 
-  async syncUpdateRequest(data) {
+  async syncUpdateRequest(data, syncApi) {
     const { id, ...updateData } = data;
     const realId = this.idMap[id] || id;
-    const response = await api.put(`/api/request/${realId}`, updateData);
+    const response = await syncApi.put(`/api/request/${realId}`, updateData);
     return response.data;
   }
 
-  async syncDeleteTeam(data) {
+  async syncDeleteTeam(data, syncApi) {
     const { id } = data;
     const realId = this.idMap[id] || id;
-    await api.delete(`/api/team/${realId}`);
+    await syncApi.delete(`/api/team/${realId}`);
     return { success: true };
   }
 
-  async syncDeleteProject(data) {
+  async syncDeleteProject(data, syncApi) {
     const { id } = data;
     const realId = this.idMap[id] || id;
-    await api.delete(`/api/project/${realId}`);
+    await syncApi.delete(`/api/project/${realId}`);
     return { success: true };
   }
 
-  async syncDeleteCollection(data) {
+  async syncDeleteCollection(data, syncApi) {
     const { id } = data;
     const realId = this.idMap[id] || id;
-    await api.delete(`/api/collection/${realId}`);
+    await syncApi.delete(`/api/collection/${realId}`);
     return { success: true };
   }
 
-  async syncDeleteRequest(data) {
+  async syncDeleteRequest(data, syncApi) {
     const { id, collectionId } = data;
     const realId = this.idMap[id] || id;
     const realCollectionId = this.idMap[collectionId] || collectionId;
-    await api.delete(`/api/request/${realId}`, { 
+    await syncApi.delete(`/api/request/${realId}`, { 
       params: { collectionId: realCollectionId }
     });
     return { success: true };

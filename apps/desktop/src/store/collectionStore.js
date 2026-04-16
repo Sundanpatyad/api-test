@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import api from '@/lib/api';
 import { localStorageService } from '@/services/localStorageService';
 import { syncService } from '@/services/syncService';
+import { useConnectivityStore } from '@/store/connectivityStore';
+import toast from 'react-hot-toast';
 import { v4 as uuidv4 } from 'uuid';
 
 export const useCollectionStore = create((set, get) => ({
@@ -268,11 +270,7 @@ export const useCollectionStore = create((set, get) => ({
       
       return { success: true, collection: data.collection };
     } catch (err) {
-      if (!navigator.onLine) {
-        syncService.queueChange('create_collection', { name, projectId, teamId, description, tempId }, tempId);
-        return { success: true, collection: tempCollection, offline: true };
-      }
-      return { success: false, error: err.response?.data?.error || 'Failed' };
+      return { success: false, error: err.response?.data?.error || 'Failed to create collection' };
     }
   },
 
@@ -292,6 +290,13 @@ export const useCollectionStore = create((set, get) => ({
   updateCollectionName: async (id, name) => {
     const existing = get().collections.find(c => c._id === id);
     const isTempId = id?.includes('-');
+    const { hasInternet } = useConnectivityStore.getState();
+
+    // Block updating existing collections while offline
+    if (!isTempId && !hasInternet) {
+      toast.error('Cannot rename existing collections while offline');
+      return { success: false, error: 'Offline' };
+    }
     
     set((state) => {
       const updated = state.collections.map((c) => 
@@ -333,10 +338,6 @@ export const useCollectionStore = create((set, get) => ({
       
       return { success: true, collection: data.collection };
     } catch (err) {
-      if (!navigator.onLine) {
-        syncService.queueChange('update_collection', { id, name }, id);
-        return { success: true, collection: { ...existing, name }, offline: true };
-      }
       return { success: false, error: err.response?.data?.error || 'Failed to update collection' };
     }
   },
@@ -382,6 +383,12 @@ export const useCollectionStore = create((set, get) => ({
     }
   },
 
+  // Get collections filtered by project ID
+  getFilteredCollections: (projectId) => {
+    if (!projectId) return [];
+    return get().collections.filter(c => String(c.projectId) === String(projectId));
+  },
+
   deleteCollection: async (id) => {
     const isTempId = id?.includes('-');
     
@@ -414,11 +421,6 @@ export const useCollectionStore = create((set, get) => ({
       
       return { success: true };
     } catch (err) {
-      if (!navigator.onLine) {
-        syncService.queueChange('delete_collection', { id }, id);
-        return { success: true, offline: true };
-      }
-      
       const existing = get().collections.find((c) => c._id === id);
       if (existing) {
         set((state) => {

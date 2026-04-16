@@ -72,7 +72,18 @@ export default function App() {
   // Fetch user on mount and initialize data from localStorage
   useEffect(() => { 
     const initData = async () => {
-      await fetchMe(); 
+      // Robust offline check: Skip session API if hardware or system thinks we are offline
+      if (navigator.onLine) {
+        try {
+          // Wrap in a small timeout to avoid long hangs on unreliable connections
+          await Promise.race([
+            fetchMe(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Auth Timeout')), 5000))
+          ]);
+        } catch (e) {
+          console.log('[App] Auth check skipped or timed out:', e.message);
+        }
+      }
       // Initialize stores from localStorage for offline-first experience
       initTeams();
       initProjects();

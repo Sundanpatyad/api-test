@@ -38,9 +38,14 @@ export const useAuthStore = create(
         }
       },
 
-      logout: () => {
-        localStorage.removeItem('syncnest_token');
+      logout: async () => {
+        // Full data wipe
+        localStorage.clear();
+        const { useSyncQueueStore } = await import('@/store/syncQueueStore');
+        useSyncQueueStore.getState().clearQueue();
+        
         set({ user: null, token: null });
+        window.location.href = '/'; // Redirect and reload to clear in-memory stores
       },
 
       fetchMe: async () => {
@@ -58,7 +63,7 @@ export const useAuthStore = create(
           set({ user: data.user, token });
         } catch (err) {
           // If the internet drops the instant the request fires
-          if (err.message === 'Network Error' || err.code === 'ERR_NETWORK') {
+          if (err.message === 'Network Error' || err.code === 'ERR_NETWORK' || !navigator.onLine) {
             return;
           }
           

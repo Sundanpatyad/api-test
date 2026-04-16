@@ -12,8 +12,8 @@ import toast from 'react-hot-toast';
 export default function Sidebar() {
   const { user, logout } = useAuthStore();
   const { teams, currentTeam, fetchTeams, setCurrentTeam } = useTeamStore();
-  const { projects, currentProject, fetchProjects, setCurrentProject } = useProjectStore();
-  const { collections, currentCollection, fetchCollections, fetchCollectionRequests, requests } = useCollectionStore();
+  const { projects, currentProject, fetchProjects, setCurrentProject, getFilteredProjects } = useProjectStore();
+  const { collections, currentCollection, fetchCollections, fetchCollectionRequests, requests, getFilteredCollections } = useCollectionStore();
   const { setCurrentRequest } = useRequestStore();
   const { disconnect } = useSocketStore();
   const {
@@ -32,6 +32,10 @@ export default function Sidebar() {
   const [expandedCollections, setExpandedCollections] = useState(new Set());
   const [expandedFolders, setExpandedFolders] = useState(new Set());
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Filtered data based on current selection
+  const filteredProjects = currentTeam ? getFilteredProjects(currentTeam._id) : [];
+  const filteredCollections = currentProject ? getFilteredCollections(currentProject._id) : [];
 
   const handleLogout = () => {
     disconnect();
@@ -172,7 +176,7 @@ export default function Sidebar() {
             </button>
           </div>
           <div className="flex flex-col gap-0.5">
-            {projects.map((project) => (
+            {filteredProjects.map((project) => (
               <button
                 key={project._id}
                 onClick={() => setCurrentProject(project)}
@@ -209,7 +213,7 @@ export default function Sidebar() {
           </div>
 
           <div className="flex flex-col gap-0.5">
-            {collections.map((col) => {
+            {filteredCollections.map((col) => {
               const isExpanded = expandedCollections.has(col._id);
               const colRequests = filteredRequests(col._id);
 

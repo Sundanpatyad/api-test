@@ -1,24 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSyncQueueStore } from '@/store/syncQueueStore';
+import { useSocketStore } from '@/store/socketStore';
+import { useConnectivityStore } from '@/store/connectivityStore';
 
 export default function SyncStatusTag() {
   const { queue, isSyncing } = useSyncQueueStore();
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const { isConnected: isSocketConnected } = useSocketStore();
+  const { hasInternet, isBackendReachable, startHeartbeat } = useConnectivityStore();
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef(null);
 
   useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
+    startHeartbeat();
+  }, [startHeartbeat]);
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -31,14 +25,10 @@ export default function SyncStatusTag() {
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
-  // Hide the tag entirely if online, not syncing, and queue is completed
-  if (isOnline && !isSyncing && queue.length === 0) {
-    return null;
-  }
-
+  // Determine status config
   let statusConfig = {
-    color: 'var(--danger)',
-    bg: 'rgba(var(--danger-rgb, 239, 68, 68), 0.1)',
+    color: 'var(--error)',
+    bg: 'rgba(var(--error-rgb, 248, 81, 73), 0.1)',
     label: `Offline (${queue.length})`,
     icon: (
       <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -48,25 +38,44 @@ export default function SyncStatusTag() {
     )
   };
 
-  if (isSyncing) {
+  // If no internet, show Offline instantly
+  if (!hasInternet) {
     statusConfig = {
-      color: 'var(--warning)',
-      bg: 'rgba(var(--warning-rgb, 234, 179, 8), 0.1)',
-      label: `Syncing (${queue.length})`,
+      color: 'var(--error)',
+      bg: 'rgba(var(--error-rgb, 248, 81, 73), 0.1)',
+      label: `Offline (${queue.length})`,
       icon: (
-        <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 5.636a9 9 0 10-12.728 0" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3l18 18" />
         </svg>
       )
     };
-  } else if (isOnline && queue.length > 0) {
+  } else if (!isBackendReachable) {
     statusConfig = {
-      color: 'var(--warning)',
-      bg: 'rgba(var(--warning-rgb, 234, 179, 8), 0.1)',
-      label: `Pending (${queue.length})`,
+      color: 'var(--error)',
+      bg: 'rgba(var(--error-rgb, 248, 81, 73), 0.1)',
+      label: `Server Down (${queue.length})`,
       icon: (
         <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+        </svg>
+      )
+    };
+  } else {
+    // We have internet AND backend is reachable
+    statusConfig = {
+      color: 'var(--success)',
+      bg: 'rgba(var(--success-rgb, 63, 185, 80), 0.1)',
+      label: 'Online',
+      icon: (
+        <svg className={`w-3 h-3 ${isSyncing ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          {isSyncing ? (
+             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          ) : (
+             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          )}
         </svg>
       )
     };

@@ -23,6 +23,7 @@ export const useSyncQueueStore = create(
               resourceType: mock.resourceType || null,
               timestamp: Date.now(),
               retries: 0,
+              nextRetryAt: 0, // 0 means eligible immediately
             },
           ],
         }));
@@ -35,10 +36,17 @@ export const useSyncQueueStore = create(
       },
 
       incrementRetry: (id) => {
+        const BASE_DELAY = 2000; // 2 seconds
         set((state) => ({
-          queue: state.queue.map((item) =>
-            item.id === id ? { ...item, retries: item.retries + 1 } : item
-          ),
+          queue: state.queue.map((item) => {
+            if (item.id === id) {
+              const newRetries = item.retries + 1;
+              // Exponential backoff: 2s, 4s, 8s
+              const delay = Math.pow(2, newRetries) * 1000;
+              return { ...item, retries: newRetries, nextRetryAt: Date.now() + delay };
+            }
+            return item;
+          }),
         }));
       },
 

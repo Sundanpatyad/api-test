@@ -8,9 +8,7 @@ pub enum SsrfError {
 }
 
 const BLOCKED_HOSTS: &[&str] = &[
-    "localhost",
     "0.0.0.0",
-    "::1",
     "metadata.google.internal",
     "169.254.169.254", // AWS/GCP/Azure metadata
 ];

@@ -1,0 +1,534 @@
+/* ====================================================
+   page.module.css — SyncNest Professional Landing Page
+   ==================================================== */
+
+/* Root */
+.root {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+/* ── Ambient Glows ── */
+.glow1 {
+  position: absolute;
+  top: -180px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 700px;
+  height: 500px;
+  background: radial-gradient(ellipse, rgba(139, 92, 246, 0.28) 0%, transparent 65%);
+  pointer-events: none;
+  z-index: 0;
+  animation: shimmer 6s ease-in-out infinite;
+}
+
+.glow2 {
+  position: absolute;
+  top: 20%;
+  right: -120px;
+  width: 520px;
+  height: 520px;
+  background: radial-gradient(circle, rgba(96, 165, 250, 0.13) 0%, transparent 65%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.glow3 {
+  position: absolute;
+  bottom: -80px;
+  left: -80px;
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(109, 40, 217, 0.18) 0%, transparent 65%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Noise overlay for texture */
+.noise {
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.5;
+}
+
+/* ────────────────────────────────
+   NAV
+──────────────────────────────── */
+.nav {
+  position: relative;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2.5rem;
+  height: 60px;
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(12px);
+  background: rgba(5, 5, 10, 0.6);
+  flex-shrink: 0;
+  animation: fadeIn 0.6s ease both;
+}
+
+.navLogo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+}
+
+.navIcon {
+  font-size: 1.5rem;
+  color: var(--purple-500);
+  animation: float 3s ease-in-out infinite;
+  display: inline-block;
+}
+
+.navBrand {
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--white);
+}
+
+.navLinks {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  list-style: none;
+}
+
+.navLink {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--off);
+  text-decoration: none;
+  padding: 6px 14px;
+  border-radius: 8px;
+  transition: color 0.15s, background 0.15s;
+}
+
+.navLink:hover {
+  color: var(--white);
+  background: var(--surface);
+}
+
+.navRight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ghostBtn {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--off);
+  text-decoration: none;
+  padding: 7px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.ghostBtn:hover {
+  color: var(--white);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.primaryBtn {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--white);
+  text-decoration: none;
+  padding: 7px 18px;
+  background: linear-gradient(135deg, var(--purple-600), var(--purple-500));
+  border-radius: 8px;
+  transition: opacity 0.15s, transform 0.15s;
+  white-space: nowrap;
+}
+
+.primaryBtn:hover {
+  opacity: 0.88;
+  transform: translateY(-1px);
+}
+
+/* ────────────────────────────────
+   HERO
+──────────────────────────────── */
+.hero {
+  position: relative;
+  z-index: 10;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* Floating cards */
+.floatCard {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(16px);
+  border-radius: 12px;
+  padding: 10px 16px;
+  z-index: 20;
+  animation: drift 7s ease-in-out infinite;
+}
+
+.cardTL {
+  top: 12%;
+  left: 6%;
+  animation-delay: 0s;
+}
+
+.cardTR {
+  top: 12%;
+  right: 6%;
+  animation-delay: -2s;
+}
+
+.cardBL {
+  bottom: 18%;
+  left: 6%;
+  animation-delay: -4s;
+}
+
+.cardBR {
+  bottom: 18%;
+  right: 6%;
+  animation-delay: -1.5s;
+}
+
+.floatDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  animation: pulseDot 2s ease-in-out infinite;
+}
+
+.floatLabel {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--off);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  line-height: 1;
+  margin-bottom: 3px;
+}
+
+.floatVal {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--white);
+  line-height: 1;
+}
+
+/* Center Content */
+.heroCenter {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.1rem;
+  animation: fadeUp 0.8s ease 0.1s both;
+  max-width: 640px;
+  padding: 0 1rem;
+}
+
+.heroPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--purple-300);
+  background: rgba(139, 92, 246, 0.12);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  border-radius: 999px;
+  padding: 5px 14px;
+}
+
+.heroPillDot {
+  width: 6px;
+  height: 6px;
+  background: var(--purple-400);
+  border-radius: 50%;
+  animation: pulseDot 1.8s ease-in-out infinite;
+}
+
+.heroTitle {
+  font-size: clamp(2.6rem, 5vw, 4rem);
+  font-weight: 900;
+  line-height: 1.05;
+  letter-spacing: -0.04em;
+  color: var(--white);
+}
+
+.heroGradient {
+  background: linear-gradient(90deg, var(--purple-400) 0%, #818cf8 50%, var(--purple-300) 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: gradient-x 4s ease infinite;
+}
+
+.heroSub {
+  font-size: 0.95rem;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.heroCtas {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.ctaPrimary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--white);
+  text-decoration: none;
+  background: linear-gradient(135deg, var(--purple-600) 0%, #6366f1 100%);
+  border-radius: 10px;
+  padding: 11px 26px;
+  transition: opacity 0.15s, transform 0.15s, box-shadow 0.15s;
+  box-shadow: 0 0 30px rgba(124, 58, 237, 0.3);
+}
+
+.ctaPrimary:hover {
+  opacity: 0.88;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 40px rgba(124, 58, 237, 0.5);
+}
+
+.ctaOutline {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--off);
+  text-decoration: none;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 11px 24px;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.ctaOutline:hover {
+  color: var(--white);
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.heroMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.68rem;
+  color: var(--muted);
+}
+
+.metaSep {
+  opacity: 0.4;
+}
+
+/* ────────────────────────────────
+   DOWNLOAD SECTION
+──────────────────────────────── */
+.downloadSection {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 0 2.5rem 1rem;
+  flex-shrink: 0;
+  animation: fadeUp 0.8s ease 0.3s both;
+}
+
+.dlLabel {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+}
+
+.dlGrid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  width: 100%;
+  max-width: 900px;
+}
+
+.dlCard {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  text-decoration: none;
+  transition: background 0.18s, border-color 0.18s, transform 0.15s;
+  overflow: hidden;
+}
+
+.dlCard::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, var(--accent, rgba(139, 92, 246, 0.08)) 0%, transparent 70%);
+  opacity: 0;
+  transition: opacity 0.2s;
+  border-radius: inherit;
+}
+
+.dlCard:hover {
+  border-color: var(--accent, rgba(139, 92, 246, 0.4));
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.dlCard:hover::before {
+  opacity: 1;
+}
+
+.dlIcon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dlInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.dlPlatform {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--white);
+  white-space: nowrap;
+}
+
+.dlVariant {
+  font-size: 0.6rem;
+  color: var(--muted);
+  white-space: nowrap;
+  margin-top: 1px;
+}
+
+.dlRight {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex-shrink: 0;
+}
+
+.dlExt {
+  font-size: 0.6rem;
+  font-weight: 700;
+  font-family: 'Courier New', monospace;
+  color: var(--accent, var(--purple-400));
+}
+
+.dlSize {
+  font-size: 0.58rem;
+  color: var(--muted);
+  margin-top: 1px;
+}
+
+.dlArrow {
+  flex-shrink: 0;
+  color: var(--muted);
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
+}
+
+.dlCard:hover .dlArrow {
+  opacity: 1;
+  color: var(--accent, var(--purple-400));
+}
+
+/* ────────────────────────────────
+   FOOTER / TECH STRIP
+──────────────────────────────── */
+.footer {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 2.5rem;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+  animation: fadeIn 1s ease 0.5s both;
+}
+
+.footerLabel {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+}
+
+.techStrip {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.techItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  opacity: 0.35;
+  transition: opacity 0.2s;
+}
+
+.techItem:hover {
+  opacity: 0.75;
+}
+
+.techIcon {
+  font-size: 0.9rem;
+  color: var(--white);
+}
+
+.techName {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--white);
+  letter-spacing: -0.01em;
+}

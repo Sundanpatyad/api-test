@@ -4,6 +4,8 @@ import api from '@/lib/api';
 import { localStorageService } from '@/services/localStorageService';
 import { syncService } from '@/services/syncService';
 import { v4 as uuidv4 } from 'uuid';
+import { useConnectivityStore } from '@/store/connectivityStore';
+import toast from 'react-hot-toast';
 
 const defaultRequest = () => ({
   _id: null,
@@ -99,7 +101,7 @@ export const useRequestStore = create(
 
       setNoActiveRequest: (value) => set({ noActiveRequest: value }),
 
-      updateField: (field, value) =>
+      updateField: (field, value) => {
         set((state) => {
           const req = { ...state.currentRequest, [field]: value };
           if (field === 'url') {
@@ -107,8 +109,18 @@ export const useRequestStore = create(
           } else if (field === 'params') {
             req.url = syncUrlFromParams(req.url, value);
           }
+          
+          // Real-time sync with Sidebar (CollectionStore)
+          if (field === 'name' && (req._id || req.collectionId)) {
+            // Use import inside to avoid circular dependency
+            import('@/store/collectionStore').then(({ useCollectionStore }) => {
+              useCollectionStore.getState().updateRequest(req);
+            });
+          }
+          
           return { currentRequest: req };
-        }),
+        });
+      },
 
       updateBody: (bodyUpdate) =>
         set((state) => ({
@@ -152,6 +164,15 @@ export const useRequestStore = create(
 
       saveRequest: async () => {
         const req = get().currentRequest;
+        const { hasInternet } = useConnectivityStore.getState();
+        const isExisting = req._id && !req._id.includes('-');
+
+        // Block saving existing requests while offline
+        if (isExisting && !hasInternet) {
+          toast.error('Cannot save changes to existing requests while offline');
+          return { success: false, error: 'Offline' };
+        }
+
         try {
           if (req._id) {
             const { data } = await api.put(`/api/request/${req._id}`, req, {
@@ -200,7 +221,6 @@ export const useRequestStore = create(
         const { useCollectionStore } = await import('@/store/collectionStore');
         const collectionStore = useCollectionStore.getState();
         collectionStore.addRequest(tempRequest);
-        
         try {
           const { data } = await api.post('/api/request', requestData, {
             offlineMock: { request: tempRequest, tempId, resourceType: 'request' }
@@ -225,12 +245,8 @@ export const useRequestStore = create(
           
           return { success: true, request: data.request };
         } catch (err) {
-          if (!navigator.onLine) {
-            syncService.queueChange('create_request', { ...requestData, tempId }, tempId);
-            return { success: true, request: tempRequest, offline: true };
-          }
-          
-          // Revert optimistic update on error
+          // Revert optimistic update only on real server errors (e.g. 400 Bad Request)
+          // If it was a network error, the interceptor would have resolved it and we wouldn't be here.
           collectionStore.removeRequest(tempId, collectionId);
           return { success: false, error: err.response?.data?.error || 'Failed to create request' };
         }
@@ -239,19 +255,19 @@ export const useRequestStore = create(
       updateRequestName: async (id, name) => {
         const currentReq = get().currentRequest;
         const isTempId = id?.includes('-');
+        const { hasInternet } = useConnectivityStore.getState();
+
+        // Block updating existing requests while offline
+        if (!isTempId && !hasInternet) {
+          toast.error('Cannot rename existing requests while offline');
+          return { success: false, error: 'Offline' };
+        }
         
         // Optimistic update
         if (currentReq?._id === id) {
           set({ currentRequest: { ...currentReq, name } });
         }
-        
         try {
-          // If temp ID, queue for later sync
-          if (isTempId) {
-            syncService.queueChange('update_request', { id, name }, id);
-            return { success: true, request: { ...currentReq, name }, offline: true };
-          }
-          
           const { data } = await api.put(`/api/request/${id}`, { name }, {
             offlineMock: { request: { ...currentReq, _id: id, name } }
           });
@@ -343,7 +359,9 @@ export const useRequestStore = create(
             return { success: true };
           }
           
-          await api.delete(`/api/request/${id}`, { offlineMock: { success: true } });
+          await api.delete(`/api/request/${id}`, { 
+            offlineMock: { success: true, id, collectionId, resourceType: 'request' } 
+          });
           
           const { useSocketStore } = await import('@/store/socketStore');
           const { useAuthStore } = await import('@/store/authStore');
@@ -357,11 +375,6 @@ export const useRequestStore = create(
           
           return { success: true };
         } catch (err) {
-          if (!navigator.onLine) {
-            syncService.queueChange('delete_request', { id, collectionId }, id);
-            return { success: true, offline: true };
-          }
-          
           // Revert on error - restore to localStorage
           if (collectionId) {
             const stored = localStorageService.getRequests(collectionId);
