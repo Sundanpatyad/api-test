@@ -15,6 +15,8 @@ export function verifyToken(token) {
   }
 }
 
+
+
 export function getTokenFromRequest(request) {
   const authHeader = request.headers.get('authorization');
   if (authHeader && authHeader.startsWith('Bearer ')) {
