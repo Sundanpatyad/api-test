@@ -136,7 +136,7 @@ export default function LandingPage() {
         if (detectedOS !== 'Unknown') {
           const match = newDownloads.find(d => d.platform === detectedOS);
           if (match && match.href) {
-            setHeroCta({ text: `Download for ${detectedOS}`, href: match.href });
+            setHeroCta({ text: `Download for ${detectedOS} (${match.size})`, href: match.href });
           }
         }
       })
