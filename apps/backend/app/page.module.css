@@ -21,7 +21,7 @@
   transform: translateX(-50%);
   width: 700px;
   height: 500px;
-  background: radial-gradient(ellipse, rgba(90, 125, 154, 0.1) 0%, transparent 65%);
+  background: radial-gradient(ellipse, rgba(79, 70, 229, 0.15) 0%, transparent 65%);
   pointer-events: none;
   z-index: 0;
   animation: shimmer 6s ease-in-out infinite;
@@ -33,7 +33,7 @@
   right: -120px;
   width: 520px;
   height: 520px;
-  background: radial-gradient(circle, rgba(90, 125, 154, 0.05) 0%, transparent 65%);
+  background: radial-gradient(circle, rgba(79, 70, 229, 0.08) 0%, transparent 65%);
   pointer-events: none;
   z-index: 0;
 }
@@ -44,7 +44,7 @@
   left: -80px;
   width: 400px;
   height: 400px;
-  background: radial-gradient(circle, rgba(76, 99, 120, 0.08) 0%, transparent 65%);
+  background: radial-gradient(circle, rgba(67, 56, 202, 0.1) 0%, transparent 65%);
   pointer-events: none;
   z-index: 0;
 }
@@ -262,7 +262,7 @@
   text-transform: uppercase;
   color: var(--accent-blue);
   background: var(--hover-overlay);
-  border: 1px solid rgba(90, 125, 154, 0.2);
+  border: 1px solid rgba(79, 70, 229, 0.3);
   border-radius: 999px;
   padding: 5px 14px;
 }

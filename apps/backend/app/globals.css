@@ -9,36 +9,36 @@
 :root {
   --font-inter: 'Inter', sans-serif;
 
-  /* PayloadX — Muted Dark Theme (Dull & Premium) */
-  --bg: #0A0D12;
-  --bg-soft: #0F141C;
-  --surface: #161B22;
-  --border: #21262D;
-  --border-glow: rgba(90, 125, 154, 0.2);
+  /* PayloadX — Professional Developer Theme */
+  --bg: #0D1117;
+  --bg-soft: #0B0F14;
+  --surface: #111827;
+  --border: #1F2937;
+  --border-glow: #2D3748;
 
   /* Primary Grays (Matte) */
-  --gray-700: #2A2F36;
-  --gray-600: #343A40;
-  --gray-500: #3F464F;
+  --gray-700: #111827;
+  --gray-600: #161B22;
+  --gray-500: #1F2933;
 
-  /* Accent Blues (Dusty / Desaturated) */
-  --accent-blue: #5A7D9A;
-  --accent-soft: #4C6378;
-  --accent-glow: #3E5568;
+  /* Accent Indigos */
+  --accent-blue: #4F46E5;
+  --accent-soft: #4338CA;
+  --accent-glow: #3730A3;
 
-  /* Typography (Soft & Reduced Strain) */
-  --white: #C9D1D9;
-  --off: #8B949E;
-  --muted: #6E7681;
+  /* Typography */
+  --white: #E6EDF3;
+  --off: #C9D1D9;
+  --muted: #6B7280;
 
   /* Functional */
-  --green: #4C6378; /* Muted for consistency */
-  --amber: #3F464F;
+  --green: #16A34A;
+  --amber: #D97706;
   --blue: var(--accent-blue);
   
   /* Utils */
-  --hover-overlay: rgba(90, 125, 154, 0.12);
-  --shadow-soft: rgba(0, 0, 0, 0.4);
+  --hover-overlay: rgba(79, 70, 229, 0.1);
+  --shadow-soft: rgba(0, 0, 0, 0.3);
 }
 
 html,

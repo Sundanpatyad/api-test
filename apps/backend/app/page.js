@@ -27,7 +27,7 @@ const DOWNLOADS = [
     ),
     ext: '.dmg',
     size: '8.2 MB',
-    accent: '#5A7D9A',
+    accent: '#4F46E5', /* new primary */
     href: 'https://github.com/Sundanpatyad/api-test/releases/download/1.2.2/PayloadX.API.Studioaarch64.dmg',
   },
   {
@@ -41,7 +41,7 @@ const DOWNLOADS = [
     ),
     ext: '.dmg',
     size: '9.1 MB',
-    accent: '#4C6378',
+    accent: '#4338CA', /* soft accent */
     href: 'https://github.com/Sundanpatyad/api-test/releases/download/1.2.2/PayloadX.API.Studiox64.dmg',
   },
   {
@@ -55,7 +55,7 @@ const DOWNLOADS = [
     ),
     ext: '.exe',
     size: '7.8 MB',
-    accent: '#3E5568',
+    accent: '#3730A3', /* glow accent */
     href: 'https://github.com/Sundanpatyad/api-test/releases/tag/1.2.2',
   },
   {
@@ -69,7 +69,7 @@ const DOWNLOADS = [
     ),
     ext: '.AppImage',
     size: '9.4 MB',
-    accent: '#343A40',
+    accent: '#4B5563', /* gray 600 */
     href: 'https://github.com/Sundanpatyad/api-test/releases/tag/1.2.2',
   },
   {
@@ -83,7 +83,7 @@ const DOWNLOADS = [
     ),
     ext: '.deb',
     size: '8.8 MB',
-    accent: '#2A2F36',
+    accent: '#374151', /* gray 700 */
     href: 'https://github.com/Sundanpatyad/api-test/releases/tag/1.2.2',
   },
 ];
