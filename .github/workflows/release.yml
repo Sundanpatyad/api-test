@@ -59,59 +59,57 @@ jobs:
           # Ensure desktop dependencies are explicitly linked if npm i was flaky
           npm i -w apps/desktop
 
-      - name: Build Tauri app
-        uses: tauri-apps/tauri-action@v0
-        id: tauri_build
+      - name: Build Tauri App
+        run: |
+          # Build JS frontend first
+          cd apps/desktop && npm run build
+          # Build Tauri binary and bundle
+          npm run tauri:build -- --target ${{ matrix.target }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          projectPath: './apps/desktop'
-          includeRelease: false
-          includeUpdaterJson: false
-          args: ${{ matrix.args }}
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
 
       - name: Rename and Prepare Artifacts
         shell: bash
         run: |
-          echo "=== CI/CD UNIVERSAL DISCOVERY ==="
-          echo "Workspace Root: $(pwd)"
+          echo "=== CI/CD MANUAL DISCOVERY ==="
+          echo "Root CWD: $(pwd)"
           mkdir -p artifacts
           
-          # Find all directories named 'bundle' anywhere in the project
-          # This handles target/ at root or apps/desktop/src-tauri/target/
-          BUNDLE_DIRS=$(find . -name "bundle" -type d -not -path "./node_modules/*")
+          # We search specifically in the apps/desktop/src-tauri/target directory
+          # The bundles are usually in target/[target]/release/bundle/
+          SEARCH_PATH="apps/desktop/src-tauri/target"
           
-          if [ -z "$BUNDLE_DIRS" ]; then
-            echo "⚠️  No 'bundle' directories found yet. Searching for any installer files directly..."
-            # Fallback to search root for any installer extensions
-            TARGET_FILES=$(find . -type f \( -name "*.dmg" -o -name "*.exe" -o -name "*.msi" -o -name "*.deb" -o -name "*.rpm" -o -name "*.AppImage" \) -not -path "./node_modules/*")
-          else
-            echo "📂 Found bundle directories: $BUNDLE_DIRS"
-            TARGET_FILES=$(find $BUNDLE_DIRS -type f \( -name "*.dmg" -o -name "*.exe" -o -name "*.msi" -o -name "*.deb" -o -name "*.rpm" -o -name "*.AppImage" \))
+          if [ ! -d "$SEARCH_PATH" ]; then
+            echo "⚠️  Expected target path $SEARCH_PATH not found! Attempting root target search..."
+            SEARCH_PATH="."
           fi
           
-          echo "--- Processing Files ---"
-          for file in $TARGET_FILES; do
-            filename=$(basename "$file")
-            echo "🔍 Processing: $file"
-            
-            # Remove version pattern (e.g. _1.0.0_ or -1.0.0- or 1.0.0)
-            # We use a broad match for renaming to handle any installer found
-            newname=$(echo "$filename" | sed -E 's/(_|-)?[0-9]+\.[0-9]+\.[0-9]+(_|-)?[0-9]*//g')
-            newname=$(echo "$newname" | sed 's/__/_/g' | sed 's/--/-/g')
-            
-            echo "✅ Preparing: $filename -> $newname"
-            cp "$file" "artifacts/$newname"
+          echo "🔍 Searching for installers in $SEARCH_PATH..."
+          # Find all installers, ignoring node_modules
+          find "$SEARCH_PATH" -type f \( -name "*.dmg" -o -name "*.exe" -o -name "*.msi" -o -name "*.deb" -o -name "*.rpm" -o -name "*.AppImage" \) -not -path "*/node_modules/*" | while read -r file; do
+            # Only process if it's in a 'bundle' folder
+            if [[ "$file" == *"bundle"* ]]; then
+              filename=$(basename "$file")
+              echo "📝 Found: $file"
+              
+              # Rename logic (remove version pattern)
+              newname=$(echo "$filename" | sed -E 's/(_|-)?[0-9]+\.[0-9]+\.[0-9]+(_|-)?[0-9]*//g')
+              newname=$(echo "$newname" | sed 's/__/_/g' | sed 's/--/-/g')
+              
+              echo "✅ Renaming: $filename -> $newname"
+              cp "$file" "artifacts/$newname"
+            fi
           done
           
-          echo "--- Discovery Summary ---"
+          echo "--- Discovery Results ---"
           if [ "$(ls -A artifacts)" ]; then
-            echo "Artifacts successfully prepared:"
             ls -lh artifacts/
           else
-            echo "❌ CRITICAL ERROR: No installers found after deep search!"
-            echo "Listing root directory for context:"
-            ls -F
+            echo "❌ ERROR: No installers were found after manual build!"
+            echo "Final check of the build output folder:"
+            ls -R apps/desktop/src-tauri/target || echo "Target folder is missing!"
             exit 1
           fi
 
