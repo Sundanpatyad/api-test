@@ -32,7 +32,7 @@
     },
     "bundle": {
       "active": true,
-      "targets": "all",
+      "targets": ["msi", "deb", "appimage"],
       "identifier": "com.payloadx.apistudio",
       "icon": [
         "icons/32x32.png",
@@ -55,13 +55,9 @@
           "librsvg2-common"
         ]
       },
-      "nsis": {
-        "oneClick": false,
-        "allowToChangeInstallationDirectory": true,
-        "shortcutName": "PayloadX API Studio",
-        "createDesktopShortcut": "always",
-        "displayLanguageSelector": true,
-        "installerIcon": "icons/icon.ico"
+      "wix": {
+        "language": "en-US",
+        "template": null
       }
     },
     "security": {

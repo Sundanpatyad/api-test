@@ -264,10 +264,10 @@ If you encounter issues while installing or opening the application, please refe
 3. Now right-click (Control + Click) the app in your Applications folder and select **Open**.
 
 ### 🪟 Windows: SmartScreen Warning / Installation
-We now provide a standard **Setup.exe** (NSIS) installer which is recommended for most users.
+We provide a standard **.msi** (WiX) installer.
 
 **Solution:**
-1. Run the `PayloadX_API_Studio_x64-setup.exe`.
+1. Run the `PayloadX_API_Studio_x64.msi`.
 2. Windows may warn you that the "publisher is unknown" because the installer is not signed.
 3. Click **"More info"** -> **"Run anyway"**.
 4. The setup will guide you through the installation and create a desktop shortcut.

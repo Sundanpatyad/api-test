@@ -1,8 +1,8 @@
 [package]
-name = "syncnest-desktop"
-version = "1.0.0"
-description = "SyncNest API Studio"
-authors = ["SyncNest Team"]
+name = "payloadx-api-studio"
+version = "1.2.4"
+description = "PayloadX API Studio"
+authors = ["PayloadX Team"]
 license = ""
 repository = ""
 default-run = "syncnest-desktop"
