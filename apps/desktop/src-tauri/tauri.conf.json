@@ -8,7 +8,7 @@
   },
   "package": {
     "productName": "PayloadX API Studio",
-    "version": "1.2.6"
+    "version": "1.2.7"
   },
   "tauri": {
     "allowlist": {
@@ -56,10 +56,7 @@
           "template": null
         },
         "nsis": {
-          "oneClick": false,
-          "allowToChangeInstallationDirectory": true,
-          "shortcutName": "PayloadX API Studio",
-          "createDesktopShortcut": "always",
+          "installMode": "both",
           "displayLanguageSelector": true,
           "installerIcon": "icons/icon.ico"
         }
