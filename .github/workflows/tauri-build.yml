@@ -49,3 +49,4 @@ jobs:
         with:
           projectPath: "apps/desktop"
           releaseName: "PayloadX API Studio"
+          tagName: ${{ github.ref_name }}

@@ -28,7 +28,7 @@ const DOWNLOADS = [
     ext: '.dmg',
     size: '8.2 MB',
     accent: '#5A7D9A',
-    href: 'https://github.com/Sundanpatyad/api-test/releases/download/1.2.1/PayloadX.API.Studioaarch64.dmg',
+    href: 'https://github.com/Sundanpatyad/api-test/releases/download/1.2.2/PayloadX.API.Studioaarch64.dmg',
   },
   {
     id: 'dl-mac-intel',
@@ -42,7 +42,7 @@ const DOWNLOADS = [
     ext: '.dmg',
     size: '9.1 MB',
     accent: '#4C6378',
-    href: 'https://github.com/Sundanpatyad/api-test/releases/download/1.2.1/PayloadX.API.Studiox64.dmg',
+    href: 'https://github.com/Sundanpatyad/api-test/releases/download/1.2.2/PayloadX.API.Studiox64.dmg',
   },
   {
     id: 'dl-windows',
@@ -56,7 +56,7 @@ const DOWNLOADS = [
     ext: '.exe',
     size: '7.8 MB',
     accent: '#3E5568',
-    href: 'https://github.com/Sundanpatyad/api-test/releases/tag/1.2.1',
+    href: 'https://github.com/Sundanpatyad/api-test/releases/tag/1.2.2',
   },
   {
     id: 'dl-linux-appimage',
@@ -70,7 +70,7 @@ const DOWNLOADS = [
     ext: '.AppImage',
     size: '9.4 MB',
     accent: '#343A40',
-    href: 'https://github.com/Sundanpatyad/api-test/releases/tag/1.2.1',
+    href: 'https://github.com/Sundanpatyad/api-test/releases/tag/1.2.2',
   },
   {
     id: 'dl-linux-deb',
@@ -84,7 +84,7 @@ const DOWNLOADS = [
     ext: '.deb',
     size: '8.8 MB',
     accent: '#2A2F36',
-    href: 'https://github.com/Sundanpatyad/api-test/releases/tag/1.2.1',
+    href: 'https://github.com/Sundanpatyad/api-test/releases/tag/1.2.2',
   },
 ];
 
