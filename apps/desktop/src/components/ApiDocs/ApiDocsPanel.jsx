@@ -232,7 +232,7 @@ export default function ApiDocsPanel() {
                          <span style={{ color, background: `${color}18` }} className="text-[9px] font-bold px-[5px] py-0.5 rounded min-w-[36px] text-center flex-shrink-0">
                            {ep.method}
                          </span>
-                         <span className={`text-[12px] truncate ${isActive ? 'text-tx-primary' : 'text-surface-600'}`}>
+                         <span className={`text-[12px] truncate ${isActive ? 'text-tx-primary' : 'text-tx-muted'}`}>
                            {ep.path}
                          </span>
                        </div>
@@ -263,7 +263,7 @@ export default function ApiDocsPanel() {
           <EndpointEditor endpoint={currentEndpoint} docId={currentDoc._id} />
         ) : (
           <div className="m-auto flex flex-col items-center max-w-[300px] text-center gap-3">
-             <div className="w-16 h-16 rounded-2xl bg-surface-2 border border-[var(--border-1)] flex items-center justify-center text-surface-300 shadow-sm">
+             <div className="w-16 h-16 rounded-2xl bg-surface-2 border border-[var(--border-1)] flex items-center justify-center text-tx-secondary shadow-sm">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}><path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
              </div>
              <p className="text-sm font-medium text-tx-secondary">Interactive API Editor</p>

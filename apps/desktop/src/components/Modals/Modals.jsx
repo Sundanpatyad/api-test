@@ -291,7 +291,7 @@ export function InviteModal() {
                       ) : (
                         <button
                           onClick={() => setConfirmRemove(memberId)}
-                          className="flex-shrink-0 text-surface-600 hover:text-danger transition-colors"
+                          className="flex-shrink-0 text-tx-muted hover:text-danger transition-colors"
                           title="Remove member"
                         >
                           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

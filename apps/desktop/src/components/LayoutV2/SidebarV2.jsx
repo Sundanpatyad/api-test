@@ -150,7 +150,8 @@ export default function SidebarV2({
     setActiveV2Nav,
     setContextMenu,
     setShowConfirmDialog,
-    setShowEditNameModal
+    setShowEditNameModal,
+    setShowInviteModal
   } = useUIStore();
 
   const [expandedCollections, setExpandedCollections] = useState(() => {
@@ -547,7 +548,18 @@ export default function SidebarV2({
         </div>
 
         <div className="sdbv2-activity-bottom">
-          <div className="relative">
+          <div className="flex flex-col gap-2 relative">
+            <button
+              className="sdbv2-activity-item"
+              onClick={() => setShowInviteModal(true)}
+              title="Team Members"
+            >
+              <span className="sdbv2-activity-icon">
+                <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+              </span>
+            </button>
             <button 
               className="sdbv2-activity-avatar"
               onClick={() => setShowLogout(!showLogout)}
@@ -665,7 +677,7 @@ export default function SidebarV2({
                           }}
                           onContextMenu={(e) => showTeamContextMenu(e, team)}
                           className={`sdbv2-tree-row team-row ${isActive ? 'sdbv2-tree-row--active' : ''}`}
-                          style={isActive ? { outline: '1px solid rgba(255,255,255,0.12)', outlineOffset: '-1px' } : undefined}
+                          style={isActive ? { outline: '1px solid var(--border-2)', outlineOffset: '-1px' } : undefined}
                         >
                           <div className="sdbv2-tree-avatar">{team.name[0].toUpperCase()}</div>
                           <span className="sdbv2-tree-text">{team.name}</span>

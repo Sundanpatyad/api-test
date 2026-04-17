@@ -2,13 +2,14 @@ import { create } from 'zustand';
 import { io } from 'socket.io-client';
 import { localStorageService } from '@/services/localStorageService';
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:4000';
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001';
 
 export const useSocketStore = create((set, get) => ({
   socket: null,
   isConnected: false,
   roomMembers: [],
   currentRoom: null,
+  requestViewers: {}, // { [requestId]: User[] }
 
   connect: () => {
     const existing = get().socket;
@@ -43,6 +44,13 @@ export const useSocketStore = create((set, get) => ({
       set({ roomMembers: members });
     });
 
+    // ── PRESENCE: who is viewing which request ──────────────────────
+    socket.on('request_viewers_updated', ({ requestId, viewers }) => {
+      set((state) => ({
+        requestViewers: { ...state.requestViewers, [requestId]: viewers },
+      }));
+    });
+
     set({ socket });
   },
 
@@ -52,6 +60,20 @@ export const useSocketStore = create((set, get) => ({
     socket.emit('join_team', { teamId, user });
     set({ currentRoom: `team:${teamId}` });
   },
+
+  // ── PRESENCE EMITTERS ─────────────────────────────────────────────
+  emitOpenRequest: (teamId, requestId, user) => {
+    const socket = get().socket;
+    if (!socket || !teamId || !requestId) return;
+    socket.emit('open_request', { teamId, requestId, user });
+  },
+
+  emitCloseRequest: (teamId, requestId, userId) => {
+    const socket = get().socket;
+    if (!socket || !teamId || !requestId) return;
+    socket.emit('close_request', { teamId, requestId, userId });
+  },
+  // ──────────────────────────────────────────────────────────────────
 
   emitRequestUpdate: (teamId, request, userId) => {
     const socket = get().socket;

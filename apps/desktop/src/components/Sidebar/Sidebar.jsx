@@ -161,7 +161,7 @@ export default function Sidebar() {
             );
           })}
           {teams.length === 0 && (
-            <p className="text-surface-600 text-xs px-2 py-1">No teams yet</p>
+            <p className="text-tx-muted text-xs px-2 py-1">No teams yet</p>
           )}
         </div>
       </div>
@@ -261,7 +261,7 @@ export default function Sidebar() {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
                               </svg>
                               <span className="truncate">{folder.name}</span>
-                              <span className="text-surface-600 ml-auto text-[10px]">{folderReqs.length}</span>
+                              <span className="text-tx-muted ml-auto text-[10px]">{folderReqs.length}</span>
                             </button>
                             {isFolderExpanded && folderReqs.map((req) => (
                               <RequestItem key={req._id} request={req} onSelect={setCurrentRequest} />
@@ -276,7 +276,7 @@ export default function Sidebar() {
                       ))}
 
                       {colRequests.length === 0 && (
-                        <p className="text-surface-600 text-xs px-2 py-1 italic">No requests</p>
+                        <p className="text-tx-muted text-xs px-2 py-1 italic">No requests</p>
                       )}
                     </div>
                   )}
@@ -349,7 +349,7 @@ export default function Sidebar() {
         {/* Creator Note */}
         <div className="px-2 py-1.5 mt-1 border-t border-[var(--border-1)] opacity-40">
            <p className="text-[10px] text-surface-500 font-medium">
-             Project by <span className="text-surface-300">Sundan Sharma</span>
+             Project by <span className="text-tx-secondary">Sundan Sharma</span>
            </p>
         </div>
 

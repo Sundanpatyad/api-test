@@ -15,18 +15,18 @@ function KeyValueRow({ item, onChange, onDelete, keyPlaceholder = 'Key', valuePl
         placeholder={keyPlaceholder}
         value={item.key}
         onChange={(e) => onChange({ ...item, key: e.target.value })}
-        className="bg-surface-850 border border-transparent hover:border-[var(--border-1)] focus:border-[var(--accent)] outline-none py-1.5 px-3 rounded-lg text-xs flex-1 font-mono text-tx-primary transition-all placeholder:text-surface-600"
+        className="bg-surface-800 border border-transparent hover:border-[var(--border-1)] focus:border-[var(--accent)] outline-none py-1 px-2 rounded-md text-[11px] flex-1 font-mono text-tx-primary transition-all placeholder-tx-muted"
       />
       <input
         type="text"
         placeholder={valuePlaceholder}
         value={item.value}
         onChange={(e) => onChange({ ...item, value: e.target.value })}
-        className="bg-surface-850 border border-transparent hover:border-[var(--border-1)] focus:border-[var(--accent)] outline-none py-1.5 px-3 rounded-lg text-xs flex-1 font-mono text-tx-primary transition-all placeholder:text-surface-600"
+        className="bg-surface-800 border border-transparent hover:border-[var(--border-1)] focus:border-[var(--accent)] outline-none py-1 px-2 rounded-md text-[11px] flex-1 font-mono text-tx-primary transition-all placeholder-tx-muted"
       />
       <button
         onClick={onDelete}
-        className="opacity-0 group-hover:opacity-100 text-surface-600 hover:text-danger transition-all flex-shrink-0"
+        className="opacity-0 group-hover:opacity-100 text-tx-muted hover:text-danger transition-all flex-shrink-0"
       >
         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
@@ -69,7 +69,7 @@ export default function ParamsTab() {
         );
       })}
       {params.length === 0 && (
-        <p className="text-surface-600 text-xs text-center py-4">No query parameters. Click Add to create one.</p>
+        <p className="text-tx-muted text-xs text-center py-4">No query parameters. Click Add to create one.</p>
       )}
     </div>
   );

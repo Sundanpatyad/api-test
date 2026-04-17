@@ -277,8 +277,8 @@ export default function LandingPage() {
               </svg>
               {heroCta.text}
             </a>
-            <a id="cta-docs" href="#features" className={styles.ctaOutline}>
-              View Features →
+            <a id="cta-docs" href="https://api-test-desktop.vercel.app/" className={styles.ctaOutline}>
+              Playground →
             </a>
           </div>
 

@@ -6,6 +6,7 @@ import { useSocketStore } from '@/store/socketStore';
 import { useUIStore } from '@/store/uiStore';
 import { useCollectionStore } from '@/store/collectionStore';
 import { useTeamStore } from '@/store/teamStore';
+import { useRequestStore } from '@/store/requestStore';
 import SplashScreen from '@/components/SplashScreen/SplashScreen';
 import AuthPage from '@/components/Auth/AuthPage';
 import Sidebar from '@/components/Sidebar/Sidebar';
@@ -135,6 +136,11 @@ export default function App() {
 
     const offRequest = onRequestUpdated(({ request }) => {
       updateRequest(request);
+      
+      const reqStore = useRequestStore.getState();
+      if (reqStore.currentRequest?._id === request._id) {
+        reqStore.setCurrentRequest(request);
+      }
     });
     const offCollection = onCollectionUpdated(({ collection }) => {
       updateCollection(collection);

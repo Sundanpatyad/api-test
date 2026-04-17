@@ -103,7 +103,7 @@ export default function EnvironmentSelector() {
 
           {environments.length === 0 && (
             <div className="px-3 py-3 text-center">
-              <p className="text-surface-600 text-xs">No environments yet</p>
+              <p className="text-tx-muted text-xs">No environments yet</p>
               <button
                 onClick={() => { setShowEnvironmentPanel(true); setOpen(false); }}
                 className="text-brand-400 hover:text-brand-300 text-xs mt-1 transition-colors"
@@ -130,7 +130,7 @@ export default function EnvironmentSelector() {
               {activeEnvironment?._id === env._id && (
                 <span className="text-[9px] bg-success/20 text-success px-1.5 py-0.5 rounded-full">Active</span>
               )}
-              <span className="text-surface-600 text-[10px]">
+              <span className="text-tx-muted text-[10px]">
                 {env.variables?.filter(v => v.enabled !== false).length || 0} vars
               </span>
             </button>
@@ -139,7 +139,7 @@ export default function EnvironmentSelector() {
           {/* Variable preview for active env */}
           {activeEnvironment?.variables?.length > 0 && (
             <div className="border-t border-surface-700/50 mt-1 pt-1 px-3 pb-2">
-              <p className="text-[10px] text-surface-600 mb-1.5 font-medium">Active Variables</p>
+              <p className="text-[10px] text-tx-muted mb-1.5 font-medium">Active Variables</p>
               <div className="flex flex-col gap-1 max-h-28 overflow-y-auto">
                 {activeEnvironment.variables
                   .filter((v) => v.enabled !== false && v.key)
@@ -147,14 +147,14 @@ export default function EnvironmentSelector() {
                   .map((v, i) => (
                     <div key={i} className="flex items-center gap-2 text-[10px]">
                       <code className="text-brand-400 font-mono">{`{{${v.key}}}`}</code>
-                      <span className="text-surface-600">→</span>
+                      <span className="text-tx-muted">→</span>
                       <span className="text-surface-400 truncate font-mono">
                         {v.isSecret ? '••••••••' : v.value || '(empty)'}
                       </span>
                     </div>
                   ))}
                 {activeEnvironment.variables.filter(v => v.enabled !== false && v.key).length > 6 && (
-                  <p className="text-surface-600 text-[10px]">
+                  <p className="text-tx-muted text-[10px]">
                     +{activeEnvironment.variables.filter(v => v.enabled !== false && v.key).length - 6} more...
                   </p>
                 )}

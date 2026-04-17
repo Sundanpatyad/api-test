@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { executeHttpRequest, isTauri } from '@/lib/executor';
 import { useRequestStore } from '@/store/requestStore';
 import { useEnvironmentStore } from '@/store/environmentStore';
@@ -13,6 +13,7 @@ import HeadersTab from './tabs/HeadersTab';
 import BodyTab from './tabs/BodyTab';
 import AuthTab from './tabs/AuthTab';
 import VariableUrlInput from './VariableUrlInput';
+import RequestPresence from './RequestPresence';
 
 const METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'];
 
@@ -29,10 +30,33 @@ const METHOD_COLORS = {
 export default function RequestBuilder() {
   const { currentRequest, updateField, activeTab, setActiveTab, setIsExecuting, setResponse, addToHistory, saveRequest, noActiveRequest, setNoActiveRequest, newRequest } = useRequestStore();
   const { resolveVariables, activeEnvironment } = useEnvironmentStore();
-  const { emitRequestUpdate } = useSocketStore();
+  const { emitRequestUpdate, emitOpenRequest, emitCloseRequest } = useSocketStore();
   const { currentTeam } = useTeamStore();
   const { user } = useAuthStore();
   const [showMethodDropdown, setShowMethodDropdown] = useState(false);
+
+  // ── Presence: broadcast which request is open ──────────────────────
+  const prevRequestIdRef = useRef(null);
+  useEffect(() => {
+    const requestId = currentRequest?._id;
+    const teamId = currentTeam?._id;
+    if (!requestId || !teamId || !user) return;
+
+    // Close previous if changed
+    if (prevRequestIdRef.current && prevRequestIdRef.current !== requestId) {
+      emitCloseRequest(teamId, prevRequestIdRef.current, user._id || user.id);
+    }
+
+    emitOpenRequest(teamId, requestId, user);
+    prevRequestIdRef.current = requestId;
+
+    return () => {
+      if (requestId && teamId && user) {
+        emitCloseRequest(teamId, requestId, user._id || user.id);
+      }
+    };
+  }, [currentRequest?._id, currentTeam?._id]);
+  // ──────────────────────────────────────────────────────────────────
 
   const executeRequest = useCallback(async () => {
     if (!navigator.onLine) {
@@ -249,7 +273,7 @@ export default function RequestBuilder() {
       {/* Request name + actions */}
       <div className="flex items-center gap-2 px-3 pt-3 pb-2">
         <input
-          className="input text-sm font-medium flex-1 max-w-xs"
+          className="input text-xs font-medium flex-1 max-w-xs"
           placeholder="Request name"
           value={currentRequest.name}
           onChange={(e) => updateField('name', e.target.value)}
@@ -266,15 +290,17 @@ export default function RequestBuilder() {
           </svg>
           Save
         </button>
+        {/* Presence: who else is viewing this request */}
+        <RequestPresence requestId={currentRequest?._id} />
       </div>
 
       {/* URL bar */}
       <div className="flex items-center gap-2 px-3 pb-2">
         {/* Method dropdown */}
-        <div className="relative h-9">
+        <div className="relative h-8">
           <button
             onClick={() => setShowMethodDropdown(!showMethodDropdown)}
-            className={`flex items-center gap-1.5 bg-[var(--surface-2)] border border-[var(--border-1)] rounded-lg px-3 h-9 text-sm font-bold ${METHOD_COLORS[currentRequest.method]} hover:border-[var(--border-2)] transition-all min-w-[90px] justify-between`}
+            className={`flex items-center gap-1.5 bg-[var(--surface-2)] border border-[var(--border-1)] rounded-md px-2.5 h-8 text-[11px] font-bold ${METHOD_COLORS[currentRequest.method]} hover:border-[var(--border-2)] transition-all min-w-[80px] justify-between`}
           >
             {currentRequest.method}
             <svg className="w-3 h-3 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -287,7 +313,7 @@ export default function RequestBuilder() {
                 <button
                   key={m}
                   onClick={() => { updateField('method', m); setShowMethodDropdown(false); }}
-                  className={`flex items-center w-full px-3 py-1.5 text-sm font-bold hover:bg-surface-700 transition-colors ${METHOD_COLORS[m]}`}
+                  className={`flex items-center w-full px-2.5 py-1 text-[11px] font-bold hover:bg-surface-700 transition-colors ${METHOD_COLORS[m]}`}
                 >
                   {m}
                 </button>
@@ -297,7 +323,7 @@ export default function RequestBuilder() {
         </div>
 
         {/* URL input */}
-        <div className="flex-1 min-w-0 h-9">
+        <div className="flex-1 min-w-0 h-8">
           <VariableUrlInput
             value={currentRequest.url}
             onChange={(e) => updateField('url', e.target.value)}
@@ -312,10 +338,10 @@ export default function RequestBuilder() {
       {/* Resolved URL preview — only when URL contains variables */}
       {currentRequest.url?.includes('{{') && (
         <div className="px-3 pb-1.5 flex items-center gap-1.5">
-          <svg className="w-3 h-3 text-surface-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="w-3 h-3 text-tx-muted flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
           </svg>
-          <span className="text-[10px] text-surface-600 font-mono truncate">
+          <span className="text-[10px] text-tx-muted font-mono truncate">
             {resolveVariables(currentRequest.url)}
           </span>
           {!activeEnvironment && (
@@ -333,10 +359,10 @@ export default function RequestBuilder() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 transition-all ${
+              className={`flex items-center gap-1.5 px-2 py-1.5 text-[11px] font-medium border-b-2 transition-all ${
                 activeTab === tab.id
                   ? 'border-[var(--accent)] text-[var(--text-primary)]'
-                  : 'border-transparent text-surface-500 hover:text-surface-300'
+                  : 'border-transparent text-surface-500 hover:text-tx-secondary'
               }`}
             >
               {tab.label}
@@ -372,7 +398,7 @@ function SendButton({ onSend }) {
     return (
       <button
         onClick={() => cancelCurrentRequest && cancelCurrentRequest()}
-        className="btn-primary relative flex items-center gap-2 px-5 h-9 rounded-lg font-medium transition-all duration-150 active:scale-95 group min-w-[90px] justify-center !bg-danger/90 hover:!bg-danger border-none"
+        className="btn-primary relative flex items-center gap-1.5 px-3 h-8 rounded-md font-medium transition-all duration-150 active:scale-95 group min-w-[80px] justify-center !bg-danger/90 hover:!bg-danger border-none text-xs"
       >
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
@@ -385,13 +411,13 @@ function SendButton({ onSend }) {
   return (
     <button
       onClick={onSend}
-      className="btn-primary relative flex items-center gap-2 px-5 h-9 rounded-lg font-medium transition-all duration-150 active:scale-95 group min-w-[90px] justify-center"
+      className="btn-primary relative flex items-center gap-1.5 px-4 h-8 rounded-md font-medium transition-all duration-150 active:scale-95 group min-w-[80px] justify-center text-xs"
     >
       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7"/>
       </svg>
-      <span className="text-sm">Send</span>
-      <span className="absolute -bottom-6 right-0 text-[9px] text-surface-600 hidden group-hover:block whitespace-nowrap">⌘ + Enter</span>
+      <span className="text-xs">Send</span>
+      <span className="absolute -bottom-6 right-0 text-[10px] text-tx-muted hidden group-hover:block whitespace-nowrap">⌘ + Enter</span>
     </button>
   );
 }

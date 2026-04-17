@@ -14,7 +14,7 @@ export const useAuthStore = create(
         set({ isLoading: true, error: null });
         try {
           const { data } = await api.post('/api/auth/login', { email, password });
-          localStorage.setItem('syncnest_token', data.token);
+          localStorage.setItem('payloadx_token', data.token);
           set({ user: data.user, token: data.token, isLoading: false });
           return { success: true };
         } catch (err) {
@@ -28,7 +28,7 @@ export const useAuthStore = create(
         set({ isLoading: true, error: null });
         try {
           const { data } = await api.post('/api/auth/signup', { name, email, password });
-          localStorage.setItem('syncnest_token', data.token);
+          localStorage.setItem('payloadx_token', data.token);
           set({ user: data.user, token: data.token, isLoading: false });
           return { success: true };
         } catch (err) {
@@ -49,7 +49,7 @@ export const useAuthStore = create(
       },
 
       fetchMe: async () => {
-        const token = localStorage.getItem('syncnest_token');
+        const token = localStorage.getItem('payloadx_token');
         if (!token) return;
 
         if (!navigator.onLine) {
@@ -67,7 +67,7 @@ export const useAuthStore = create(
             return;
           }
           
-          localStorage.removeItem('syncnest_token');
+          localStorage.removeItem('payloadx_token');
           set({ user: null, token: null });
         }
       },

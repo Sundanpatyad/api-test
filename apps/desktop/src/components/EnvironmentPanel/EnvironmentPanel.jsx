@@ -183,7 +183,7 @@ export default function EnvironmentPanel() {
                       {env.isGlobal && <span className="text-[9px] text-brand-400">GLOBAL</span>}
                       <span className="truncate">{env.name}</span>
                     </div>
-                    <div className="text-surface-600 text-[10px] mt-0.5">
+                    <div className="text-tx-muted text-[10px] mt-0.5">
                       {env.variables?.filter(v => v.enabled).length || 0} vars
                     </div>
                   </button>
@@ -193,7 +193,7 @@ export default function EnvironmentPanel() {
                     className={`opacity-0 group-hover:opacity-100 text-xs px-1 py-1 rounded transition-all ${
                       activeEnvironment?._id === env._id
                         ? 'text-success'
-                        : 'text-surface-600 hover:text-success'
+                        : 'text-tx-muted hover:text-success'
                     }`}
                     title={activeEnvironment?._id === env._id ? 'Active' : 'Set as active'}
                   >
@@ -203,7 +203,7 @@ export default function EnvironmentPanel() {
               ))}
 
               {environments.length === 0 && (
-                <p className="text-surface-600 text-xs p-2 text-center">No environments yet</p>
+                <p className="text-tx-muted text-xs p-2 text-center">No environments yet</p>
               )}
             </div>
 
@@ -253,7 +253,7 @@ export default function EnvironmentPanel() {
                   New Environment
                 </button>
               ) : (
-                <p className="text-surface-600 text-[10px] px-1 py-1 text-center leading-snug">
+                <p className="text-tx-muted text-[10px] px-1 py-1 text-center leading-snug">
                   Select a project in the sidebar to create environments
                 </p>
               )}
@@ -348,7 +348,7 @@ export default function EnvironmentPanel() {
                       className={`text-sm px-2 py-1 rounded-lg transition-all ${
                         v.isSecret
                           ? 'text-warning bg-warning/10 border border-warning/30'
-                          : 'text-surface-600 hover:text-tx-primary border border-surface-700'
+                          : 'text-tx-muted hover:text-tx-primary border border-surface-700'
                       }`}
                       title={v.isSecret ? 'Secret (click to make visible)' : 'Click to make secret'}
                     >
@@ -356,7 +356,7 @@ export default function EnvironmentPanel() {
                     </button>
                     <button
                       onClick={() => deleteVar(i)}
-                      className="opacity-0 group-hover:opacity-100 text-surface-600 hover:text-danger transition-all"
+                      className="opacity-0 group-hover:opacity-100 text-tx-muted hover:text-danger transition-all"
                     >
                       <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -367,7 +367,7 @@ export default function EnvironmentPanel() {
 
                 {editedVars.length === 0 && (
                   <div className="text-center py-8">
-                    <p className="text-surface-600 text-xs mb-2">No variables yet.</p>
+                    <p className="text-tx-muted text-xs mb-2">No variables yet.</p>
                     <p className="text-surface-700 text-xs">
                       Use <code className="bg-surface-800 px-1 rounded text-brand-400">{'{{variable_name}}'}</code> in your requests to reference variables.
                     </p>
@@ -394,7 +394,7 @@ export default function EnvironmentPanel() {
               </div>
             </div>
           ) : (
-            <div className="flex-1 flex items-center justify-center text-surface-600 text-sm">
+            <div className="flex-1 flex items-center justify-center text-tx-muted text-sm">
               {environments.length === 0
                 ? 'Create an environment to get started'
                 : 'Select an environment to manage its variables'}

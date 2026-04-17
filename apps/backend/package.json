@@ -3,19 +3,20 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3001",
+    "dev": "node server.js",
     "build": "next build",
-    "start": "next start -p 3001",
+    "start": "NODE_ENV=production node server.js",
     "lint": "next lint"
   },
   "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.3.4",
     "next": "14.2.3",
     "react": "^18",
     "react-dom": "^18",
-    "mongoose": "^8.3.4",
-    "bcryptjs": "^2.4.3",
-    "jsonwebtoken": "^9.0.2",
-    "cors": "^2.8.5",
+    "socket.io": "^4.8.3",
     "uuid": "^9.0.1"
   },
   "devDependencies": {

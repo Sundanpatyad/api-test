@@ -39,7 +39,7 @@ export default function AuthTab() {
             onChange={(e) => updateAuth({ bearer: { token: e.target.value } })}
             className="input text-xs font-mono"
           />
-          <p className="text-surface-600 text-xs mt-1">Sent as: Authorization: Bearer &lt;token&gt;</p>
+          <p className="text-tx-muted text-xs mt-1">Sent as: Authorization: Bearer &lt;token&gt;</p>
         </div>
       )}
 
@@ -114,7 +114,7 @@ export default function AuthTab() {
       )}
 
       {auth.type === 'none' && (
-        <p className="text-surface-600 text-xs py-2">No authentication configured for this request.</p>
+        <p className="text-tx-muted text-xs py-2">No authentication configured for this request.</p>
       )}
     </div>
   );
