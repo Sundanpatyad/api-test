@@ -50,7 +50,7 @@ jobs:
           # bypass instructions in the README to open the app.
         with:
           projectPath: "apps/desktop"
-          releaseName: "PayloadX API Studio v__VERSION__"
+          releaseName: "PayloadX-API-Studio v__VERSION__"
           releaseBody: "PayloadX API Studio Release (Unsigned Build)"
           releaseDraft: true
           prerelease: false
