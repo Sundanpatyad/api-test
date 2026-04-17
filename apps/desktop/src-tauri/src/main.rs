@@ -36,5 +36,5 @@ fn main() {
             list_local_files,
         ])
         .run(tauri::generate_context!())
-        .expect("error while running SyncNest API Studio");
+        .expect("error while running PayloadX API Studio");
 }

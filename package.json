@@ -1,6 +1,6 @@
 {
-  "name": "syncnest-api-studio",
-  "version": "1.0.0",
+  "name": "payloadx-api-studio",
+  "version": "1.2.3",
   "private": true,
   "workspaces": [
     "apps/backend",

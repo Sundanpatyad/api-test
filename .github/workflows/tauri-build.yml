@@ -46,7 +46,12 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Note: macOS builds will be unsigned. Users will need to follow the
+          # bypass instructions in the README to open the app.
         with:
           projectPath: "apps/desktop"
-          releaseName: "PayloadX API Studio"
-          tagName: ${{ github.ref_name }}
+          releaseName: "PayloadX API Studio v__VERSION__"
+          releaseBody: "PayloadX API Studio Release (Unsigned Build)"
+          releaseDraft: true
+          prerelease: false
+          tagName: v${{ github.ref_name }}

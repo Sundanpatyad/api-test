@@ -8,7 +8,7 @@
   },
   "package": {
     "productName": "PayloadX API Studio",
-    "version": "1.2.2"
+    "version": "1.2.3"
   },
   "tauri": {
     "allowlist": {
@@ -46,7 +46,23 @@
       "copyright": "",
       "category": "DeveloperTool",
       "shortDescription": "PayloadX - Premium API Studio",
-      "longDescription": "PayloadX API Studio is a powerful, cross-platform API testing tool with real-time team collaboration."
+      "longDescription": "PayloadX API Studio is a powerful, cross-platform API testing tool with real-time team collaboration.",
+      "deb": {
+        "depends": [
+          "libwebkit2gtk-4.0-37",
+          "libgtk-3-0",
+          "libayatana-appindicator3-1",
+          "librsvg2-common"
+        ]
+      },
+      "nsis": {
+        "oneClick": false,
+        "allowToChangeInstallationDirectory": true,
+        "shortcutName": "PayloadX API Studio",
+        "createDesktopShortcut": "always",
+        "displayLanguageSelector": true,
+        "installerIcon": "icons/icon.ico"
+      }
     },
     "security": {
       "csp": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' http://localhost:3001 http://localhost:4000 https:; img-src 'self' data: https:"
