@@ -6,7 +6,7 @@ on:
       - main
       - build
     tags:
-      - 'v*'
+      - '*'
   workflow_dispatch:
 
 permissions:
