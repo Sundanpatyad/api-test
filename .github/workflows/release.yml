@@ -14,6 +14,7 @@ permissions:
 
 jobs:
   release:
+    name: Build (${{ matrix.platform }} - ${{ matrix.target || 'Default' }})
     permissions:
       contents: write
     strategy:
@@ -21,17 +22,13 @@ jobs:
       matrix:
         include:
           - platform: 'macos-latest'
-            args: '--target aarch64-apple-darwin'
             target: 'aarch64-apple-darwin'
           - platform: 'macos-latest'
-            args: '--target x86_64-apple-darwin'
             target: 'x86_64-apple-darwin'
           - platform: 'ubuntu-22.04'
-            args: '--target x86_64-unknown-linux-gnu'
-            target: 'x86_64-unknown-linux-gnu'
+            target: ''
           - platform: 'windows-latest'
-            args: '--target x86_64-pc-windows-msvc'
-            target: 'x86_64-pc-windows-msvc'
+            target: ''
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -41,13 +38,19 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: 'npm'
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
 
-      - name: Install Dependencies (Ubuntu only)
+      - name: Rust Cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./apps/desktop/src-tauri -> target"
+
+      - name: Install System Dependencies (Linux)
         if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
@@ -55,63 +58,69 @@ jobs:
 
       - name: Install JS Dependencies
         run: |
-          npm i
-          npm i -w apps/desktop
+          npm ci
+          cd apps/desktop && npm install
 
-      - name: Build Tauri App
+      - name: Build Application
         run: |
-          # Build Tauri binary and bundle
-          # Tauri will automatically run the beforeBuildCommand (npm run build)
-          npm run tauri:build -w syncnest-desktop -- ${{ matrix.args }}
+          cd apps/desktop
+          # Build frontend
+          npm run build
+          # Build Tauri bundles
+          if [ -n "${{ matrix.target }}" ]; then
+            npx tauri build --target ${{ matrix.target }}
+          else
+            npx tauri build
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
-          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
 
-      - name: Rename and Prepare Artifacts
+      - name: Collect and Rename Artifacts
         shell: bash
         run: |
-          echo "=== CI/CD ARTIFACT PREPARATION ==="
+          echo "=== ARTIFACT DISCOVERY ==="
           mkdir -p artifacts
           
-          echo "🔍 Searching for installers in apps/desktop/src-tauri/target..."
-          # Find all installers, ignoring common noise
-          find "apps/desktop/src-tauri/target" -type f \( -name "*.dmg" -o -name "*.exe" -o -name "*.msi" -o -name "*.deb" -o -name "*.rpm" -o -name "*.AppImage" \) -not -path "*/node_modules/*" | while read -r file; do
-            # Only process if it's in a 'bundle' folder
+          # Search everywhere except node_modules and .git
+          echo "Scanning for installers..."
+          find . -type f \( -name "*.dmg" -o -name "*.exe" -o -name "*.msi" -o -name "*.deb" -o -name "*.rpm" -o -name "*.AppImage" \) -not -path "*/node_modules/*" -not -path "./.git/*" | while read -r file; do
+            # Only process if it belongs to a bundle folder (Tauri standard)
             if [[ "$file" == *"bundle"* ]]; then
               filename=$(basename "$file")
-              echo "📝 Found: $file"
-              
               ext="${filename##*.}"
               base="${filename%.*}"
               
-              # Clean up version numbers and replace spaces with dashes
+              # Clean name (remove versioning)
               clean_name=$(echo "$base" | sed -E 's/(_|-)?[0-9]+\.[0-9]+\.[0-9]+(_|-)?[0-9]*//g')
-              clean_name=$(echo "$clean_name" | tr ' ' '-')
               
-              # Append target to distinguish architectures
-              target_suffix="-${{ matrix.target }}"
+              # Construct new name with target suffix for clarity
+              target_info="${{ matrix.target }}"
+              if [ -z "$target_info" ]; then
+                # Infer simple platform name if no specific target
+                if [[ "${{ matrix.platform }}" == *"windows"* ]]; then target_info="x64"; fi
+                if [[ "${{ matrix.platform }}" == *"ubuntu"* ]]; then target_info="amd64"; fi
+              fi
               
-              newname="${clean_name}${target_suffix}.${ext}"
-              # Clean up any double dashes/underscores
-              newname=$(echo "$newname" | sed 's/__/_/g' | sed 's/--/-/g')
+              newname="${clean_name}-${target_info}.${ext}"
+              newname=$(echo "$newname" | sed 's/--/-/g' | sed 's/__/_/g' | sed 's/-././g')
               
-              echo "✅ Copying to artifacts: $newname"
+              echo "✅ Found: $file"
+              echo "➡️  Release Name: $newname"
               cp "$file" "artifacts/$newname"
             fi
           done
           
-          echo "--- Discovery Results ---"
+          echo "--- Summary ---"
           if [ "$(ls -A artifacts)" ]; then
             ls -lh artifacts/
           else
-            echo "❌ ERROR: No installers were found!"
-            echo "Searching all of apps/desktop/src-tauri/target for debug info:"
-            find "apps/desktop/src-tauri/target" -maxdepth 4
+            echo "❌ ERROR: No installers found in bundle directories!"
+            echo "Listing potential targets for debugging:"
+            find . -name "target" -type d -maxdepth 4
             exit 1
           fi
 
-      - name: Upload Release Assets
+      - name: Upload to Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
