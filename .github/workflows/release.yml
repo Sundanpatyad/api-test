@@ -70,23 +70,30 @@ jobs:
       - name: Rename and Prepare Artifacts
         shell: bash
         run: |
-          # Define the target directory based on platform
-          # Note: Tauri outputs are usually in apps/desktop/src-tauri/target/[target]/release/bundle/
-          # or apps/desktop/src-tauri/target/release/bundle/
-          
-          echo "Scanning for bundles..."
+          echo "Scanning for bundles in workspace..."
           mkdir -p artifacts
           
-          # Find all bundles (dmg, exe, msi, deb, rpm, AppImage)
-          # We remove the version string (e.g. _1.0.0_) from the filenames
-          find apps/desktop/src-tauri/target -type f \( -name "*.dmg" -o -name "*.exe" -o -name "*.msi" -o -name "*.deb" -o -name "*.rpm" -o -name "*.AppImage" \) | while read -r file; do
+          # We search from the root to ensure we find artifacts regardless of target-dir configuration
+          # We look for: dmg, exe, msi, deb, rpm, AppImage
+          find . -type f \( -name "*.dmg" -o -name "*.exe" -o -name "*.msi" -o -name "*.deb" -o -name "*.rpm" -o -name "*.AppImage" \) | while read -r file; do
             filename=$(basename "$file")
-            # Remove version pattern like _1.2.3_ or -1.2.3- or _1.2.3
-            # This is a bit aggressive but matches Tauri's naming
-            newname=$(echo "$filename" | sed -E 's/_[0-9]+\.[0-9]+\.[0-9]+(_[0-9]+)?//g' | sed -E 's/-[0-9]+\.[0-9]+\.[0-9]+(-[0-9]+)?//g')
-            echo "Renaming $filename to $newname"
+            # Skip if it's already in our artifacts folder to avoid loops
+            if [[ "$file" == *"artifacts/"* ]]; then continue; fi
+            
+            # Remove version pattern (e.g. _1.0.0_ or -1.0.0- or 1.0.0)
+            # We want to keep the architecture (x64, aarch64) but remove the version
+            # Regex aims to find 3-digit versions with dots
+            newname=$(echo "$filename" | sed -E 's/(_|-)?[0-9]+\.[0-9]+\.[0-9]+(_|-)?[0-9]*//g')
+            
+            # Clean up potential double underscores or hyphens resulting from removal
+            newname=$(echo "$newname" | sed 's/__/_/g' | sed 's/--/-/g')
+            
+            echo "Renaming $filename -> $newname"
             cp "$file" "artifacts/$newname"
           done
+          
+          echo "Artifacts prepared:"
+          ls -lh artifacts/
 
       - name: Upload Release Assets
         uses: softprops/action-gh-release@v1
