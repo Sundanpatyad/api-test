@@ -4,7 +4,7 @@ import './globals.css';
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 export const metadata = {
-  title: 'SyncNest API Studio — Collaborative API Testing Platform',
+  title: 'PayloadX API Studio — Collaborative API Testing Platform',
   description:
     'A production-ready, Postman-alternative API Testing Platform with real-time team collaboration built on Tauri + React + Next.js + MongoDB + Socket.IO.',
 };

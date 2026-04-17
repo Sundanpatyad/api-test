@@ -233,31 +233,23 @@ export const useCollectionStore = create((set, get) => ({
   },
 
   createCollection: async (name, projectId, teamId, description) => {
+    if (!navigator.onLine) {
+      toast.error('You are offline. Cannot create collection.');
+      return { success: false, error: 'Offline' };
+    }
+
     const tempId = uuidv4();
-    
-    const tempCollection = { _id: tempId, name, projectId, teamId, description, requests: [], isOffline: true };
-    set((state) => {
-      const updated = [tempCollection, ...state.collections];
-      localStorageService.saveCollections(updated);
-      return { collections: updated };
-    });
-    
+    set({ isLoading: true });
     try {
-      const { data } = await api.post('/api/collection', { name, projectId, teamId, description }, {
-        offlineMock: { collection: { ...tempCollection }, tempId, resourceType: 'collection' }
-      });
+      const { data } = await api.post('/api/collection', { name, projectId, teamId, description });
       
       set((state) => {
-        const updated = state.collections.map(c => 
-          c._id === tempId ? data.collection : c
-        );
+        const updated = [data.collection, ...state.collections];
         localStorageService.saveCollections(updated);
-        return { collections: updated };
+        return { collections: updated, isLoading: false };
       });
       
       if (data.collection?._id) {
-        syncService.registerIdMapping(tempId, data.collection._id);
-        
         const { useSocketStore } = await import('@/store/socketStore');
         const { useAuthStore } = await import('@/store/authStore');
         const { useTeamStore } = await import('@/store/teamStore');
@@ -270,6 +262,7 @@ export const useCollectionStore = create((set, get) => ({
       
       return { success: true, collection: data.collection };
     } catch (err) {
+      set({ isLoading: false });
       return { success: false, error: err.response?.data?.error || 'Failed to create collection' };
     }
   },
@@ -288,33 +281,13 @@ export const useCollectionStore = create((set, get) => ({
   },
 
   updateCollectionName: async (id, name) => {
-    const existing = get().collections.find(c => c._id === id);
-    const isTempId = id?.includes('-');
-    const { hasInternet } = useConnectivityStore.getState();
-
-    // Block updating existing collections while offline
-    if (!isTempId && !hasInternet) {
-      toast.error('Cannot rename existing collections while offline');
+    if (!navigator.onLine) {
+      toast.error('You are offline. Cannot update collection.');
       return { success: false, error: 'Offline' };
     }
-    
-    set((state) => {
-      const updated = state.collections.map((c) => 
-        c._id === id ? { ...c, name } : c
-      );
-      localStorageService.saveCollections(updated);
-      return { collections: updated };
-    });
-    
+
     try {
-      if (isTempId) {
-        syncService.queueChange('update_collection', { id, name }, id);
-        return { success: true, collection: { ...existing, name }, offline: true };
-      }
-      
-      const { data } = await api.put(`/api/collection/${id}`, { name }, {
-        offlineMock: { collection: { ...existing, name } }
-      });
+      const { data } = await api.put(`/api/collection/${id}`, { name });
       
       set((state) => {
         const updated = state.collections.map((c) => (c._id === id ? data.collection : c));
@@ -390,25 +363,13 @@ export const useCollectionStore = create((set, get) => ({
   },
 
   deleteCollection: async (id) => {
-    const isTempId = id?.includes('-');
-    
-    set((state) => {
-      const updated = state.collections.filter((c) => c._id !== id);
-      const updatedCurrent = state.currentCollection?._id === id ? null : state.currentCollection;
-      localStorageService.saveCollections(updated);
-      localStorageService.saveCurrentCollection(updatedCurrent);
-      return {
-        collections: updated,
-        currentCollection: updatedCurrent,
-      };
-    });
-    
+    if (!navigator.onLine) {
+      toast.error('You are offline. Cannot delete collection.');
+      return { success: false, error: 'Offline' };
+    }
+
     try {
-      if (isTempId) {
-        return { success: true };
-      }
-      
-      await api.delete(`/api/collection/${id}`, { offlineMock: { success: true } });
+      await api.delete(`/api/collection/${id}`);
       
       const { useSocketStore } = await import('@/store/socketStore');
       const { useAuthStore } = await import('@/store/authStore');
@@ -418,18 +379,21 @@ export const useCollectionStore = create((set, get) => ({
         id, 
         useAuthStore.getState().user?._id
       );
+
+      set((state) => {
+        const updated = state.collections.filter((c) => c._id !== id);
+        const updatedCurrent = state.currentCollection?._id === id ? null : state.currentCollection;
+        localStorageService.saveCollections(updated);
+        localStorageService.saveCurrentCollection(updatedCurrent);
+        return {
+          collections: updated,
+          currentCollection: updatedCurrent,
+        };
+      });
       
       return { success: true };
     } catch (err) {
-      const existing = get().collections.find((c) => c._id === id);
-      if (existing) {
-        set((state) => {
-          const updated = [...state.collections, existing];
-          localStorageService.saveCollections(updated);
-          return { collections: updated };
-        });
-      }
-      return { success: false, error: err.response?.data?.error || 'Failed' };
+      return { success: false, error: err.response?.data?.error || 'Failed to delete collection' };
     }
   },
 }));

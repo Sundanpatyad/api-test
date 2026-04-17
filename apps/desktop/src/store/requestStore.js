@@ -163,21 +163,16 @@ export const useRequestStore = create(
       },
 
       saveRequest: async () => {
-        const req = get().currentRequest;
-        const { hasInternet } = useConnectivityStore.getState();
-        const isExisting = req._id && !req._id.includes('-');
-
-        // Block saving existing requests while offline
-        if (isExisting && !hasInternet) {
-          toast.error('Cannot save changes to existing requests while offline');
+        if (!navigator.onLine) {
+          toast.error('You are offline. Cannot save request.');
           return { success: false, error: 'Offline' };
         }
 
+        const req = get().currentRequest;
+
         try {
           if (req._id) {
-            const { data } = await api.put(`/api/request/${req._id}`, req, {
-              offlineMock: { request: req }
-            });
+            const { data } = await api.put(`/api/request/${req._id}`, req);
             set({ currentRequest: data.request });
             localStorageService.saveCurrentRequest(data.request);
             const { useSocketStore } = await import('@/store/socketStore');
@@ -190,10 +185,7 @@ export const useRequestStore = create(
             );
             return { success: true };
           } else if (req.collectionId) {
-            const tempId = uuidv4();
-            const { data } = await api.post('/api/request', req, {
-              offlineMock: { request: { ...req, _id: tempId }, tempId, resourceType: 'request' }
-            });
+            const { data } = await api.post('/api/request', req);
             set({ currentRequest: data.request });
             localStorageService.saveCurrentRequest(data.request);
             const { useSocketStore } = await import('@/store/socketStore');
@@ -209,28 +201,21 @@ export const useRequestStore = create(
         } catch (err) {
           return { success: false, error: err.response?.data?.error || 'Save failed' };
         }
-      },
+      },      createRequest: async (requestData) => {
+        if (!navigator.onLine) {
+          toast.error('You are offline. Cannot create request.');
+          return { success: false, error: 'Offline' };
+        }
 
-      createRequest: async (requestData) => {
-        const tempId = uuidv4();
         const { collectionId } = requestData;
-        
-        const tempRequest = { ...requestData, _id: tempId, isOffline: true };
-        
-        // Optimistically add to collection store
         const { useCollectionStore } = await import('@/store/collectionStore');
         const collectionStore = useCollectionStore.getState();
-        collectionStore.addRequest(tempRequest);
+
         try {
-          const { data } = await api.post('/api/request', requestData, {
-            offlineMock: { request: tempRequest, tempId, resourceType: 'request' }
-          });
+          const { data } = await api.post('/api/request', requestData);
           
           if (data.request?._id) {
-            syncService.registerIdMapping(tempId, data.request._id);
-            
-            // Replace temp request with real one in collection store
-            collectionStore.removeRequest(tempId, collectionId);
+            // Add request to collection store
             collectionStore.addRequest(data.request);
 
             const { useSocketStore } = await import('@/store/socketStore');
@@ -245,34 +230,21 @@ export const useRequestStore = create(
           
           return { success: true, request: data.request };
         } catch (err) {
-          // Revert optimistic update only on real server errors (e.g. 400 Bad Request)
-          // If it was a network error, the interceptor would have resolved it and we wouldn't be here.
-          collectionStore.removeRequest(tempId, collectionId);
           return { success: false, error: err.response?.data?.error || 'Failed to create request' };
         }
       },
 
       updateRequestName: async (id, name) => {
-        const currentReq = get().currentRequest;
-        const isTempId = id?.includes('-');
-        const { hasInternet } = useConnectivityStore.getState();
-
-        // Block updating existing requests while offline
-        if (!isTempId && !hasInternet) {
-          toast.error('Cannot rename existing requests while offline');
+        if (!navigator.onLine) {
+          toast.error('You are offline. Cannot update request.');
           return { success: false, error: 'Offline' };
         }
-        
-        // Optimistic update
-        if (currentReq?._id === id) {
-          set({ currentRequest: { ...currentReq, name } });
-        }
+
+        const currentReq = get().currentRequest;
         try {
-          const { data } = await api.put(`/api/request/${id}`, { name }, {
-            offlineMock: { request: { ...currentReq, _id: id, name } }
-          });
+          const { data } = await api.put(`/api/request/${id}`, { name });
           if (currentReq?._id === id) {
-            const updated = { ...currentReq, name };
+            const updated = { ...currentReq, name: data.request.name };
             set({ currentRequest: updated });
             localStorageService.saveCurrentRequest(updated);
           }
@@ -345,23 +317,13 @@ export const useRequestStore = create(
       },
 
       deleteRequest: async (id, collectionId) => {
-        const isTempId = id?.includes('-');
-        
-        // Optimistically remove from localStorage
-        if (collectionId) {
-          const stored = localStorageService.getRequests(collectionId);
-          localStorageService.saveRequests(collectionId, stored.filter((r) => r._id !== id));
+        if (!navigator.onLine) {
+          toast.error('You are offline. Cannot delete request.');
+          return { success: false, error: 'Offline' };
         }
-        
+
         try {
-          if (isTempId) {
-            // Just remove from queue if pending
-            return { success: true };
-          }
-          
-          await api.delete(`/api/request/${id}`, { 
-            offlineMock: { success: true, id, collectionId, resourceType: 'request' } 
-          });
+          await api.delete(`/api/request/${id}`);
           
           const { useSocketStore } = await import('@/store/socketStore');
           const { useAuthStore } = await import('@/store/authStore');
@@ -372,17 +334,14 @@ export const useRequestStore = create(
             id,
             useAuthStore.getState().user?._id
           );
+
+          if (collectionId) {
+            const stored = localStorageService.getRequests(collectionId);
+            localStorageService.saveRequests(collectionId, stored.filter((r) => r._id !== id));
+          }
           
           return { success: true };
         } catch (err) {
-          // Revert on error - restore to localStorage
-          if (collectionId) {
-            const stored = localStorageService.getRequests(collectionId);
-            const existing = stored.find(r => r._id === id);
-            if (existing) {
-              localStorageService.saveRequests(collectionId, [...stored, existing]);
-            }
-          }
           return { success: false, error: err.response?.data?.error || 'Failed to delete request' };
         }
       },

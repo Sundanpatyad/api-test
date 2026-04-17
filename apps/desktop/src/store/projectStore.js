@@ -3,6 +3,7 @@ import api from '@/lib/api';
 import { localStorageService } from '@/services/localStorageService';
 import { syncService } from '@/services/syncService';
 import { v4 as uuidv4 } from 'uuid';
+import toast from 'react-hot-toast';
 
 export const useProjectStore = create((set, get) => ({
   projects: localStorageService.get(localStorageService.KEYS.PROJECTS) || [],
@@ -136,31 +137,25 @@ export const useProjectStore = create((set, get) => ({
   },
 
   createProject: async (name, teamId, description, color) => {
+    if (!navigator.onLine) {
+      toast.error('You are offline. Cannot create project.');
+      return { success: false, error: 'Offline' };
+    }
+
     const tempId = uuidv4();
     const p = { name, teamId, description, color };
     
-    const tempProject = { ...p, _id: tempId, members: [], isOffline: true };
-    set((state) => {
-      const updated = [tempProject, ...state.projects];
-      localStorageService.saveProjects(updated);
-      return { projects: updated };
-    });
-    
+    set({ isLoading: true });
     try {
-      const { data } = await api.post('/api/project', p, {
-         offlineMock: { project: { ...p, _id: tempId }, tempId, resourceType: 'project' }
-      });
+      const { data } = await api.post('/api/project', p);
       
       set((state) => {
-        const updated = state.projects.map(proj => 
-          proj._id === tempId ? data.project : proj
-        );
+        const updated = [data.project, ...state.projects];
         localStorageService.saveProjects(updated);
-        return { projects: updated };
+        return { projects: updated, isLoading: false };
       });
       
       if (data.project?._id) {
-        syncService.registerIdMapping(tempId, data.project._id);
         const { useSocketStore } = await import('@/store/socketStore');
         const { useAuthStore } = await import('@/store/authStore');
         useSocketStore.getState().emitProjectCreated(
@@ -172,10 +167,7 @@ export const useProjectStore = create((set, get) => ({
       
       return { success: true, project: data.project };
     } catch (err) {
-      if (!navigator.onLine) {
-        syncService.queueChange('create_project', { ...p, tempId }, tempId);
-        return { success: true, project: tempProject, offline: true };
-      }
+      set({ isLoading: false });
       return { success: false, error: err.response?.data?.error || 'Failed' };
     }
   },
@@ -192,26 +184,13 @@ export const useProjectStore = create((set, get) => ({
   },
 
   updateProjectName: async (id, name) => {
-    const existing = get().projects.find((p) => p._id === id);
-    const isTempId = id?.includes('-');
-    
-    set((state) => {
-      const updated = state.projects.map((p) => 
-        p._id === id ? { ...p, name } : p
-      );
-      localStorageService.saveProjects(updated);
-      return { projects: updated };
-    });
-    
+    if (!navigator.onLine) {
+      toast.error('You are offline. Cannot update project.');
+      return { success: false, error: 'Offline' };
+    }
+
     try {
-      if (isTempId) {
-        syncService.queueChange('update_project', { id, name }, id);
-        return { success: true, project: { ...existing, name }, offline: true };
-      }
-      
-      const { data } = await api.put(`/api/project/${id}`, { name }, {
-        offlineMock: { project: { ...existing, name } }
-      });
+      const { data } = await api.put(`/api/project/${id}`, { name });
       
       set((state) => {
         const updated = state.projects.map((p) => (p._id === id ? data.project : p));
@@ -234,60 +213,43 @@ export const useProjectStore = create((set, get) => ({
       
       return { success: true, project: data.project };
     } catch (err) {
-      if (!navigator.onLine) {
-        syncService.queueChange('update_project', { id, name }, id);
-        return { success: true, project: { ...existing, name }, offline: true };
-      }
       return { success: false, error: err.response?.data?.error || 'Failed to update project' };
     }
   },
 
   deleteProject: async (id) => {
-    const isTempId = id?.includes('-');
-    
-    set((state) => {
-      const updated = state.projects.filter((p) => p._id !== id);
-      const updatedCurrent = state.currentProject?._id === id ? null : state.currentProject;
-      localStorageService.saveProjects(updated);
-      localStorageService.saveCurrentProject(updatedCurrent);
-      return {
-        projects: updated,
-        currentProject: updatedCurrent,
-      };
-    });
-    
+    if (!navigator.onLine) {
+      toast.error('You are offline. Cannot delete project.');
+      return { success: false, error: 'Offline' };
+    }
+
     try {
-      if (isTempId) {
-        return { success: true };
-      }
-      
-      await api.delete(`/api/project/${id}`, { offlineMock: { success: true } });
+      await api.delete(`/api/project/${id}`);
       
       const { useSocketStore } = await import('@/store/socketStore');
       const { useAuthStore } = await import('@/store/authStore');
       const { useTeamStore } = await import('@/store/teamStore');
+
       useSocketStore.getState().emitProjectDeleted(
         useTeamStore.getState().currentTeam?._id, 
         id, 
         useAuthStore.getState().user?._id
       );
+
+      set((state) => {
+        const updated = state.projects.filter((p) => p._id !== id);
+        const updatedCurrent = state.currentProject?._id === id ? null : state.currentProject;
+        localStorageService.saveProjects(updated);
+        localStorageService.saveCurrentProject(updatedCurrent);
+        return {
+          projects: updated,
+          currentProject: updatedCurrent,
+        };
+      });
       
       return { success: true };
     } catch (err) {
-      if (!navigator.onLine) {
-        syncService.queueChange('delete_project', { id }, id);
-        return { success: true, offline: true };
-      }
-      
-      const existing = get().projects.find((p) => p._id === id);
-      if (existing) {
-        set((state) => {
-          const updated = [...state.projects, existing];
-          localStorageService.saveProjects(updated);
-          return { projects: updated };
-        });
-      }
-      return { success: false, error: err.response?.data?.error || 'Failed' };
+      return { success: false, error: err.response?.data?.error || 'Failed to delete project' };
     }
   },
 }));

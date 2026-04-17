@@ -198,9 +198,9 @@ export default function App() {
           position="bottom-right"
           toastOptions={{
             style: {
-              background: theme === 'light' ? '#FFFFFF' : '#1C2128',
-              color: theme === 'light' ? '#1F2328' : '#E6EDF3',
-              border: `1px solid ${theme === 'light' ? '#D0D7DE' : '#30363D'}`,
+              background: theme === 'light' ? '#FFFFFF' : '#1A1F2B',
+              color: theme === 'light' ? '#111111' : '#D8DEE9',
+              border: `1px solid ${theme === 'light' ? '#E1E4E8' : 'rgba(216, 222, 233, 0.1)'}`,
               borderRadius: '12px',
               fontSize: '13px',
               fontFamily: 'Poppins, sans-serif',
@@ -235,13 +235,15 @@ export default function App() {
         <ConfirmDialog />
         <EditNameModal />
 
+        
+
         <Toaster
           position="bottom-right"
           toastOptions={{
             style: {
-              background: theme === 'light' ? '#FFFFFF' : '#1C2128',
-              color: theme === 'light' ? '#1F2328' : '#E6EDF3',
-              border: `1px solid ${theme === 'light' ? '#D0D7DE' : '#30363D'}`,
+              background: theme === 'light' ? '#FFFFFF' : '#1A1F2B',
+              color: theme === 'light' ? '#111111' : '#D8DEE9',
+              border: `1px solid ${theme === 'light' ? '#E1E4E8' : 'rgba(216, 222, 233, 0.1)'}`,
               borderRadius: '12px',
               fontSize: '13px',
               fontFamily: 'Poppins, sans-serif',
@@ -363,9 +365,9 @@ export default function App() {
         position="bottom-right"
         toastOptions={{
           style: {
-            background: theme === 'light' ? '#FFFFFF' : '#1C2128',
-            color: theme === 'light' ? '#1F2328' : '#E6EDF3',
-            border: `1px solid ${theme === 'light' ? '#D0D7DE' : '#30363D'}`,
+            background: theme === 'light' ? '#FFFFFF' : '#1A1F2B',
+            color: theme === 'light' ? '#111111' : '#D8DEE9',
+            border: `1px solid ${theme === 'light' ? '#E1E4E8' : 'rgba(216, 222, 233, 0.1)'}`,
             borderRadius: '12px',
             fontSize: '13px',
             fontFamily: 'Poppins, sans-serif',

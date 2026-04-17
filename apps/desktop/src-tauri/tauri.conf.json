@@ -7,7 +7,7 @@
     "distDir": "../dist"
   },
   "package": {
-    "productName": "SyncNest API Studio",
+    "productName": "PayloadX API Studio",
     "version": "1.0.0"
   },
   "tauri": {
@@ -22,7 +22,7 @@
         "readFile": true,
         "writeFile": true,
         "exists": true,
-        "scope": ["$APPDATA/*", "$APPDATA/syncnest/*"]
+        "scope": ["$APPDATA/*", "$APPDATA/payloadx/*"]
       },
       "dialog": {
         "all": false,
@@ -33,7 +33,7 @@
     "bundle": {
       "active": true,
       "targets": "all",
-      "identifier": "com.syncnest.apistudio",
+      "identifier": "com.payloadx.apistudio",
       "icon": [
         "icons/32x32.png",
         "icons/128x128.png",
@@ -45,8 +45,8 @@
       "externalBin": [],
       "copyright": "",
       "category": "DeveloperTool",
-      "shortDescription": "Professional API Testing Platform",
-      "longDescription": "SyncNest API Studio is a powerful, cross-platform API testing tool with real-time team collaboration."
+      "shortDescription": "PayloadX - Premium API Studio",
+      "longDescription": "PayloadX API Studio is a powerful, cross-platform API testing tool with real-time team collaboration."
     },
     "security": {
       "csp": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' http://localhost:3001 http://localhost:4000 https:; img-src 'self' data: https:"
@@ -58,7 +58,7 @@
       {
         "fullscreen": false,
         "resizable": true,
-        "title": "SyncNest API Studio",
+        "title": "PayloadX API Studio",
         "width": 1400,
         "height": 900,
         "minWidth": 1000,

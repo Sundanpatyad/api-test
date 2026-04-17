@@ -6,7 +6,7 @@ on:
       - main
       - build
     tags:
-      - 'v*'
+      - '*'
   workflow_dispatch:
 
 permissions:
@@ -51,20 +51,61 @@ jobs:
         if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
+          sudo apt-get install -y libwebkit2gtk-4.0-dev build-essential curl wget file libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
 
       - name: Install JS Dependencies
         run: npm i
 
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
+        id: tauri_build
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           projectPath: './apps/desktop'
-          tagName: app-v__VERSION__
-          releaseName: 'SyncNest API Studio v__VERSION__'
-          releaseBody: 'Automated release by GitHub Actions'
-          releaseDraft: false
-          prerelease: false
+          includeRelease: false
+          includeUpdaterJson: false
           args: ${{ matrix.args }}
+
+      - name: Rename and Prepare Artifacts
+        shell: bash
+        run: |
+          echo "Scanning for bundles in src-tauri/target/..."
+          mkdir -p artifacts
+          
+          # We search specifically in the target directory for 'bundle' folders
+          # This avoids picking up esbuild.exe, windows-kill.exe, etc.
+          # We also filter for the app name to be certain
+          find apps/desktop/src-tauri/target -type f -path "*/bundle/*" \( -name "*.dmg" -o -name "*.exe" -o -name "*.msi" -o -name "*.deb" -o -name "*.rpm" -o -name "*.AppImage" \) | while read -r file; do
+            filename=$(basename "$file")
+            
+            # Additional check: filename must look like an app installer (not a dependency)
+            # Typically contains 'PayloadX' or 'API' or 'SyncNest'
+            if [[ "$filename" =~ (PayloadX|API|Studio|SyncNest|syncnest) ]]; then
+              # Remove version pattern (e.g. _1.0.0_ or -1.0.0- or 1.0.0)
+              newname=$(echo "$filename" | sed -E 's/(_|-)?[0-9]+\.[0-9]+\.[0-9]+(_|-)?[0-9]*//g')
+              
+              # Clean up potential double underscores or hyphens
+              newname=$(echo "$newname" | sed 's/__/_/g' | sed 's/--/-/g')
+              
+              echo "✅ Found and Renaming bundle: $filename -> $newname"
+              cp "$file" "artifacts/$newname"
+            else
+              echo "⏭️ Skipping non-bundle file: $filename"
+            fi
+          done
+          
+          echo "Artifacts prepared for upload:"
+          ls -lh artifacts/ || echo "No artifacts found!"
+
+      - name: Upload Release Assets
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: artifacts/*
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

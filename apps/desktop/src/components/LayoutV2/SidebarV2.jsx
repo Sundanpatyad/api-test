@@ -10,6 +10,7 @@ import toast from 'react-hot-toast';
 import api from '@/lib/api';
 import { v4 as uuidv4 } from 'uuid';
 import RefreshButton from '@/components/RefreshButton/RefreshButton';
+import logo from '@/assets/logo.png';
 
 const NAV_ITEMS = [
   {
@@ -576,14 +577,10 @@ export default function SidebarV2({
         <div className="sdbv2-header">
           <div className="sdbv2-logo-row">
             <div className="sdbv2-logo-icon">
-              <svg width="14" height="14" viewBox="0 0 36 36" fill="none">
-                <path d="M6 18C6 11.373 11.373 6 18 6" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" />
-                <path d="M30 18C30 24.627 24.627 30 18 30" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" />
-                <circle cx="18" cy="18" r="4" fill="currentColor" />
-              </svg>
+              <img src={logo} alt="PayloadX" className="w-5 h-5 object-contain" />
             </div>
             <div className="sdbv2-logo-text">
-              <span className="sdbv2-app-name">SyncNest Studio</span>
+              <span className="sdbv2-app-name">PayloadX Studio</span>
               {currentTeam && (
                 <span className="sdbv2-team-tag">
                   {currentTeam.name}
@@ -822,6 +819,13 @@ export default function SidebarV2({
               )}
             </>
           )}
+        </div>
+        
+        {/* Creator attribution */}
+        <div style={{ padding: '12px', borderTop: '1px solid var(--border-1)', opacity: 0.3, marginTop: 'auto' }}>
+           <p style={{ fontSize: '10px', fontWeight: 500, color: 'var(--text-muted)' }}>
+             Project by <span style={{ color: 'var(--text-primary)' }}>Sundan Sharma</span>
+           </p>
         </div>
       </aside>
     </div>
