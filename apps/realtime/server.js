@@ -10,6 +10,8 @@ const server = http.createServer(app);
 const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
 const PORT = process.env.PORT || 4000;
 
+
+
 app.use(cors({ origin: CORS_ORIGIN }));
 app.use(express.json());
 
