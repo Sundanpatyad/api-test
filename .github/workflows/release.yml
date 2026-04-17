@@ -27,11 +27,11 @@ jobs:
             args: '--target x86_64-apple-darwin'
             target: 'x86_64-apple-darwin'
           - platform: 'ubuntu-22.04'
-            args: ''
-            target: ''
+            args: '--target x86_64-unknown-linux-gnu'
+            target: 'x86_64-unknown-linux-gnu'
           - platform: 'windows-latest'
-            args: ''
-            target: ''
+            args: '--target x86_64-pc-windows-msvc'
+            target: 'x86_64-pc-windows-msvc'
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -56,15 +56,13 @@ jobs:
       - name: Install JS Dependencies
         run: |
           npm i
-          # Ensure desktop dependencies are explicitly linked if npm i was flaky
           npm i -w apps/desktop
 
       - name: Build Tauri App
         run: |
-          # Build JS frontend first
-          cd apps/desktop && npm run build
           # Build Tauri binary and bundle
-          npm run tauri:build -- --target ${{ matrix.target }}
+          # Tauri will automatically run the beforeBuildCommand (npm run build)
+          npm run tauri:build -w syncnest-desktop -- ${{ matrix.args }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
@@ -73,32 +71,32 @@ jobs:
       - name: Rename and Prepare Artifacts
         shell: bash
         run: |
-          echo "=== CI/CD MANUAL DISCOVERY ==="
-          echo "Root CWD: $(pwd)"
+          echo "=== CI/CD ARTIFACT PREPARATION ==="
           mkdir -p artifacts
           
-          # We search specifically in the apps/desktop/src-tauri/target directory
-          # The bundles are usually in target/[target]/release/bundle/
-          SEARCH_PATH="apps/desktop/src-tauri/target"
-          
-          if [ ! -d "$SEARCH_PATH" ]; then
-            echo "⚠️  Expected target path $SEARCH_PATH not found! Attempting root target search..."
-            SEARCH_PATH="."
-          fi
-          
-          echo "🔍 Searching for installers in $SEARCH_PATH..."
-          # Find all installers, ignoring node_modules
-          find "$SEARCH_PATH" -type f \( -name "*.dmg" -o -name "*.exe" -o -name "*.msi" -o -name "*.deb" -o -name "*.rpm" -o -name "*.AppImage" \) -not -path "*/node_modules/*" | while read -r file; do
+          echo "🔍 Searching for installers in apps/desktop/src-tauri/target..."
+          # Find all installers, ignoring common noise
+          find "apps/desktop/src-tauri/target" -type f \( -name "*.dmg" -o -name "*.exe" -o -name "*.msi" -o -name "*.deb" -o -name "*.rpm" -o -name "*.AppImage" \) -not -path "*/node_modules/*" | while read -r file; do
             # Only process if it's in a 'bundle' folder
             if [[ "$file" == *"bundle"* ]]; then
               filename=$(basename "$file")
               echo "📝 Found: $file"
               
-              # Rename logic (remove version pattern)
-              newname=$(echo "$filename" | sed -E 's/(_|-)?[0-9]+\.[0-9]+\.[0-9]+(_|-)?[0-9]*//g')
+              ext="${filename##*.}"
+              base="${filename%.*}"
+              
+              # Clean up version numbers and replace spaces with dashes
+              clean_name=$(echo "$base" | sed -E 's/(_|-)?[0-9]+\.[0-9]+\.[0-9]+(_|-)?[0-9]*//g')
+              clean_name=$(echo "$clean_name" | tr ' ' '-')
+              
+              # Append target to distinguish architectures
+              target_suffix="-${{ matrix.target }}"
+              
+              newname="${clean_name}${target_suffix}.${ext}"
+              # Clean up any double dashes/underscores
               newname=$(echo "$newname" | sed 's/__/_/g' | sed 's/--/-/g')
               
-              echo "✅ Renaming: $filename -> $newname"
+              echo "✅ Copying to artifacts: $newname"
               cp "$file" "artifacts/$newname"
             fi
           done
@@ -107,9 +105,9 @@ jobs:
           if [ "$(ls -A artifacts)" ]; then
             ls -lh artifacts/
           else
-            echo "❌ ERROR: No installers were found after manual build!"
-            echo "Final check of the build output folder:"
-            ls -R apps/desktop/src-tauri/target || echo "Target folder is missing!"
+            echo "❌ ERROR: No installers were found!"
+            echo "Searching all of apps/desktop/src-tauri/target for debug info:"
+            find "apps/desktop/src-tauri/target" -maxdepth 4
             exit 1
           fi
 
