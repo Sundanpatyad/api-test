@@ -70,33 +70,45 @@ jobs:
       - name: Rename and Prepare Artifacts
         shell: bash
         run: |
-          echo "Scanning for bundles in src-tauri/target/..."
+          echo "Current working directory: $(pwd)"
+          echo "Scanning for bundles in workspace..."
           mkdir -p artifacts
           
-          # We search specifically in the target directory for 'bundle' folders
-          # This avoids picking up esbuild.exe, windows-kill.exe, etc.
-          # We also filter for the app name to be certain
-          find apps/desktop/src-tauri/target -type f -path "*/bundle/*" \( -name "*.dmg" -o -name "*.exe" -o -name "*.msi" -o -name "*.deb" -o -name "*.rpm" -o -name "*.AppImage" \) | while read -r file; do
-            filename=$(basename "$file")
-            
-            # Additional check: filename must look like an app installer (not a dependency)
-            # Typically contains 'PayloadX' or 'API' or 'SyncNest'
-            if [[ "$filename" =~ (PayloadX|API|Studio|SyncNest|syncnest) ]]; then
-              # Remove version pattern (e.g. _1.0.0_ or -1.0.0- or 1.0.0)
-              newname=$(echo "$filename" | sed -E 's/(_|-)?[0-9]+\.[0-9]+\.[0-9]+(_|-)?[0-9]*//g')
+          # We search from the project root for ANY installer files
+          # We check specifically for installers to avoid internal binaries
+          # Pattern: Find files with installer extensions that belong to a path containing 'bundle'
+          # This should work regardless of where target-dir is.
+          find . -type f \( -name "*.dmg" -o -name "*.exe" -o -name "*.msi" -o -name "*.deb" -o -name "*.rpm" -o -name "*.AppImage" \) | while read -r file; do
+            # Only process if the path contains 'bundle' - this is a standard Tauri output location
+            if [[ "$file" == *"bundle"* ]]; then
+              filename=$(basename "$file")
               
-              # Clean up potential double underscores or hyphens
-              newname=$(echo "$newname" | sed 's/__/_/g' | sed 's/--/-/g')
-              
-              echo "✅ Found and Renaming bundle: $filename -> $newname"
-              cp "$file" "artifacts/$newname"
+              # Final safety check: must contain app keywords to avoid junk
+              if [[ "$filename" =~ (PayloadX|API|Studio|SyncNest|syncnest) ]]; then
+                # Remove version pattern (e.g. _1.0.0_ or -1.0.0- or 1.0.0)
+                newname=$(echo "$filename" | sed -E 's/(_|-)?[0-9]+\.[0-9]+\.[0-9]+(_|-)?[0-9]*//g')
+                
+                # Clean up potential double underscores or hyphens
+                newname=$(echo "$newname" | sed 's/__/_/g' | sed 's/--/-/g')
+                
+                echo "✅ Found Installer: $file"
+                echo "➡️  Renaming for Release: $filename -> $newname"
+                cp "$file" "artifacts/$newname"
+              else
+                echo "⏭️  Skipping non-app file: $filename"
+              fi
             else
-              echo "⏭️ Skipping non-bundle file: $filename"
+              echo "⏭️  Skipping non-bundle file: $file"
             fi
           done
           
-          echo "Artifacts prepared for upload:"
-          ls -lh artifacts/ || echo "No artifacts found!"
+          echo "Summary of artifacts prepared for upload:"
+          if [ -d "artifacts" ] && [ "$(ls -A artifacts)" ]; then
+            ls -lh artifacts/
+          else
+            echo "❌ CRITICAL: No installer artifacts found! The release build might have failed or target location changed."
+            exit 1
+          fi
 
       - name: Upload Release Assets
         uses: softprops/action-gh-release@v1
