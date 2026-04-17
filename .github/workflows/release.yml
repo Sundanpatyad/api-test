@@ -54,7 +54,10 @@ jobs:
           sudo apt-get install -y libwebkit2gtk-4.0-dev build-essential curl wget file libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
 
       - name: Install JS Dependencies
-        run: npm i
+        run: |
+          npm i
+          # Ensure desktop dependencies are explicitly linked if npm i was flaky
+          npm i -w apps/desktop
 
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
@@ -70,48 +73,45 @@ jobs:
       - name: Rename and Prepare Artifacts
         shell: bash
         run: |
-          echo "=== CI/CD DIAGNOSTICS ==="
-          echo "Current Path: $(pwd)"
-          
-          # List target directory structure if it exists to help debug
-          if [ -d "apps/desktop/src-tauri/target" ]; then
-            echo "Target Directory found. Listing structure (depth 3)..."
-            find apps/desktop/src-tauri/target -maxdepth 4 -not -path '*/.*'
-          else
-            echo "⚠️  apps/desktop/src-tauri/target not found in root! Checking for other target folders..."
-            find . -name "target" -type d -not -path "./node_modules/*"
-          fi
-          
+          echo "=== CI/CD UNIVERSAL DISCOVERY ==="
+          echo "Workspace Root: $(pwd)"
           mkdir -p artifacts
           
-          echo "--- Starting Deep Scan for Installers ---"
-          # Find all potential installers, ignoring node_modules and .git
-          # We don't filter by path yet, we want to see EVERYTHING
-          find . -type f \( -name "*.dmg" -o -name "*.exe" -o -name "*.msi" -o -name "*.deb" -o -name "*.rpm" -o -name "*.AppImage" \) -not -path "./node_modules/*" -not -path "./.git/*" | while read -r file; do
+          # Find all directories named 'bundle' anywhere in the project
+          # This handles target/ at root or apps/desktop/src-tauri/target/
+          BUNDLE_DIRS=$(find . -name "bundle" -type d -not -path "./node_modules/*")
+          
+          if [ -z "$BUNDLE_DIRS" ]; then
+            echo "⚠️  No 'bundle' directories found yet. Searching for any installer files directly..."
+            # Fallback to search root for any installer extensions
+            TARGET_FILES=$(find . -type f \( -name "*.dmg" -o -name "*.exe" -o -name "*.msi" -o -name "*.deb" -o -name "*.rpm" -o -name "*.AppImage" \) -not -path "./node_modules/*")
+          else
+            echo "📂 Found bundle directories: $BUNDLE_DIRS"
+            TARGET_FILES=$(find $BUNDLE_DIRS -type f \( -name "*.dmg" -o -name "*.exe" -o -name "*.msi" -o -name "*.deb" -o -name "*.rpm" -o -name "*.AppImage" \))
+          fi
+          
+          echo "--- Processing Files ---"
+          for file in $TARGET_FILES; do
             filename=$(basename "$file")
-            echo "🔍 Located file: $file"
+            echo "🔍 Processing: $file"
             
-            # Use a more flexible name filter
-            if [[ "$filename" =~ (PayloadX|API|Studio|SyncNest|syncnest|studio) ]]; then
-              # Remove version pattern (e.g. _1.0.0_ or -1.0.0- or 1.0.0)
-              newname=$(echo "$filename" | sed -E 's/(_|-)?[0-9]+\.[0-9]+\.[0-9]+(_|-)?[0-9]*//g')
-              newname=$(echo "$newname" | sed 's/__/_/g' | sed 's/--/-/g')
-              
-              echo "✅ MATCHED: $filename -> $newname"
-              cp "$file" "artifacts/$newname"
-            else
-              echo "⏭️ SKIPPED (Name mismatch): $filename"
-            fi
+            # Remove version pattern (e.g. _1.0.0_ or -1.0.0- or 1.0.0)
+            # We use a broad match for renaming to handle any installer found
+            newname=$(echo "$filename" | sed -E 's/(_|-)?[0-9]+\.[0-9]+\.[0-9]+(_|-)?[0-9]*//g')
+            newname=$(echo "$newname" | sed 's/__/_/g' | sed 's/--/-/g')
+            
+            echo "✅ Preparing: $filename -> $newname"
+            cp "$file" "artifacts/$newname"
           done
           
-          echo "--- Scan Complete ---"
+          echo "--- Discovery Summary ---"
           if [ "$(ls -A artifacts)" ]; then
-            echo "Artifacts prepared for upload:"
+            echo "Artifacts successfully prepared:"
             ls -lh artifacts/
           else
-            echo "❌ CRITICAL ERROR: No application bundles found anywhere in the workspace!"
-            echo "Dumping full project tree (excluding node_modules)..."
-            find . -maxdepth 5 -not -path '*/.*' -not -path "./node_modules/*"
+            echo "❌ CRITICAL ERROR: No installers found after deep search!"
+            echo "Listing root directory for context:"
+            ls -F
             exit 1
           fi
 
