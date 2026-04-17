@@ -104,6 +104,7 @@ export default function App() {
     }
   }, [user, currentTeam, projects.length]);
 
+  
   // Apply theme class to <html> so CSS variables switch correctly
   useEffect(() => {
     const root = document.documentElement;
