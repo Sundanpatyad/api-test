@@ -5,7 +5,7 @@ use tauri::api::path::app_data_dir;
 fn get_storage_dir(app_handle: &tauri::AppHandle) -> Result<PathBuf, String> {
     let config = app_handle.config();
     let base = app_data_dir(&config).ok_or("Could not resolve app data directory")?;
-    let dir = base.join("syncnest");
+    let dir = base.join("payloadx");
     if !dir.exists() {
         fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     }

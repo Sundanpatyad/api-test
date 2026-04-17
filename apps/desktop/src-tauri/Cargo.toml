@@ -1,11 +1,11 @@
 [package]
 name = "payloadx-api-studio"
-version = "1.2.7"
+version = "1.2.8"
 description = "PayloadX API Studio"
 authors = ["PayloadX Team"]
 license = ""
 repository = ""
-default-run = "syncnest-desktop"
+default-run = "payloadx-api-studio"
 edition = "2021"
 rust-version = "1.70"
 
