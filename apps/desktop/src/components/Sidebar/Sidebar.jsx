@@ -94,7 +94,7 @@ export default function Sidebar() {
               <circle cx="18" cy="18" r="4" fill="white"/>
             </svg>
           </div>
-          <span className="text-sm font-semibold text-tx-primary">SyncNest Studio</span>
+          <span className="text-sm font-semibold text-tx-primary">PayloadX Studio</span>
         </div>
 
         {/* Search */}
@@ -345,6 +345,13 @@ export default function Sidebar() {
           </svg>
           New UI ✦
         </button>
+
+        {/* Creator Note */}
+        <div className="px-2 py-1.5 mt-1 border-t border-[var(--border-1)] opacity-40">
+           <p className="text-[10px] text-surface-500 font-medium">
+             Project by <span className="text-surface-300">Sundan Sharma</span>
+           </p>
+        </div>
 
         {/* User card with logout */}
         <div className="relative mt-1">

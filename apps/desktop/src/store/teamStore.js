@@ -3,6 +3,7 @@ import api from '@/lib/api';
 import { localStorageService } from '@/services/localStorageService';
 import { syncService } from '@/services/syncService';
 import { v4 as uuidv4 } from 'uuid';
+import toast from 'react-hot-toast';
 
 export const useTeamStore = create((set, get) => ({
   teams: localStorageService.get(localStorageService.KEYS.TEAMS) || [],
@@ -158,43 +159,27 @@ export const useTeamStore = create((set, get) => ({
   },
 
   createTeam: async (name, description) => {
+    if (!navigator.onLine) {
+      toast.error('You are offline. Cannot create team.');
+      return { success: false, error: 'Offline' };
+    }
+
     const tempId = uuidv4();
     const p = { name, description };
     
-    // Create locally first (optimistic)
-    const tempTeam = { ...p, _id: tempId, members: [], isOffline: true };
-    set((state) => {
-      const updatedTeams = [...state.teams, tempTeam];
-      localStorageService.saveTeams(updatedTeams);
-      return { teams: updatedTeams };
-    });
-    
+    set({ isLoading: true });
     try {
-      const { data } = await api.post('/api/team', p, {
-         offlineMock: { team: { ...p, _id: tempId }, tempId, resourceType: 'team' }
-      });
+      const { data } = await api.post('/api/team', p);
       
-      // Replace temp team with real one and register ID mapping
       set((state) => {
-        const updatedTeams = state.teams.map(t => 
-          t._id === tempId ? data.team : t
-        );
+        const updatedTeams = [...state.teams, data.team];
         localStorageService.saveTeams(updatedTeams);
-        return { teams: updatedTeams };
+        return { teams: updatedTeams, isLoading: false };
       });
-      
-      // Register ID mapping for future reference
-      if (data.team?._id) {
-        syncService.registerIdMapping(tempId, data.team._id);
-      }
       
       return { success: true, team: data.team };
     } catch (err) {
-      // If offline, queue for later sync
-      if (!navigator.onLine) {
-        syncService.queueChange('create_team', { ...p, tempId }, tempId);
-        return { success: true, team: tempTeam, offline: true };
-      }
+      set({ isLoading: false });
       return { success: false, error: err.response?.data?.error || 'Failed' };
     }
   },
@@ -205,28 +190,13 @@ export const useTeamStore = create((set, get) => ({
   },
 
   updateTeamName: async (id, name) => {
-    const existing = get().teams.find((t) => t._id === id);
-    const isTempId = id?.includes('-');
-    
-    // Optimistic update
-    set((state) => {
-      const updated = state.teams.map((t) => 
-        t._id === id ? { ...t, name } : t
-      );
-      localStorageService.saveTeams(updated);
-      return { teams: updated };
-    });
-    
+    if (!navigator.onLine) {
+      toast.error('You are offline. Cannot update team.');
+      return { success: false, error: 'Offline' };
+    }
+
     try {
-      // If temp ID, queue for later sync when online
-      if (isTempId) {
-        syncService.queueChange('update_team', { id, name }, id);
-        return { success: true, team: { ...existing, name }, offline: true };
-      }
-      
-      const { data } = await api.put(`/api/team/${id}`, { name }, {
-        offlineMock: { team: { ...existing, name } }
-      });
+      const { data } = await api.put(`/api/team/${id}`, { name });
       
       set((state) => {
         const updatedTeams = state.teams.map((t) => (t._id === id ? data.team : t));
@@ -240,55 +210,30 @@ export const useTeamStore = create((set, get) => ({
       });
       return { success: true, team: data.team };
     } catch (err) {
-      // If offline, queue for later sync
-      if (!navigator.onLine) {
-        syncService.queueChange('update_team', { id, name }, id);
-        return { success: true, team: { ...existing, name }, offline: true };
-      }
       return { success: false, error: err.response?.data?.error || 'Failed to update team' };
     }
   },
 
   deleteTeam: async (id) => {
-    const isTempId = id?.includes('-');
-    
-    // Optimistic delete
-    set((state) => {
-      const updatedTeams = state.teams.filter((t) => t._id !== id);
-      const updatedCurrent = state.currentTeam?._id === id ? null : state.currentTeam;
-      localStorageService.saveTeams(updatedTeams);
-      localStorageService.saveCurrentTeam(updatedCurrent);
-      return {
-        teams: updatedTeams,
-        currentTeam: updatedCurrent,
-      };
-    });
-    
+    if (!navigator.onLine) {
+      toast.error('You are offline. Cannot delete team.');
+      return { success: false, error: 'Offline' };
+    }
+
     try {
-      // If temp ID, just remove from queue if it was pending
-      if (isTempId) {
-        // Remove from pending changes
-        return { success: true };
-      }
-      
-      await api.delete(`/api/team/${id}`, { offlineMock: { success: true } });
+      await api.delete(`/api/team/${id}`);
+      set((state) => {
+        const updatedTeams = state.teams.filter((t) => t._id !== id);
+        const updatedCurrent = state.currentTeam?._id === id ? null : state.currentTeam;
+        localStorageService.saveTeams(updatedTeams);
+        localStorageService.saveCurrentTeam(updatedCurrent);
+        return {
+          teams: updatedTeams,
+          currentTeam: updatedCurrent,
+        };
+      });
       return { success: true };
     } catch (err) {
-      // If offline, queue for later sync
-      if (!navigator.onLine) {
-        syncService.queueChange('delete_team', { id }, id);
-        return { success: true, offline: true };
-      }
-      
-      // Revert optimistic delete on error
-      const existing = get().teams.find((t) => t._id === id);
-      if (existing) {
-        set((state) => {
-          const updatedTeams = [...state.teams, existing];
-          localStorageService.saveTeams(updatedTeams);
-          return { teams: updatedTeams };
-        });
-      }
       return { success: false, error: err.response?.data?.error || 'Failed to delete team' };
     }
   },
@@ -299,6 +244,10 @@ export const useTeamStore = create((set, get) => ({
   },
 
   inviteMember: async (teamId, email, role = 'developer') => {
+    if (!navigator.onLine) {
+      toast.error('You are offline. Cannot invite member.');
+      return { success: false, error: 'Offline' };
+    }
     try {
       const { data } = await api.post(`/api/team/${teamId}/invite`, { email, role });
       // Re-fetch populated team so member list updates
@@ -310,6 +259,10 @@ export const useTeamStore = create((set, get) => ({
   },
 
   removeMember: async (teamId, userId) => {
+    if (!navigator.onLine) {
+      toast.error('You are offline. Cannot remove member.');
+      return { success: false, error: 'Offline' };
+    }
     try {
       const { data } = await api.delete(`/api/team/${teamId}/members/${userId}`);
       set((state) => ({

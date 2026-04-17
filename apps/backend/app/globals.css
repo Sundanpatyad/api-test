@@ -9,23 +9,36 @@
 :root {
   --font-inter: 'Inter', sans-serif;
 
-  --bg: #05050a;
-  --surface: rgba(255, 255, 255, 0.04);
-  --border: rgba(255, 255, 255, 0.07);
-  --border-glow: rgba(139, 92, 246, 0.35);
+  /* PayloadX — Muted Dark Theme (Dull & Premium) */
+  --bg: #0A0D12;
+  --bg-soft: #0F141C;
+  --surface: #161B22;
+  --border: #21262D;
+  --border-glow: rgba(90, 125, 154, 0.2);
 
-  --purple-600: #7c3aed;
-  --purple-500: #8b5cf6;
-  --purple-400: #a78bfa;
-  --purple-300: #c4b5fd;
+  /* Primary Grays (Matte) */
+  --gray-700: #2A2F36;
+  --gray-600: #343A40;
+  --gray-500: #3F464F;
 
-  --white: #ffffff;
-  --off: rgba(255, 255, 255, 0.55);
-  --muted: rgba(255, 255, 255, 0.28);
+  /* Accent Blues (Dusty / Desaturated) */
+  --accent-blue: #5A7D9A;
+  --accent-soft: #4C6378;
+  --accent-glow: #3E5568;
 
-  --green: #22c55e;
-  --amber: #f59e0b;
-  --blue: #60a5fa;
+  /* Typography (Soft & Reduced Strain) */
+  --white: #C9D1D9;
+  --off: #8B949E;
+  --muted: #6E7681;
+
+  /* Functional */
+  --green: #4C6378; /* Muted for consistency */
+  --amber: #3F464F;
+  --blue: var(--accent-blue);
+  
+  /* Utils */
+  --hover-overlay: rgba(90, 125, 154, 0.12);
+  --shadow-soft: rgba(0, 0, 0, 0.4);
 }
 
 html,

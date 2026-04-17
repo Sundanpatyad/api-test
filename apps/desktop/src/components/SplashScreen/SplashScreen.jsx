@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import logo from '@/assets/logo.png';
 
 export default function SplashScreen({ onComplete }) {
   const [progress, setProgress] = useState(0);
@@ -10,7 +11,7 @@ export default function SplashScreen({ onComplete }) {
       { progress: 45, text: 'Connecting to services...' },
       { progress: 70, text: 'Restoring sessions...' },
       { progress: 90, text: 'Almost ready...' },
-      { progress: 100, text: 'Welcome to SyncNest!' },
+      { progress: 100, text: 'Welcome to PayloadX!' },
     ];
 
     let i = 0;
@@ -40,18 +41,13 @@ export default function SplashScreen({ onComplete }) {
         {/* Logo */}
         <div className="flex items-center gap-4">
           <div className="relative">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center shadow-glow-lg splash-logo-glow">
-              <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
-                <path d="M6 18C6 11.373 11.373 6 18 6" stroke="white" strokeWidth="3" strokeLinecap="round"/>
-                <path d="M30 18C30 24.627 24.627 30 18 30" stroke="white" strokeWidth="3" strokeLinecap="round"/>
-                <circle cx="18" cy="18" r="4" fill="white"/>
-                <path d="M18 6V10M18 26V30M6 18H10M26 18H30" stroke="white" strokeWidth="2.5" strokeLinecap="round"/>
-              </svg>
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center p-3 shadow-glow-lg splash-logo-glow">
+              <img src={logo} alt="PayloadX" className="w-full h-full object-contain" />
             </div>
             <div className="absolute -inset-1 rounded-2xl bg-brand-500/30 blur-lg -z-10" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-tx-primary tracking-tight">SyncNest</h1>
+            <h1 className="text-3xl font-bold text-tx-primary tracking-tight">PayloadX</h1>
             <p className="text-brand-300 text-sm font-medium tracking-widest uppercase">API Studio</p>
           </div>
         </div>

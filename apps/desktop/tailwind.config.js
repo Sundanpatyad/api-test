@@ -53,16 +53,16 @@ export default {
         // existing className (bg-brand-500, text-brand-300, etc.) stays
         // valid but renders as gray/white instead of purple.
         brand: {
-          50:  '#FAFAFA',
-          100: '#F5F5F5',
-          200: '#E5E5E5',
-          300: '#D4D4D4',  // soft off-white  – used for 'text-brand-300' labels
-          400: '#A3A3A3',  // mid-gray        – used for icons, subtle text
-          500: 'var(--accent)',   // main CTA – off-white in dark / near-black in light
-          600: '#737373',  // darker gray     – used in 'to-brand-600' gradients
-          700: '#525252',
-          800: '#404040',
-          900: '#262626',
+          50:  '#E6F2FF',
+          100: '#CCE5FF',
+          200: '#99CCFF',
+          300: '#7CC7FF',  /* Soft Neon Blue */
+          400: '#4DA3FF',  /* Electric Blue */
+          500: 'var(--accent)',   /* Main Accent */
+          600: '#2F80ED',  /* Glow Blue */
+          700: '#1A5BB8',
+          800: '#123D7A',
+          900: '#0B264D',
         },
 
         // ── Semantic status colors ────────────────────────────────────

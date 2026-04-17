@@ -27,7 +27,8 @@ const DOWNLOADS = [
     ),
     ext: '.dmg',
     size: '8.2 MB',
-    accent: '#a78bfa',
+    accent: '#5A7D9A',
+    href: 'https://github.com/Sundanpatyad/api-test/releases/latest',
   },
   {
     id: 'dl-mac-intel',
@@ -40,7 +41,8 @@ const DOWNLOADS = [
     ),
     ext: '.dmg',
     size: '9.1 MB',
-    accent: '#818cf8',
+    accent: '#4C6378',
+    href: 'https://github.com/Sundanpatyad/api-test/releases/latest',
   },
   {
     id: 'dl-windows',
@@ -53,7 +55,8 @@ const DOWNLOADS = [
     ),
     ext: '.exe',
     size: '7.8 MB',
-    accent: '#60a5fa',
+    accent: '#3E5568',
+    href: 'https://github.com/Sundanpatyad/api-test/releases/latest',
   },
   {
     id: 'dl-linux-appimage',
@@ -66,7 +69,8 @@ const DOWNLOADS = [
     ),
     ext: '.AppImage',
     size: '9.4 MB',
-    accent: '#f59e0b',
+    accent: '#343A40',
+    href: 'https://github.com/Sundanpatyad/api-test/releases/latest',
   },
   {
     id: 'dl-linux-deb',
@@ -79,14 +83,15 @@ const DOWNLOADS = [
     ),
     ext: '.deb',
     size: '8.8 MB',
-    accent: '#e05c1a',
+    accent: '#2A2F36',
+    href: 'https://github.com/Sundanpatyad/api-test/releases/latest',
   },
 ];
 
 export default function LandingPage() {
   const [os, setOs] = useState('Unknown');
   const [downloads, setDownloads] = useState(DOWNLOADS);
-  const [heroCta, setHeroCta] = useState({ text: 'Download App', href: '#download' });
+  const [heroCta, setHeroCta] = useState({ text: 'Download App', href: 'https://github.com/Sundanpatyad/api-test/releases/latest' });
   const [latestVersion, setLatestVersion] = useState('v1.0.0');
 
   useEffect(() => {
@@ -104,21 +109,31 @@ export default function LandingPage() {
       .then(res => res.json())
       .then(data => {
         if (!data || !data.assets) return;
+        const releaseUrl = data.html_url || 'https://github.com/Sundanpatyad/api-test/releases/latest';
         setLatestVersion(data.tag_name || 'v1.0.0');
 
         const newDownloads = DOWNLOADS.map(d => {
+          const assets = data.assets || [];
           let asset = null;
-          if (d.platform === 'macOS' && d.variant === 'Apple Silicon') {
-            asset = data.assets.find(a => a.name.endsWith('.dmg') && a.name.includes('aarch64'));
-          } else if (d.platform === 'macOS' && d.variant === 'Intel') {
-            asset = data.assets.find(a => a.name.endsWith('.dmg') && (a.name.includes('x64') || a.name.includes('x86_64')));
-            if (!asset) asset = data.assets.find(a => a.name.endsWith('.dmg'));
+
+          if (d.platform === 'macOS') {
+            if (d.variant === 'Apple Silicon') {
+              asset = assets.find(a => a.name.toLowerCase().endsWith('.dmg') && (a.name.toLowerCase().includes('aarch64') || a.name.toLowerCase().includes('arm64')));
+            } else {
+              asset = assets.find(a => a.name.toLowerCase().endsWith('.dmg') && (a.name.toLowerCase().includes('x64') || a.name.toLowerCase().includes('x86_64')));
+              // Fallback for universal or intel-only if explicit x64 not found
+              if (!asset) asset = assets.find(a => a.name.toLowerCase().endsWith('.dmg') && !a.name.toLowerCase().includes('aarch64'));
+            }
           } else if (d.platform === 'Windows') {
-            asset = data.assets.find(a => a.name.endsWith('.exe') || a.name.endsWith('.msi'));
-          } else if (d.platform === 'Linux' && d.variant === 'AppImage') {
-            asset = data.assets.find(a => a.name.endsWith('.AppImage'));
-          } else if (d.platform === 'Linux' && d.variant === 'Ubuntu .deb') {
-            asset = data.assets.find(a => a.name.endsWith('.deb'));
+            // Find .exe but exclude any with -setup suffix if we prefer others, or just get the first exe
+            asset = assets.find(a => a.name.toLowerCase().endsWith('.exe'));
+            if (!asset) asset = assets.find(a => a.name.toLowerCase().endsWith('.msi'));
+          } else if (d.platform === 'Linux') {
+            if (d.variant.includes('AppImage')) {
+              asset = assets.find(a => a.name.toLowerCase().endsWith('.appimage'));
+            } else if (d.variant.includes('.deb')) {
+              asset = assets.find(a => a.name.toLowerCase().endsWith('.deb'));
+            }
           }
 
           if (asset) {
@@ -128,19 +143,28 @@ export default function LandingPage() {
               size: (asset.size / (1024 * 1024)).toFixed(1) + ' MB'
             };
           }
-          return d;
+          return { ...d, href: releaseUrl };
         });
 
         setDownloads(newDownloads);
 
         if (detectedOS !== 'Unknown') {
           const match = newDownloads.find(d => d.platform === detectedOS);
-          if (match && match.href) {
+          if (match && match.href && match.href !== releaseUrl) {
             setHeroCta({ text: `Download for ${detectedOS} (${match.size})`, href: match.href });
+          } else if (match) {
+            setHeroCta({ text: `Download for ${detectedOS}`, href: match.href });
           }
+        } else {
+          setHeroCta({ text: 'Download App', href: releaseUrl });
         }
       })
-      .catch(err => console.error("Failed to fetch releases", err));
+      .catch(err => {
+        console.error("Failed to fetch releases", err);
+        const fallback = 'https://github.com/Sundanpatyad/api-test/releases/latest';
+        setDownloads(prev => prev.map(d => ({ ...d, href: fallback })));
+        setHeroCta({ text: 'Download App', href: fallback });
+      });
   }, []);
 
   return (
@@ -159,8 +183,8 @@ export default function LandingPage() {
       ══════════════════════════════════════ */}
       <nav className={styles.nav}>
         <div className={styles.navLogo}>
-          <span className={styles.navIcon}>⬡</span>
-          <span className={styles.navBrand}>SyncNest</span>
+          <img src="/logo.png" alt="PayloadX" className={styles.navBrandImg} />
+          <span className={styles.navBrand}>PayloadX</span>
         </div>
 
         <ul className={styles.navLinks}>
@@ -174,14 +198,15 @@ export default function LandingPage() {
         </ul>
 
         <div className={styles.navRight}>
-          <a id="nav-github" href="https://github.com" className={styles.ghostBtn} target="_blank" rel="noreferrer">
+          <a id="nav-github" href="https://github.com/Sundanpatyad/api-test" className={styles.ghostBtn} target="_blank" rel="noreferrer">
             GitHub ↗
           </a>
-          <a id="nav-download-hero" href="#download" className={styles.primaryBtn}>
+          <a id="nav-download-hero" href={heroCta.href} className={styles.primaryBtn}>
             Download Free
           </a>
         </div>
       </nav>
+
 
       {/* ══════════════════════════════════════
           HERO
@@ -220,16 +245,23 @@ export default function LandingPage() {
             <div className={styles.floatVal}>Unlimited</div>
           </div>
         </div>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', padding: '6px 14px', borderRadius: '100px', marginBottom: '20px' }}>
+          <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', fontWeight: 500, letterSpacing: '0.02em' }}>
+            Project by <span style={{ color: 'rgba(255,255,255,0.9)', fontWeight: 600 }}>Sundan Sharma</span>
+          </span>
+        </div>
 
         {/* Center content */}
         <div className={styles.heroCenter}>
-          <div className={styles.heroPill} id="hero-badge">
+          <div className={styles.heroPill} id="hero-badge" style={{ marginBottom: '12px' }}>
             <span className={styles.heroPillDot} />
             Open Source · Postman Alternative
           </div>
 
+
+
           <h1 className={styles.heroTitle}>
-            The API Studio<br />
+            The Payload studio<br />
             <span className={styles.heroGradient}>Built for Teams</span>
           </h1>
 
@@ -298,7 +330,10 @@ export default function LandingPage() {
           TECH STRIP
       ══════════════════════════════════════ */}
       <footer className={styles.footer}>
-        <p className={styles.footerLabel}>Powered by</p>
+        <div className={styles.footerMain}>
+          <img src="/logo.png" alt="PayloadX" className={styles.footerLogo} />
+          <p className={styles.footerLabel}>Powered by</p>
+        </div>
         <div className={styles.techStrip}>
           {TECH_STRIP.map((t) => (
             <div key={t.name} className={styles.techItem}>

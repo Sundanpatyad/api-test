@@ -35,6 +35,11 @@ export default function RequestBuilder() {
   const [showMethodDropdown, setShowMethodDropdown] = useState(false);
 
   const executeRequest = useCallback(async () => {
+    if (!navigator.onLine) {
+      toast.error('You are offline. Please check your connection.');
+      return;
+    }
+
     if (!currentRequest.url.trim()) {
       toast.error('Enter a URL first');
       return;

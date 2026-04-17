@@ -58,13 +58,44 @@ jobs:
 
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
+        id: tauri_build
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           projectPath: './apps/desktop'
-          tagName: app-v__VERSION__
-          releaseName: 'SyncNest API Studio v__VERSION__'
-          releaseBody: 'Automated release by GitHub Actions'
-          releaseDraft: false
-          prerelease: false
+          includeRelease: false
+          includeUpdaterJson: false
           args: ${{ matrix.args }}
+
+      - name: Rename and Prepare Artifacts
+        shell: bash
+        run: |
+          # Define the target directory based on platform
+          # Note: Tauri outputs are usually in apps/desktop/src-tauri/target/[target]/release/bundle/
+          # or apps/desktop/src-tauri/target/release/bundle/
+          
+          echo "Scanning for bundles..."
+          mkdir -p artifacts
+          
+          # Find all bundles (dmg, exe, msi, deb, rpm, AppImage)
+          # We remove the version string (e.g. _1.0.0_) from the filenames
+          find apps/desktop/src-tauri/target -type f \( -name "*.dmg" -o -name "*.exe" -o -name "*.msi" -o -name "*.deb" -o -name "*.rpm" -o -name "*.AppImage" \) | while read -r file; do
+            filename=$(basename "$file")
+            # Remove version pattern like _1.2.3_ or -1.2.3- or _1.2.3
+            # This is a bit aggressive but matches Tauri's naming
+            newname=$(echo "$filename" | sed -E 's/_[0-9]+\.[0-9]+\.[0-9]+(_[0-9]+)?//g' | sed -E 's/-[0-9]+\.[0-9]+\.[0-9]+(-[0-9]+)?//g')
+            echo "Renaming $filename to $newname"
+            cp "$file" "artifacts/$newname"
+          done
+
+      - name: Upload Release Assets
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: artifacts/*
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

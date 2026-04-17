@@ -1,6 +1,6 @@
 /**
  * Postman Collection v2 / v2.1 parser for client-side use
- * Converts Postman JSON to SyncNest internal request schema
+ * Converts Postman JSON to PayloadX internal request schema
  */
 
 export function parsePostmanCollection(json) {

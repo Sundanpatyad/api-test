@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import api from '@/lib/api';
 import { v4 as uuidv4 } from 'uuid';
+import toast from 'react-hot-toast';
 
 export const useEnvironmentStore = create(
   persist(
@@ -36,8 +37,12 @@ export const useEnvironmentStore = create(
 
       // ── Create environment ─────────────────────────────────────────────────
       createEnvironment: async (name, projectId, teamId, options = {}) => {
+        if (!navigator.onLine) {
+          toast.error('You are offline. Cannot create environment.');
+          return { success: false, error: 'Offline' };
+        }
+
         try {
-          const tempId = uuidv4();
           const p = {
             name,
             projectId,
@@ -47,9 +52,7 @@ export const useEnvironmentStore = create(
             isGlobal: options.isGlobal || false,
             variables: options.variables || [],
           };
-          const { data } = await api.post('/api/environment', p, {
-             offlineMock: { environment: { ...p, _id: tempId }, tempId, resourceType: 'environment' }
-          });
+          const { data } = await api.post('/api/environment', p);
           set((state) => ({
             environments: [...state.environments, data.environment],
           }));
@@ -61,11 +64,13 @@ export const useEnvironmentStore = create(
 
       // ── Update environment (name, description, color) ─────────────────────
       updateEnvironment: async (id, updates) => {
+        if (!navigator.onLine) {
+          toast.error('You are offline. Cannot update environment.');
+          return { success: false, error: 'Offline' };
+        }
+
         try {
-          const existing = get().environments.find(e => e._id === id);
-          const { data } = await api.put(`/api/environment/${id}`, updates, {
-            offlineMock: { environment: { ...existing, ...updates } }
-          });
+          const { data } = await api.put(`/api/environment/${id}`, updates);
           const updated = data.environment;
           set((state) => ({
             environments: state.environments.map((e) => (e._id === id ? updated : e)),
@@ -80,11 +85,13 @@ export const useEnvironmentStore = create(
 
       // ── Save variables (bulk replace) ─────────────────────────────────────
       saveVariables: async (id, variables) => {
+        if (!navigator.onLine) {
+          toast.error('You are offline. Cannot save variables.');
+          return { success: false, error: 'Offline' };
+        }
+
         try {
-          const existing = get().environments.find(e => e._id === id);
-          const { data } = await api.put(`/api/environment/${id}/variables`, { variables }, {
-             offlineMock: { environment: { ...existing, variables } }
-          });
+          const { data } = await api.put(`/api/environment/${id}/variables`, { variables });
           const updated = data.environment;
           set((state) => ({
             environments: state.environments.map((e) => (e._id === id ? updated : e)),
@@ -99,6 +106,11 @@ export const useEnvironmentStore = create(
 
       // ── Add a single variable ─────────────────────────────────────────────
       addVariable: async (envId, variable) => {
+        if (!navigator.onLine) {
+          toast.error('You are offline. Cannot add variable.');
+          return { success: false, error: 'Offline' };
+        }
+
         try {
           const { data } = await api.post(`/api/environment/${envId}/variables`, variable);
           // Refresh the environment
@@ -117,12 +129,13 @@ export const useEnvironmentStore = create(
 
       // ── Duplicate environment ─────────────────────────────────────────────
       duplicateEnvironment: async (id, newName) => {
+        if (!navigator.onLine) {
+          toast.error('You are offline. Cannot duplicate environment.');
+          return { success: false, error: 'Offline' };
+        }
+
         try {
-          const tempId = uuidv4();
-          const existing = get().environments.find(e => e._id === id);
-          const { data } = await api.post(`/api/environment/${id}/duplicate`, { name: newName }, {
-            offlineMock: { environment: { ...existing, _id: tempId, name: newName }, tempId, resourceType: 'environment' }
-          });
+          const { data } = await api.post(`/api/environment/${id}/duplicate`, { name: newName });
           set((state) => ({
             environments: [...state.environments, data.environment],
           }));
@@ -134,8 +147,13 @@ export const useEnvironmentStore = create(
 
       // ── Delete environment ─────────────────────────────────────────────────
       deleteEnvironment: async (id) => {
+        if (!navigator.onLine) {
+          toast.error('You are offline. Cannot delete environment.');
+          return { success: false, error: 'Offline' };
+        }
+
         try {
-          await api.delete(`/api/environment/${id}`, { offlineMock: { success: true } });
+          await api.delete(`/api/environment/${id}`);
           set((state) => ({
             environments: state.environments.filter((e) => e._id !== id),
             activeEnvironment: state.activeEnvironment?._id === id ? null : state.activeEnvironment,

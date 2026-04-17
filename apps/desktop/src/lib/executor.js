@@ -12,6 +12,10 @@ export const isTauri = () =>
  * - In browser    → falls back to native fetch() for development/testing
  */
 export async function executeHttpRequest(payload) {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    throw 'Offline: No internet connection detected.';
+  }
+
   if (isTauri()) {
     // ── Tauri path (production) ────────────────────────────────────────────
     const { invoke } = await import('@tauri-apps/api/tauri');
