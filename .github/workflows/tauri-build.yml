@@ -19,7 +19,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [macos-latest, ubuntu-22.04, windows-latest]
+        platform: [macos-13, ubuntu-22.04, windows-latest]
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -41,6 +41,11 @@ jobs:
 
       - name: Install project dependencies
         run: npm install
+
+      - name: List artifacts (Debug)
+        run: |
+          echo "Listing release artifacts directory..."
+          ls -R apps/desktop/src-tauri/target/release/bundle || echo "No bundle directory found yet"
 
       - name: Build and Upload Tauri App
         uses: tauri-apps/tauri-action@v0

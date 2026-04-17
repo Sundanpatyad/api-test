@@ -7,8 +7,8 @@
     "distDir": "../dist"
   },
   "package": {
-    "productName": "PayloadX-API-Studio",
-    "version": "1.2.9"
+    "productName": "PayloadX",
+    "version": "1.3.0"
   },
   "tauri": {
     "allowlist": {
