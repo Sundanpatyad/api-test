@@ -16,7 +16,9 @@ const CORS_ORIGIN = RAW_CORS === '*' ? '*' : RAW_CORS.split(',').map((o) => o.tr
 // Credentials cannot be true when origin is '*' (browser enforced)
 const CORS_CREDENTIALS = CORS_ORIGIN !== '*';
 
-// ─────────────────────────────────────────────────────────────────────────────
+
+// ───────────────────
+// ──────────────────────────────────────────────────────────
 // Express + HTTP server
 // ─────────────────────────────────────────────────────────────────────────────
 const app = express();
@@ -31,9 +33,9 @@ app.use(express.json());
 // requestViewers  : Map<requestId, Map<socketId, user>>
 // socketMeta      : Map<socketId, { teamId?, openRequestId? }> — for cleanup
 // ─────────────────────────────────────────────────────────────────────────────
-const roomMembers    = new Map();
+const roomMembers = new Map();
 const requestViewers = new Map();
-const socketMeta     = new Map();
+const socketMeta = new Map();
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
