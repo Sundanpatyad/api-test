@@ -36,10 +36,10 @@ export default function VariableUrlInput({ value, onChange, placeholder }) {
     <div className="relative flex-1 min-w-0 h-full">
       {/* Container — provides border + background */}
       <div
-        className={`flex items-center w-full h-full px-2.5 font-mono text-xs outline-none transition-all duration-150 border rounded-md ${
+        className={`flex items-center w-full h-full px-2.5 font-mono text-xs outline-none transition-all duration-150 ${
           hasUnresolved 
-            ? 'border-warning/40 bg-[var(--bg-tertiary)]' 
-            : 'border-[var(--border-1)] bg-[var(--bg-tertiary)] focus-within:border-[var(--accent)] focus-within:ring-2 focus-within:ring-[var(--accent)]/10'
+            ? 'bg-warning/10' 
+            : 'bg-transparent'
         }`}
       >
         {/* Scrollable Container */}

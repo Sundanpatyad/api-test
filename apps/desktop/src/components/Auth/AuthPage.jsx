@@ -24,154 +24,132 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="flex h-screen bg-[#040506] overflow-hidden font-poppins selection:bg-white/20">
-      {/* ── Left Side: Hero Image with Metallic Overlay ── */}
+    <div className="flex h-screen bg-[#0f0f0f] overflow-hidden font-inter selection:bg-sky-500/20">
+      {/* ── Left Side: Hero Image with Brand Overlay ── */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden group">
         <img 
           src={heroImg} 
           alt="PayloadX Studio" 
-          className="absolute inset-0 w-full h-full object-cover transition-transform duration-[2s] group-hover:scale-110"
+          className="absolute inset-0 w-full h-full object-cover transition-transform duration-[2.5s] ease-out group-hover:scale-105"
         />
-        {/* Advanced Metallic/Dark Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-tr from-[#040506] via-[#040506]/80 to-transparent" />
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/5 to-transparent opacity-30" />
+        {/* Soft Modern Overlay */}
+        <div className="absolute inset-0 bg-[#0f0f0f]/60 backdrop-blur-[2px]" />
+        <div className="absolute inset-0 bg-gradient-to-tr from-[#0f0f0f] via-transparent to-transparent" />
 
         {/* Content on Image */}
-        <div className="relative z-10 w-full h-full flex flex-col justify-center p-20 animate-fade-in">
-          <div className="space-y-6">
-            <div className="w-16 h-1 bg-gradient-to-r from-white to-transparent rounded-full" />
-            <h2 className="text-5xl font-bold text-white tracking-tighter leading-[1.1]">
-              The Payload <br />
-              <span className="bg-gradient-to-r from-white via-[#8B949E] to-[#484F58] bg-clip-text text-transparent italic">Metallic Studio</span>
+        <div className="relative z-10 w-full h-full flex flex-col justify-center p-24 animate-fade-in">
+          <div className="space-y-8">
+            <div className="w-12 h-1 bg-sky-500 rounded-full" />
+            <h2 className="text-6xl font-bold text-white tracking-tight leading-tight">
+              The Studio for <br />
+              <span className="text-sky-400 italic">Modern Teams</span>
             </h2>
-            <p className="text-[#8B949E] text-sm max-w-[400px] font-semibold leading-relaxed uppercase tracking-[0.25em]">
-              High Performance &bull; Chrome Core &bull; Rust Native
+            <p className="text-slate-400 text-base max-w-[400px] font-medium leading-relaxed tracking-wide">
+              Blazing fast API management powered by Rust. Collaborate in real-time without the bloat.
             </p>
           </div>
-          
-          {/* Subtle reflection effect */}
-          <div className="absolute -bottom-20 -left-20 w-80 h-80 bg-white/5 blur-[100px] rounded-full pointer-events-none" />
         </div>
       </div>
 
-      {/* ── Right Side: Polished Auth Form ── */}
-      <div className="w-full lg:w-1/2 flex flex-col justify-center items-center p-8 bg-[#040506] relative">
-        {/* Background Ambience */}
-        <div className="absolute top-0 right-0 w-[40%] h-[40%] bg-white/[0.03] blur-[120px] rounded-full pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-[40%] h-[40%] bg-white/[0.02] blur-[100px] rounded-full pointer-events-none" />
-
-        <div className="w-full max-w-[420px] z-10 space-y-12">
-          {/* Form Header */}
-          <div className="space-y-6">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-white to-[#8B949E] p-2 shadow-2xl flex items-center justify-center">
+      {/* ── Right Side: Clean Auth Form ── */}
+      <div className="w-full lg:w-1/2 flex flex-col justify-center items-center p-12 bg-[#0f0f0f] relative">
+        <div className="w-full max-w-[380px] z-10 space-y-10">
+          {/* Header */}
+          <div className="space-y-8">
+            <div className="flex flex-col items-center lg:items-start gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-sky-500 flex items-center justify-center p-2.5 shadow-lg shadow-sky-500/20">
                 <img src={logoImg} alt="logo" className="w-full h-full object-contain invert" />
               </div>
-              <div className="h-6 w-[1px] bg-white/10" />
-              <span className="text-[10px] font-black text-[#8B949E] uppercase tracking-[0.4em]">
-                {mode === 'login' ? 'Authentication' : 'Onboarding'}
-              </span>
-            </div>
-
-            <div className="space-y-2">
-              <h1 className="text-4xl font-bold text-white tracking-tighter">
-                {mode === 'login' ? 'Welcome' : 'Join the Elite'}
+              <h1 className="text-3xl font-bold text-white tracking-tight">
+                {mode === 'login' ? 'Welcome back' : 'Create an account'}
               </h1>
-              <p className="text-[#8B949E] text-[13px] font-medium leading-relaxed">
-                {mode === 'login' ? 'Enter your credentials to access your metallic workspace.' : 'Initialize your professional API testing profile today.'}
+              <p className="text-slate-500 text-sm font-medium">
+                {mode === 'login' 
+                  ? 'Access your workspace and continue building.' 
+                  : 'Start your journey with PayloadX today.'}
               </p>
             </div>
           </div>
 
-          {/* Form Body */}
-          <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-5">
             {mode === 'signup' && (
-              <div className="space-y-3">
-                <label className="text-[11px] font-bold text-[#8B949E] ml-1 uppercase tracking-widest">Full Name</label>
-                <div className="relative group">
-                  <input
-                    className="w-full h-14 px-6 bg-white/[0.03] border border-white/5 rounded-2xl text-white placeholder:text-white/20 focus:bg-white/[0.05] focus:border-white/20 focus:shadow-[0_0_30px_rgba(255,255,255,0.05)] outline-none transition-all duration-300"
-                    type="text"
-                    placeholder="Enter your name"
-                    value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    required
-                  />
-                </div>
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-slate-400 ml-1">Full Name</label>
+                <input
+                  className="w-full h-12 px-5 bg-white/[0.02] border border-white/10 rounded-xl text-white placeholder:text-slate-600 focus:bg-white/[0.04] focus:border-sky-500 outline-none transition-all duration-200"
+                  type="text"
+                  placeholder="John Doe"
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  required
+                />
               </div>
             )}
 
-            <div className="space-y-3">
-              <label className="text-[11px] font-bold text-[#8B949E] ml-1 uppercase tracking-widest">Email address</label>
-              <div className="relative group">
-                <input
-                  className="w-full h-14 px-6 bg-white/[0.03] border border-white/5 rounded-2xl text-white placeholder:text-white/20 focus:bg-white/[0.05] focus:border-white/20 focus:shadow-[0_0_30px_rgba(255,255,255,0.05)] outline-none transition-all duration-300"
-                  type="email"
-                  placeholder="hello@payloadx.design"
-                  value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  required
-                />
-              </div>
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-slate-400 ml-1">Email address</label>
+              <input
+                className="w-full h-12 px-5 bg-white/[0.02] border border-white/10 rounded-xl text-white placeholder:text-slate-600 focus:bg-white/[0.04] focus:border-sky-500 outline-none transition-all duration-200"
+                type="email"
+                placeholder="hello@example.com"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                required
+              />
             </div>
 
-            <div className="space-y-3">
-               <div className="flex justify-between items-center px-1">
-                 <label className="text-[11px] font-bold text-[#8B949E] uppercase tracking-widest">Password</label>
-                 {mode === 'login' && <button type="button" className="text-[10px] text-[#8B949E] hover:text-white transition-colors">Forgot?</button>}
-               </div>
-              <div className="relative group">
-                <input
-                  className="w-full h-14 px-6 bg-white/[0.03] border border-white/5 rounded-2xl text-white placeholder:text-white/20 focus:bg-white/[0.05] focus:border-white/20 focus:shadow-[0_0_30px_rgba(255,255,255,0.05)] outline-none transition-all duration-300"
-                  type="password"
-                  placeholder="••••••••"
-                  value={form.password}
-                  onChange={(e) => setForm({ ...form, password: e.target.value })}
-                  required
-                  minLength={8}
-                />
+            <div className="space-y-2">
+              <div className="flex justify-between items-center px-1">
+                <label className="text-xs font-semibold text-slate-400">Password</label>
+                {mode === 'login' && <button type="button" className="text-[11px] text-sky-500/80 hover:text-sky-400 transition-colors font-medium">Forgot password?</button>}
               </div>
+              <input
+                className="w-full h-12 px-5 bg-white/[0.02] border border-white/10 rounded-xl text-white placeholder:text-slate-600 focus:bg-white/[0.04] focus:border-sky-500 outline-none transition-all duration-200"
+                type="password"
+                placeholder="••••••••"
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                required
+                minLength={8}
+              />
             </div>
 
             <button 
               type="submit" 
-              className="w-full h-14 bg-white hover:bg-[#F3F4F6] text-[14px] font-black text-black rounded-2xl transition-all duration-500 active:scale-[0.98] shadow-[0_10px_30px_rgba(255,255,255,0.1)] flex items-center justify-center gap-3 group disabled:opacity-50 mt-4 overflow-hidden relative"
+              className="w-full h-12 bg-sky-500 hover:bg-sky-400 text-slate-900 font-bold rounded-full transition-all duration-300 active:scale-[0.98] mt-6 flex items-center justify-center gap-2 group disabled:opacity-50"
               disabled={isLoading}
             >
-              {isLoading ? 'INITIATING...' : (
+              {isLoading ? (
+                <div className="w-5 h-5 border-2 border-slate-900/30 border-t-slate-900 rounded-full animate-spin" />
+              ) : (
                 <>
-                  <span className="relative z-10">{mode === 'login' ? 'SIGN IN' : 'INITIALIZE ACCOUNT'}</span>
-                  <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform relative z-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <span>{mode === 'login' ? 'Sign in' : 'Get started'}</span>
+                  <svg className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                   </svg>
-                  {/* Internal Shimmer */}
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-black/[0.02] to-transparent transform translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
                 </>
               )}
             </button>
           </form>
 
-          {/* Footer Area with Metallic Touches */}
-          <div className="pt-8 border-t border-white/5 flex flex-col items-center gap-8">
-            <div className="flex items-center gap-2 text-[12px] font-medium text-[#8B949E]">
-              <span>{mode === 'login' ? "New to the Studio? " : 'Already a member? '}</span>
+          {/* Footer */}
+          <div className="pt-6 border-t border-white/5 flex flex-col items-center gap-8">
+            <div className="flex items-center gap-2 text-sm font-medium text-slate-500">
+              <span>{mode === 'login' ? "Don't have an account? " : 'Already a member? '}</span>
               <button
                 onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
-                className="text-white font-bold hover:underline underline-offset-4 decoration-white/30 transition-all"
+                className="text-sky-500 font-bold hover:text-sky-400 transition-colors"
               >
-                {mode === 'login' ? 'Create Access' : 'Sign In Now'}
+                {mode === 'login' ? 'Sign up' : 'Sign in'}
               </button>
             </div>
 
-            <div className="flex flex-col items-center gap-2 opacity-30 group cursor-default">
-              <p className="text-[9px] items-center gap-2 flex uppercase tracking-[0.5em] font-black text-white group-hover:tracking-[0.6em] transition-all duration-500">
+            <div className="flex flex-col items-center gap-1 opacity-20">
+              <p className="text-[10px] font-bold text-white uppercase tracking-widest">
                 PayloadX Studio
               </p>
-              <div className="flex items-center gap-2 text-[10px] font-medium text-[#8B949E]">
-                <span>MODERN METALLIC ENGINE</span>
-                <span className="w-1 h-1 bg-white/40 rounded-full" />
-                <span>CORE V1.2</span>
-              </div>
+              <span className="text-[9px] font-medium text-slate-500">v1.2.0</span>
             </div>
           </div>
         </div>

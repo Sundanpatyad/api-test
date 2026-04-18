@@ -32,10 +32,13 @@ export const useProjectStore = create((set, get) => ({
     try {
       const { data } = await api.get('/api/project', { params: { teamId } });
       if (data?.projects) {
-        set({ projects: data.projects, isLoading: false });
-        localStorageService.saveProjects(data.projects);
+        
+        const syncedProjects = get().syncWithServerData(data.projects, teamId);
+        
+        set({ projects: syncedProjects, isLoading: false });
+        localStorageService.saveProjects(syncedProjects);
         localStorageService.updateLastSync();
-        return { success: true, projects: data.projects, fromCache: false };
+        return { success: true, projects: syncedProjects, fromCache: false };
       }
       throw new Error('No projects returned from API');
     } catch (err) {
@@ -63,29 +66,41 @@ export const useProjectStore = create((set, get) => ({
   },
 
   // Check if server data has items we don't have locally (or deleted items)
-  syncWithServerData: (serverProjects) => {
+  // Preserves projects from OTHER teams while syncing THIS team.
+  syncWithServerData: (serverProjects, teamId) => {
     const currentProjects = get().projects;
     const serverProjectIds = new Set(serverProjects.map(p => p._id));
     const idMap = syncService.idMap;
     
-    // Find projects that exist locally but not on server (unless they have temp IDs)
-    const projectsToRemove = currentProjects.filter(project => {
-      const isTempId = project._id?.includes('-');
-      if (isTempId) return false;
-      return !serverProjectIds.has(project._id) && !idMap[project._id];
-    });
+    // Separate current projects into "this team" and "other teams"
+    const otherProjects = currentProjects.filter(p => String(p.teamId) !== String(teamId));
+    const thisTeamProjects = currentProjects.filter(p => String(p.teamId) === String(teamId));
     
+    // Reconcile IDs for the returned server projects
     const reconciledServerProjects = get().reconcileIds(serverProjects, idMap);
-    const tempIdProjects = currentProjects.filter(p => p._id?.includes('-') && !idMap[p._id]);
     
-    const merged = [...reconciledServerProjects];
+    // Keep local projects for THIS team that haven't been synced to server yet (have temp ids)
+    const tempIdProjects = thisTeamProjects.filter(p => p._id?.includes('-') && !idMap[p._id]);
+    
+    const mergedForThisTeam = [...reconciledServerProjects];
     tempIdProjects.forEach(tempProject => {
-      if (!merged.find(p => p._id === tempProject._id)) {
-        merged.push(tempProject);
+      if (!mergedForThisTeam.find(p => p._id === tempProject._id)) {
+        mergedForThisTeam.push(tempProject);
       }
     });
     
-    return merged;
+    // Auto-create a default project if this team ended up completely empty
+    if (mergedForThisTeam.length === 0) {
+      const tempId = uuidv4();
+      const defaultProject = { _id: tempId, name: 'Default Project', teamId, color: '#6366f1' };
+      mergedForThisTeam.push(defaultProject);
+      if (navigator.onLine) {
+        api.post('/api/project', { name: 'Default Project', teamId, color: '#6366f1' }).catch(() => {});
+      }
+    }
+    
+    // Fully merged array = preserved other teams + newly synced this team
+    return [...otherProjects, ...mergedForThisTeam];
   },
 
   refreshProjects: async (teamId) => {
@@ -95,7 +110,7 @@ export const useProjectStore = create((set, get) => ({
       const { data } = await api.get('/api/project', { params: { teamId } });
       const serverProjects = data.projects || [];
       
-      const syncedProjects = get().syncWithServerData(serverProjects);
+      const syncedProjects = get().syncWithServerData(serverProjects, teamId);
       
       set({ projects: syncedProjects, isRefreshing: false });
       localStorageService.saveProjects(syncedProjects);
@@ -137,6 +152,13 @@ export const useProjectStore = create((set, get) => ({
   },
 
   createProject: async (name, teamId, description, color) => {
+    // Enforce max 10 projects per team check
+    const currentTeamProjects = get().getFilteredProjects(teamId);
+    if (currentTeamProjects.length >= 10) {
+      toast.error('Maximum limit of 10 projects per team reached.');
+      return { success: false, error: 'Limit reached' };
+    }
+
     if (!navigator.onLine) {
       toast.error('You are offline. Cannot create project.');
       return { success: false, error: 'Offline' };

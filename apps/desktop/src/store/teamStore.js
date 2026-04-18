@@ -29,15 +29,29 @@ export const useTeamStore = create((set, get) => ({
     try {
       const { data } = await api.get('/api/team');
       if (data?.teams) {
-        set({ teams: data.teams, isLoading: false });
-        localStorageService.saveTeams(data.teams);
-        localStorageService.updateLastSync();
-        // Auto-select first team if none selected
-        if (!get().currentTeam && data.teams.length > 0) {
-          set({ currentTeam: data.teams[0] });
-          localStorageService.saveCurrentTeam(data.teams[0]);
+        const syncedTeams = get().syncWithServerData(data.teams);
+        
+        // Auto-create default team if empty
+        if (syncedTeams.length === 0) {
+          const tempId = uuidv4();
+          const defaultTeam = { _id: tempId, name: 'My Workspace', description: 'Default personal workspace', members: [] };
+          syncedTeams.push(defaultTeam);
+          // Try to create it on server if online, otherwise it stays offline
+          if (navigator.onLine) {
+            api.post('/api/team', { name: 'My Workspace', description: 'Default personal workspace' }).catch(() => {});
+          }
         }
-        return { success: true, teams: data.teams, fromCache: false };
+
+        set({ teams: syncedTeams, isLoading: false });
+        localStorageService.saveTeams(syncedTeams);
+        localStorageService.updateLastSync();
+        
+        // Auto-select first team if none selected
+        if (!get().currentTeam && syncedTeams.length > 0) {
+          set({ currentTeam: syncedTeams[0] });
+          localStorageService.saveCurrentTeam(syncedTeams[0]);
+        }
+        return { success: true, teams: syncedTeams, fromCache: false };
       }
       throw new Error('No teams returned from API');
     } catch (err) {
@@ -113,6 +127,16 @@ export const useTeamStore = create((set, get) => ({
       // Sync with server data - handles deletes from other users
       const syncedTeams = get().syncWithServerData(serverTeams);
       
+      // Auto-create default team if empty
+      if (syncedTeams.length === 0) {
+        const tempId = uuidv4();
+        const defaultTeam = { _id: tempId, name: 'My Workspace', description: 'Default personal workspace', members: [] };
+        syncedTeams.push(defaultTeam);
+        if (navigator.onLine) {
+          api.post('/api/team', { name: 'My Workspace', description: 'Default personal workspace' }).catch(() => {});
+        }
+      }
+
       set({ teams: syncedTeams, isRefreshing: false });
       localStorageService.saveTeams(syncedTeams);
       localStorageService.updateLastSync();
