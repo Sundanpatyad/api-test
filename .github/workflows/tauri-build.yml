@@ -42,10 +42,7 @@ jobs:
       - name: Install project dependencies
         run: npm install
 
-      - name: List artifacts (Debug)
-        run: |
-          echo "Listing release artifacts directory..."
-          ls -R apps/desktop/src-tauri/target/release/bundle || echo "No bundle directory found yet"
+
 
       - name: Build and Upload Tauri App
         uses: tauri-apps/tauri-action@v0
