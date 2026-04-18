@@ -72,8 +72,7 @@ export default function App() {
 
   // Fetch user on mount and initialize data from localStorage
   useEffect(() => { 
-    const initData = async () => {
-      // Robust offline check: Skip session API if hardware or system thinks we are offline
+    const attemptAuthCheck = async () => {
       if (navigator.onLine) {
         try {
           // Wrap in a small timeout to avoid long hangs on unreliable connections
@@ -85,11 +84,25 @@ export default function App() {
           console.log('[App] Auth check skipped or timed out:', e.message);
         }
       }
+    };
+
+    const initData = async () => {
+      await attemptAuthCheck();
+      
       // Initialize stores from localStorage for offline-first experience
       initTeams();
       initProjects();
     };
+    
+    // Check on initial load
     initData();
+
+    // Re-check auth immediately when network comes back online
+    window.addEventListener('online', attemptAuthCheck);
+    
+    return () => {
+      window.removeEventListener('online', attemptAuthCheck);
+    };
   }, []);
 
   // Fetch from API if localStorage is empty (first time load)
