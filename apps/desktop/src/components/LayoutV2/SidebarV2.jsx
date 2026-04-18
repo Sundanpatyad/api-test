@@ -733,9 +733,9 @@ export default function SidebarV2({
                             }}
                             onContextMenu={(e) => showProjectContextMenu(e, proj)}
                             className={`sdbv2-tree-row proj-row ${isActive ? 'sdbv2-tree-row--active' : ''}`}
-                            style={isActive ? { outline: `1px solid ${proj.color || 'rgba(99,102,241,0.35)'}`, outlineOffset: '-1px' } : undefined}
+                            style={isActive ? { outline: `1px solid ${proj.color || 'var(--accent)'}`, outlineOffset: '-1px' } : undefined}
                           >
-                            <div className="sdbv2-proj-dot" style={{ background: proj.color || '#6366f1' }} />
+                            <div className="sdbv2-proj-dot" style={{ background: proj.color || 'var(--accent)' }} />
                             <span className="sdbv2-tree-text">{proj.name}</span>
                           </button>
                         );
