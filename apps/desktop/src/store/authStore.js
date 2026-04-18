@@ -41,11 +41,17 @@ export const useAuthStore = create(
       logout: async () => {
         // Full data wipe
         localStorage.clear();
-        const { useSyncQueueStore } = await import('@/store/syncQueueStore');
-        useSyncQueueStore.getState().clearQueue();
+        sessionStorage.clear();
+        
+        try {
+          const { useSyncQueueStore } = await import('@/store/syncQueueStore');
+          useSyncQueueStore.getState().clearQueue();
+        } catch (e) {
+          // Ignore
+        }
         
         set({ user: null, token: null });
-        window.location.href = '/'; // Redirect and reload to clear in-memory stores
+        // Removing window.location.href = '/' so the app doesn't infinitely hard-reload
       },
 
       fetchMe: async () => {

@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { useSyncQueueStore } from '@/store/syncQueueStore';
 
+// const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 const API_URL = import.meta.env.VITE_API_URL || 'https://api-test-backend.vercel.app';
 
 const api = axios.create({
@@ -26,8 +27,13 @@ api.interceptors.response.use(
       if (error.config?.isSyncOperation || error.config?.syncContext) {
         return Promise.reject(error);
       }
-      localStorage.removeItem('payloadx_token');
-      window.location.href = '/';
+      // Inform the user and log them out cleanly (prevents infinite refresh loops)
+      import('@/store/authStore').then(({ useAuthStore }) => {
+        const store = useAuthStore.getState();
+        if (store.user || localStorage.getItem('payloadx_token')) {
+          store.logout();
+        }
+      });
       return Promise.reject(error);
     }
 

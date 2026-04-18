@@ -224,10 +224,7 @@ export default function TopBarV2({ onToggleSidebar, sidebarOpen, orientation, on
           )}
         </button>
 
-        {/* User avatar */}
-        <div className="v2-header-avatar" title={user?.name}>
-          {user?.name?.[0]?.toUpperCase()}
-        </div>
+
       </div>
     </header>
   );

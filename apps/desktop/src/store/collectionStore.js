@@ -11,6 +11,7 @@ export const useCollectionStore = create((set, get) => ({
   currentCollection: localStorageService.get(localStorageService.KEYS.CURRENT_COLLECTION) || null,
   requests: [],
   isLoading: false,
+  isLoadingRequests: false,
   isRefreshing: false,
 
   initFromStorage: () => {
@@ -147,6 +148,7 @@ export const useCollectionStore = create((set, get) => ({
       }
     }
 
+    set({ isLoadingRequests: true });
     try {
       const { data } = await api.get(`/api/collection/${collectionId}`);
       const serverRequests = data.requests || [];
@@ -159,7 +161,7 @@ export const useCollectionStore = create((set, get) => ({
         // Merge new requests with existing ones for other collections
         const existingRequests = state.requests.filter(r => r.collectionId !== collectionId);
         const newRequests = [...existingRequests, ...syncedRequests];
-        return { currentCollection: data.collection, requests: newRequests };
+        return { currentCollection: data.collection, requests: newRequests, isLoadingRequests: false };
       });
       localStorageService.saveCurrentCollection(data.collection);
       return { ...data, requests: syncedRequests, fromCache: false };
@@ -174,7 +176,7 @@ export const useCollectionStore = create((set, get) => ({
       // Add cached requests to the store
       set((state) => {
         const existingRequests = state.requests.filter(r => r.collectionId !== collectionId);
-        return { requests: [...existingRequests, ...cachedRequests] };
+        return { requests: [...existingRequests, ...cachedRequests], isLoadingRequests: false };
       });
       return { 
         collection: cachedCollection, 
@@ -186,18 +188,35 @@ export const useCollectionStore = create((set, get) => ({
   },
 
   refreshCollectionRequests: async (collectionId) => {
+    const { useRequestStore } = await import('@/store/requestStore');
     try {
       const { data } = await api.get(`/api/collection/${collectionId}`);
+      const serverRequests = data.requests || [];
+      
+      const requestStore = useRequestStore.getState();
+      const syncedRequests = requestStore.syncWithServerData(serverRequests, collectionId);
+      
       // Merge: keep existing requests from other collections, update this collection's requests
       set((state) => {
         const existingRequests = state.requests.filter(r => r.collectionId !== collectionId);
-        const mergedRequests = [...existingRequests, ...data.requests];
+        const mergedRequests = [...existingRequests, ...syncedRequests];
         return { currentCollection: data.collection, requests: mergedRequests };
       });
+      
       localStorageService.saveCurrentCollection(data.collection);
-      localStorageService.saveRequests(collectionId, data.requests);
+      // syncedRequests are already saved in syncWithServerData
       localStorageService.updateLastSync();
-      return { success: true, collection: data.collection, requests: data.requests, fromCache: false };
+      
+      // Update currently active request if it was modified
+      const currentReq = requestStore.currentRequest;
+      if (currentReq && currentReq.collectionId === collectionId) {
+        const updatedCurrentReq = syncedRequests.find(r => r._id === currentReq._id);
+        if (updatedCurrentReq) {
+          requestStore.setCurrentRequest(updatedCurrentReq);
+        }
+      }
+      
+      return { success: true, collection: data.collection, requests: syncedRequests, fromCache: false };
     } catch (err) {
       // Keep existing cached data on refresh failure - don't wipe
       const cachedCollection = localStorageService.get(localStorageService.KEYS.CURRENT_COLLECTION);
