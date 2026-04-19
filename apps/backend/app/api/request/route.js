@@ -19,7 +19,7 @@ export async function GET(request) {
     if (collectionId) query.collectionId = collectionId;
     if (projectId) query.projectId = projectId;
     if (teamId) query.teamId = teamId;
-    
+
     if (search) {
       const safeSearch = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       query.$or = [
@@ -28,9 +28,12 @@ export async function GET(request) {
       ];
     }
 
-    const mQuery = Request.find(query).sort({ order: 1, createdAt: 1 });
+    const mQuery = Request.find(query)
+      .populate('creatorId', 'name email avatar')
+      .sort({ order: 1, createdAt: 1 });
+
     if (search) mQuery.limit(50); // limit global project searches to top 50 hits
-    
+
     const requests = await mQuery;
     return NextResponse.json({ requests });
   } catch (err) {
@@ -40,6 +43,7 @@ export async function GET(request) {
 
 export async function POST(request) {
   const { error, user } = await authenticate(request);
+  console.log(user, "user");
   if (error) return error;
 
   try {
@@ -51,8 +55,21 @@ export async function POST(request) {
       return NextResponse.json({ error: 'name, collectionId, projectId, teamId required' }, { status: 400 });
     }
 
-    const req = await Request.create({ name, method, url, collectionId, projectId, teamId, ...body });
-    return NextResponse.json({ request: req }, { status: 201 });
+    const req = await Request.create({
+      ...body,
+      name,        // ensure required fields from validated destructure
+      method,
+      url,
+      collectionId,
+      projectId,
+      teamId,
+      creatorId: user.id,  // always override - must come AFTER ...body
+    });
+
+    // Populate creator before returning
+    const populated = await Request.findById(req._id).populate('creatorId', 'name email avatar');
+
+    return NextResponse.json({ request: populated }, { status: 201 });
   } catch (err) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

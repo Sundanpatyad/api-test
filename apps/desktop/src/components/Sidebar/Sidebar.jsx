@@ -13,7 +13,7 @@ export default function Sidebar() {
   const { user, logout } = useAuthStore();
   const { teams, currentTeam, fetchTeams, setCurrentTeam } = useTeamStore();
   const { projects, currentProject, fetchProjects, setCurrentProject, getFilteredProjects } = useProjectStore();
-  const { collections, currentCollection, fetchCollections, fetchCollectionRequests, requests, getFilteredCollections } = useCollectionStore();
+  const { collections, currentCollection, fetchCollections, fetchCollectionRequests, loadCollectionRequestsFromStorage, requests, getFilteredCollections } = useCollectionStore();
   const { setCurrentRequest } = useRequestStore();
   const { disconnect } = useSocketStore();
   const {
@@ -29,8 +29,12 @@ export default function Sidebar() {
   } = useUIStore();
 
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [expandedCollections, setExpandedCollections] = useState(new Set());
+  const [expandedCollections, setExpandedCollections] = useState(() => {
+    const saved = localStorage.getItem('sidebar_expanded_collections');
+    return saved ? new Set(JSON.parse(saved)) : new Set();
+  });
   const [expandedFolders, setExpandedFolders] = useState(new Set());
+  const [initializedCollections, setInitializedCollections] = useState(new Set());
   const [searchQuery, setSearchQuery] = useState('');
 
   // Filtered data based on current selection
@@ -48,15 +52,30 @@ export default function Sidebar() {
   useEffect(() => { if (currentTeam) fetchProjects(currentTeam._id); }, [currentTeam]);
   useEffect(() => { if (currentProject) fetchCollections(currentProject._id); }, [currentProject]);
 
+  // Load cached requests for expanded collections on mount
+  useEffect(() => {
+    expandedCollections.forEach(id => {
+      loadCollectionRequestsFromStorage(id);
+      setInitializedCollections(prev => new Set(prev).add(id));
+    });
+  }, []);
+
   const toggleCollection = async (col) => {
     const id = col._id;
     if (expandedCollections.has(id)) {
       const next = new Set(expandedCollections);
       next.delete(id);
       setExpandedCollections(next);
+      localStorage.setItem('sidebar_expanded_collections', JSON.stringify([...next]));
     } else {
-      setExpandedCollections(new Set([...expandedCollections, id]));
-      await fetchCollectionRequests(id);
+      const next = new Set([...expandedCollections, id]);
+      setExpandedCollections(next);
+      localStorage.setItem('sidebar_expanded_collections', JSON.stringify([...next]));
+      // Load from cache first, fetch from API only if not initialized
+      if (!initializedCollections.has(id)) {
+        setInitializedCollections(prev => new Set(prev).add(id));
+        await fetchCollectionRequests(id);
+      }
     }
   };
 

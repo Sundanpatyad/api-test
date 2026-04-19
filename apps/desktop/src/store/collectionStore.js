@@ -25,21 +25,29 @@ export const useCollectionStore = create((set, get) => ({
   fetchCollections: async (projectId, forceRefresh = false) => {
     if (!projectId) return;
 
-    // If not forcing refresh and we already have collections, just return
-    if (!forceRefresh && get().collections.length > 0) {
-      return { success: true, collections: get().collections, fromCache: true };
+    // Filter local collections for this specific project
+    const localFiltered = get().collections.filter(c => String(c.projectId) === String(projectId));
+
+    // If not forcing refresh and we have local data, return it
+    if (!forceRefresh && localFiltered.length > 0) {
+      return { success: true, collections: localFiltered, fromCache: true };
     }
 
     set({ isLoading: true });
     try {
       const { data } = await api.get('/api/collection', { params: { projectId } });
-      if (data?.collections) {
-        set({ collections: data.collections, isLoading: false });
-        localStorageService.saveCollections(data.collections);
-        localStorageService.updateLastSync();
-        return { success: true, collections: data.collections, fromCache: false };
-      }
-      throw new Error('No collections returned from API');
+      const serverCollections = data.collections || [];
+
+      set((state) => {
+        // Merge server collections for this project with collections from other projects
+        const others = state.collections.filter(c => String(c.projectId) !== String(projectId));
+        const updated = [...others, ...serverCollections];
+        localStorageService.saveCollections(updated);
+        return { collections: updated, isLoading: false };
+      });
+
+      localStorageService.updateLastSync();
+      return { success: true, collections: serverCollections, fromCache: false };
     } catch (err) {
       // Fallback to localStorage on API failure
       const cachedCollections = localStorageService.get(localStorageService.KEYS.COLLECTIONS) || [];
@@ -105,19 +113,55 @@ export const useCollectionStore = create((set, get) => ({
     });
   },
 
+  // Synchronizes EVERYTHING for the team: Collections and Requests
+  syncAll: async (teamId) => {
+    if (!teamId) return;
+    set({ isRefreshing: true });
+    try {
+      // 1. Fetch Collections
+      const { data: collData } = await api.get('/api/collection', { params: { teamId } });
+      const serverCollections = collData.collections || [];
+
+      // 2. Fetch Requests (Bulk)
+      const { data: reqData } = await api.get('/api/request', { params: { teamId } });
+      const serverRequests = reqData.requests || [];
+
+      // 3. Reconcile Collections
+      const syncedCollections = get().syncWithServerData(serverCollections);
+      
+      // 4. Reconcile Requests (via RequestStore)
+      const { useRequestStore } = await import('@/store/requestStore');
+      const updatedLocalRequestsMap = useRequestStore.getState().bulkSyncWithServerData(serverRequests);
+
+      // 5. Update state
+      set({ 
+        collections: syncedCollections, 
+        requests: serverRequests, // Flattened state for easy UI access
+        isRefreshing: false 
+      });
+
+      // 6. Persistence
+      localStorageService.saveCollections(syncedCollections);
+      localStorageService.updateLastSync();
+
+      return { success: true, collections: syncedCollections, requests: serverRequests };
+    } catch (err) {
+      set({ isRefreshing: false });
+      return { success: false, error: err.message };
+    }
+  },
+
   // Check if server data has items we don't have locally (or deleted items)
   syncWithServerData: (serverCollections) => {
     const currentCollections = get().collections;
     const serverCollectionIds = new Set(serverCollections.map(c => c._id));
     const idMap = syncService.idMap;
 
-    const collectionsToRemove = currentCollections.filter(collection => {
-      const isTempId = collection._id?.includes('-');
-      if (isTempId) return false;
-      return !serverCollectionIds.has(collection._id) && !idMap[collection._id];
-    });
-
+    // Reconciliation: If it's on server, it wins. 
+    // If it's only in local and has no temp ID, it's stale (deleted elsewhere).
     const reconciledServerCollections = get().reconcileIds(serverCollections, idMap);
+    
+    // Keep local collections with temp IDs (not yet synced to server)
     const tempIdCollections = currentCollections.filter(c => c._id?.includes('-') && !idMap[c._id]);
 
     const merged = [...reconciledServerCollections];
@@ -132,9 +176,10 @@ export const useCollectionStore = create((set, get) => ({
 
   // Register store for global refresh
   refresh: () => {
-    const projectId = get().currentCollection?.projectId;
-    if (projectId) {
-      get().refreshCollections(projectId);
+    const { useTeamStore } = require('@/store/teamStore');
+    const teamId = useTeamStore.getState().currentTeam?._id;
+    if (teamId) {
+      get().syncAll(teamId);
     }
   },
 
@@ -349,10 +394,14 @@ export const useCollectionStore = create((set, get) => ({
     }
   },
 
-  addRequest: (request) => {
+  addRequest: (data) => {
     set((state) => {
+      // Handle both formats: { request: requestObj } or requestObj directly
+      const request = data.request || data;
       const updated = [...state.requests, request];
-      localStorageService.saveRequests(state.currentCollection?._id, updated);
+      // Only save requests for THIS specific collection to its own storage key
+      const collectionRequests = updated.filter(r => r.collectionId === request.collectionId);
+      localStorageService.saveRequests(request.collectionId, collectionRequests);
       return { requests: updated };
     });
   },
@@ -360,7 +409,9 @@ export const useCollectionStore = create((set, get) => ({
   updateRequest: (request) => {
     set((state) => {
       const updated = state.requests.map((r) => (r._id === request._id ? request : r));
-      localStorageService.saveRequests(state.currentCollection?._id, updated);
+      // Only save requests for THIS specific collection
+      const collectionRequests = updated.filter(r => r.collectionId === request.collectionId);
+      localStorageService.saveRequests(request.collectionId, collectionRequests);
       return { requests: updated };
     });
   },
@@ -369,11 +420,10 @@ export const useCollectionStore = create((set, get) => ({
     set((state) => {
       const updated = state.requests.filter((r) => r._id !== requestId);
       // Update localStorage for this specific collection
-      const collId = collectionId || state.currentCollection?._id;
+      const collId = collectionId;
       if (collId) {
-        const stored = localStorageService.getRequests(collId);
-        const updatedStored = stored.filter((r) => r._id !== requestId);
-        localStorageService.saveRequests(collId, updatedStored);
+        const remainingForColl = updated.filter(r => r.collectionId === collId);
+        localStorageService.saveRequests(collId, remainingForColl);
       }
       return { requests: updated };
     });
@@ -383,10 +433,8 @@ export const useCollectionStore = create((set, get) => ({
     set({ currentCollection: collection });
     localStorageService.saveCurrentCollection(collection);
     if (collection) {
-      const storedRequests = localStorageService.getRequests(collection._id);
-      if (storedRequests.length > 0) {
-        set({ requests: storedRequests });
-      }
+      // Use existing merging logic to load from storage if not already in memory
+      get().loadCollectionRequestsFromStorage(collection._id);
     }
   },
 
@@ -430,4 +478,16 @@ export const useCollectionStore = create((set, get) => ({
       return { success: false, error: err.response?.data?.error || 'Failed to delete collection' };
     }
   },
+
+  reset: () => {
+    set({
+      collections: [],
+      currentCollection: null,
+      requests: [],
+      isLoading: false,
+      isLoadingRequests: false,
+      loadingCollections: {},
+      isRefreshing: false
+    });
+  }
 }));

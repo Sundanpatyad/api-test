@@ -191,6 +191,15 @@ export const useEnvironmentStore = create(
       },
 
       clearError: () => set({ error: null }),
+
+      reset: () => {
+        set({
+          environments: [],
+          activeEnvironment: null,
+          isLoading: false,
+          error: null
+        });
+      }
     }),
     {
       name: 'syncnest-environment',

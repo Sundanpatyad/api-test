@@ -57,6 +57,25 @@ export const useUIStore = create(
         set((s) => ({
           workspaceOrientation: s.workspaceOrientation === 'vertical' ? 'horizontal' : 'vertical',
         })),
+
+      reset: () => {
+        set({
+          showImportModal: false,
+          showTeamModal: false,
+          showProjectModal: false,
+          showCollectionModal: false,
+          showEnvironmentPanel: false,
+          showInviteModal: false,
+          showConfirmDialog: false,
+          showEditNameModal: false,
+          confirmDialogConfig: null,
+          editNameModalConfig: null,
+          contextMenu: null,
+          isLoading: false,
+          activeMainTab: 'request',
+          activeV2Nav: 'dashboard' // Default starting point after fresh login
+        });
+      }
     }),
     {
       name: 'syncnest-ui',

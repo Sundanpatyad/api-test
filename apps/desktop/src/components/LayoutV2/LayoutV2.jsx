@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { useUIStore } from '@/store/uiStore';
 import { useTeamStore } from '@/store/teamStore';
+import { useProjectStore } from '@/store/projectStore';
 import { useCollectionStore } from '@/store/collectionStore';
 import { useRequestStore } from '@/store/requestStore';
 import TopBarV2 from './TopBarV2';
 import SidebarV2 from './SidebarV2';
+import EmptyState from './EmptyState';
 import RequestBuilder from '@/components/RequestBuilder/RequestBuilder';
 import WSRequestBuilder from '@/components/RequestBuilder/WSRequestBuilder';
 import SIORequestBuilder from '@/components/RequestBuilder/SIORequestBuilder';
@@ -35,9 +37,13 @@ export default function LayoutV2({
 
   const [rightPanelTab, setRightPanelTab] = useState('Response');
 
-  const { currentTeam } = useTeamStore();
+  const { teams, currentTeam } = useTeamStore();
+  const { projects, currentProject } = useProjectStore();
   const { currentCollection } = useCollectionStore();
   const { currentRequest } = useRequestStore();
+
+  // Check if user needs onboarding (no teams or projects)
+  const needsOnboarding = teams.length === 0 || projects.length === 0 || !currentProject;
 
   // Split percentage for vertical mode — default 50/50
   const [splitPercent, setSplitPercent] = useState(50);
@@ -93,6 +99,11 @@ export default function LayoutV2({
              <Dashboard />
           ) : activeV2Nav === 'docs' ? (
              <ApiDocsPanel />
+          ) : needsOnboarding ? (
+             <EmptyState
+               onShowTeamModal={onShowTeamModal}
+               onShowProjectModal={onShowProjectModal}
+             />
           ) : (
              <>
                 {/* Breadcrumb bar */}

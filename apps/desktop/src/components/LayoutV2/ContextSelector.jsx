@@ -4,15 +4,32 @@ import { useProjectStore } from '@/store/projectStore';
 import { useCollectionStore } from '@/store/collectionStore';
 import { useRequestStore } from '@/store/requestStore';
 import { useUIStore } from '@/store/uiStore';
+import { useAuthStore } from '@/store/authStore';
 import toast from 'react-hot-toast';
 import RefreshButton from '@/components/RefreshButton/RefreshButton';
 
 export default function ContextSelector() {
-  const { teams, currentTeam, setCurrentTeam, refreshTeams, isRefreshing: isRefreshingTeams } = useTeamStore();
-  const { projects, currentProject, setCurrentProject, getFilteredProjects, refreshProjects, isRefreshing: isRefreshingProjects } = useProjectStore();
+  const { user } = useAuthStore();
+  const { teams, currentTeam, setCurrentTeam, refreshTeams, updateTeamName, deleteTeam, isRefreshing: isRefreshingTeams } = useTeamStore();
+  const { projects, currentProject, setCurrentProject, getFilteredProjects, refreshProjects, updateProjectName, deleteProject, isRefreshing: isRefreshingProjects } = useProjectStore();
   const { setCurrentCollection } = useCollectionStore();
   const { setCurrentRequest, setNoActiveRequest } = useRequestStore();
-  const { setShowTeamModal, setShowProjectModal } = useUIStore();
+  const { setShowTeamModal, setShowProjectModal, setContextMenu, setShowConfirmDialog, setShowEditNameModal } = useUIStore();
+
+  // Permission helpers
+  const isTeamOwner = (team) => team?.ownerId?._id === user?._id || team?.ownerId === user?._id;
+  const isTeamAdmin = (team) => {
+    if (isTeamOwner(team)) return true;
+    return team?.members?.some(m =>
+      (m.userId?._id || m.userId) === user?._id && m.role === 'admin'
+    );
+  };
+  const isProjectAdmin = (project) => {
+    if (project?.ownerId?._id === user?._id || project?.ownerId === user?._id) return true;
+    return project?.members?.some(m =>
+      (m.userId?._id || m.userId) === user?._id && m.role === 'admin'
+    );
+  };
 
   const [teamOpen, setTeamOpen] = useState(false);
   const [projectOpen, setProjectOpen] = useState(false);
@@ -96,6 +113,49 @@ export default function ContextSelector() {
                 <button
                   key={team._id}
                   onClick={() => handleTeamChange(team)}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (!isTeamAdmin(team)) return;
+                    setContextMenu({
+                      x: e.clientX,
+                      y: e.clientY,
+                      items: [
+                        {
+                          id: 'edit',
+                          label: 'Edit Name',
+                          icon: <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>,
+                          onClick: () => setShowEditNameModal(true, {
+                            title: 'Edit Team Name',
+                            itemType: 'Team',
+                            currentName: team.name,
+                            onSave: async (name) => {
+                              const result = await updateTeamName(team._id, name);
+                              if (result.success) toast.success('Team renamed');
+                              else toast.error(result.error);
+                            }
+                          })
+                        },
+                        { id: 'divider', divider: true },
+                        {
+                          id: 'delete',
+                          label: 'Delete Team',
+                          danger: true,
+                          icon: <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>,
+                          onClick: () => setShowConfirmDialog(true, {
+                            title: 'Delete Team?',
+                            message: 'This will permanently delete the team and all its projects, collections, and requests.',
+                            itemName: team.name,
+                            onConfirm: async () => {
+                              const result = await deleteTeam(team._id);
+                              if (result.success) toast.success('Team deleted');
+                              else toast.error(result.error);
+                            }
+                          })
+                        }
+                      ]
+                    });
+                  }}
                   className={`flex items-center gap-2 w-full px-3 py-2 text-xs transition-all ${currentTeam?._id === team._id ? 'text-tx-primary bg-[color:var(--surface-3)]' : 'text-surface-400 hover:text-tx-primary hover:bg-[color:var(--surface-2)]'}`}
                 >
                   <span className="truncate flex-1 text-left">{team.name}</span>
@@ -148,6 +208,49 @@ export default function ContextSelector() {
                 <button
                   key={proj._id}
                   onClick={() => handleProjectChange(proj)}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (!isProjectAdmin(proj)) return;
+                    setContextMenu({
+                      x: e.clientX,
+                      y: e.clientY,
+                      items: [
+                        {
+                          id: 'edit',
+                          label: 'Edit Name',
+                          icon: <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>,
+                          onClick: () => setShowEditNameModal(true, {
+                            title: 'Edit Project Name',
+                            itemType: 'Project',
+                            currentName: proj.name,
+                            onSave: async (name) => {
+                              const result = await updateProjectName(proj._id, name);
+                              if (result.success) toast.success('Project renamed');
+                              else toast.error(result.error);
+                            }
+                          })
+                        },
+                        { id: 'divider', divider: true },
+                        {
+                          id: 'delete',
+                          label: 'Delete Project',
+                          danger: true,
+                          icon: <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>,
+                          onClick: () => setShowConfirmDialog(true, {
+                            title: 'Delete Project?',
+                            message: 'This will permanently delete the project and all its collections and requests.',
+                            itemName: proj.name,
+                            onConfirm: async () => {
+                              const result = await deleteProject(proj._id);
+                              if (result.success) toast.success('Project deleted');
+                              else toast.error(result.error);
+                            }
+                          })
+                        }
+                      ]
+                    });
+                  }}
                   className={`flex items-center gap-2 w-full px-3 py-2 text-xs transition-all ${currentProject?._id === proj._id ? 'text-tx-primary bg-[color:var(--surface-3)]' : 'text-surface-400 hover:text-tx-primary hover:bg-[color:var(--surface-2)]'}`}
                 >
                   <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: proj.color || '#6366f1' }} />

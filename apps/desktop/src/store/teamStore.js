@@ -2,7 +2,6 @@ import { create } from 'zustand';
 import api from '@/lib/api';
 import { localStorageService } from '@/services/localStorageService';
 import { syncService } from '@/services/syncService';
-import { v4 as uuidv4 } from 'uuid';
 import toast from 'react-hot-toast';
 
 export const useTeamStore = create((set, get) => ({
@@ -30,17 +29,6 @@ export const useTeamStore = create((set, get) => ({
       const { data } = await api.get('/api/team');
       if (data?.teams) {
         const syncedTeams = get().syncWithServerData(data.teams);
-        
-        // Auto-create default team if empty
-        if (syncedTeams.length === 0) {
-          const tempId = uuidv4();
-          const defaultTeam = { _id: tempId, name: 'My Workspace', description: 'Default personal workspace', members: [] };
-          syncedTeams.push(defaultTeam);
-          // Try to create it on server if online, otherwise it stays offline
-          if (navigator.onLine) {
-            api.post('/api/team', { name: 'My Workspace', description: 'Default personal workspace' }).catch(() => {});
-          }
-        }
 
         set({ teams: syncedTeams, isLoading: false });
         localStorageService.saveTeams(syncedTeams);
@@ -298,4 +286,14 @@ export const useTeamStore = create((set, get) => ({
       return { success: false, error: err.response?.data?.error || 'Remove failed' };
     }
   },
+
+  reset: () => {
+    set({
+      teams: [],
+      currentTeam: null,
+      isLoading: false,
+      isRefreshing: false,
+      pendingChanges: []
+    });
+  }
 }));

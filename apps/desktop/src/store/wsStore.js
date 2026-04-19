@@ -178,4 +178,9 @@ export const useWSStore = create((set, get) => ({
   getLogs: (requestId) => {
     return get().logs[requestId] || [];
   },
+
+  reset: () => {
+    get().disconnectAll();
+    set({ logs: {} });
+  }
 }));

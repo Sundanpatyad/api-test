@@ -69,6 +69,12 @@ const RequestSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    creatorId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: false,
+      index: true,
+    },
     folderId: { type: String, default: null },
     description: { type: String, default: '' },
     order: { type: Number, default: 0 },
