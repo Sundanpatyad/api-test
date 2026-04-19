@@ -87,10 +87,9 @@ export default {
         slideUp:      { '0%': { transform: 'translateY(6px)', opacity: '0' },   '100%': { transform: 'translateY(0)', opacity: '1' } },
       },
       boxShadow: {
-        'glass':    '0 12px 40px rgba(0,0,0,0.25)', /* Softer, wider spread, less dark */
-        'glass-sm': '0 4px 16px rgba(0,0,0,0.06)',
+        'glass':    '0 12px 30px -5px rgba(0, 0, 0, 0.5)', /* Solid, high-contrast shadow */
+        'glass-sm': '0 4px 12px rgba(0, 0, 0, 0.3)',
       },
-      backdropBlur: { xs: '2px' },
     },
   },
   plugins: [],

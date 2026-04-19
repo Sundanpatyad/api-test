@@ -11,6 +11,7 @@ import SplashScreen from '@/components/SplashScreen/SplashScreen';
 import AuthPage from '@/components/Auth/AuthPage';
 import Sidebar from '@/components/Sidebar/Sidebar';
 import RequestBuilder from '@/components/RequestBuilder/RequestBuilder';
+import WSRequestBuilder from '@/components/RequestBuilder/WSRequestBuilder';
 import ResponseViewer from '@/components/ResponseViewer/ResponseViewer';
 import EnvironmentPanel from '@/components/EnvironmentPanel/EnvironmentPanel';
 import ImportModal from '@/components/ImportModal/ImportModal';
@@ -346,7 +347,11 @@ export default function App() {
 
           {/* Request builder */}
           <div className="flex-1 overflow-hidden">
-            <RequestBuilder />
+            {useRequestStore.getState().currentRequest?.protocol === 'ws' ? (
+              <WSRequestBuilder />
+            ) : (
+              <RequestBuilder />
+            )}
           </div>
 
           {/* Response height resize handle */}

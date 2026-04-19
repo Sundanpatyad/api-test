@@ -11,6 +11,7 @@ const defaultRequest = () => ({
   _id: null,
   name: 'Untitled Request',
   method: 'GET',
+  protocol: 'http', // 'http' | 'ws' | 'socketio'
   url: '',
   headers: [{ id: uuidv4(), key: '', value: '', enabled: true }],
   params:  [{ id: uuidv4(), key: '', value: '', enabled: true }],

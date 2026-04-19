@@ -33,7 +33,7 @@ export default function AuthPage() {
           className="absolute inset-0 w-full h-full object-cover transition-transform duration-[2.5s] ease-out group-hover:scale-105"
         />
         {/* Soft Modern Overlay */}
-        <div className="absolute inset-0 bg-[#0f0f0f]/60 backdrop-blur-[2px]" />
+        <div className="absolute inset-0 bg-[#0f0f0f]/60" />
         <div className="absolute inset-0 bg-gradient-to-tr from-[#0f0f0f] via-transparent to-transparent" />
 
         {/* Content on Image */}

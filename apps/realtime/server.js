@@ -104,6 +104,10 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on("message", (data) => {
+    console.log("message", data);
+  })
+
   // ── 2. PRESENCE: Who is viewing a specific request ──────────────────────────
   socket.on('open_request', ({ teamId, requestId, user } = {}) => {
     if (!requestId || !teamId) return;

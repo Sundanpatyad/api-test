@@ -34,6 +34,13 @@ export default function RequestBuilder() {
   const { currentTeam } = useTeamStore();
   const { user } = useAuthStore();
   const [showMethodDropdown, setShowMethodDropdown] = useState(false);
+  const [showProtocolDropdown, setShowProtocolDropdown] = useState(false);
+
+  const PROTOCOLS = [
+    { id: 'http', label: 'HTTP (REST)', icon: '🌐' },
+    { id: 'ws', label: 'WebSocket (Raw)', icon: '⚡' },
+    { id: 'socketio', label: 'Socket.IO', icon: '⬢' },
+  ];
 
   // ── Presence: broadcast which request is open ──────────────────────
   const prevRequestIdRef = useRef(null);
@@ -274,8 +281,35 @@ export default function RequestBuilder() {
     <div className="flex flex-col h-full" onKeyDown={handleKeyDown}>
       {/* Request name + actions */}
       <div className="flex items-center justify-between px-3 pt-3 pb-2 min-h-[42px]">
-        {/* Left: Interactive Title */}
-        <div className="flex items-center flex-1 min-w-0 pr-4">
+        {/* Left: Interactive Title & Protocol Toggle */}
+        <div className="flex items-center flex-1 min-w-0 pr-4 gap-3">
+          {/* Protocol Dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setShowProtocolDropdown(!showProtocolDropdown)}
+              className="flex items-center gap-1.5 px-2 py-1 text-[10px] font-bold bg-[color:var(--surface-2)] border border-[color:var(--border-1)] rounded-md hover:border-[color:var(--accent)] transition-all text-[color:var(--text-primary)]"
+            >
+              {currentRequest.protocol === 'http' ? 'HTTP' : currentRequest.protocol === 'ws' ? 'RAW WS' : 'SOCKET.IO'}
+              <svg className={`w-3 h-3 opacity-60 transition-transform ${showProtocolDropdown ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {showProtocolDropdown && (
+              <div className="absolute top-full left-0 mt-1 bg-[color:var(--surface-1)] border border-[color:var(--border-1)] rounded-lg shadow-glass z-[100] py-1 min-w-[140px] animate-in">
+                {PROTOCOLS.map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => { updateField('protocol', p.id); setShowProtocolDropdown(false); }}
+                    className={`flex items-center justify-between w-full px-3 py-1.5 text-[11px] font-medium hover:bg-surface-700 transition-colors ${currentRequest.protocol === p.id ? 'text-[color:var(--accent)] bg-surface-800' : 'text-[color:var(--text-muted)]'}`}
+                  >
+                    <span>{p.label}</span>
+                    <span className="text-[10px]">{p.icon}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
           {isEditingName ? (
             <input
               autoFocus

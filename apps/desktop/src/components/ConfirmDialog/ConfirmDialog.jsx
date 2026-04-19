@@ -19,10 +19,10 @@ export default function ConfirmDialog() {
 
   return (
     <div
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
       onClick={(e) => e.target === e.currentTarget && handleCancel()}
     >
-      <div className="bg-surface-850 border border-surface-700 rounded-2xl shadow-glass w-full max-w-sm animate-slide-up">
+      <div className="bg-surface-1 border border-surface-700 rounded-2xl shadow-glass w-full max-w-sm animate-slide-up">
         <div className="p-5">
           <div className="flex items-center gap-3 mb-4">
             {danger && (

@@ -14,6 +14,16 @@ import logo from '@/assets/logo.png';
 
 const NAV_ITEMS = [
   {
+    id: 'dashboard',
+    label: 'Home',
+    icon: (
+      <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+          d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+      </svg>
+    ),
+  },
+  {
     id: 'collections',
     label: 'API Endpoints',
     icon: (
@@ -326,6 +336,7 @@ export default function SidebarV2({
             const newRequest = {
               name: 'New Request',
               method: 'GET',
+              protocol: 'http',
               url: '',
               collectionId: collection._id,
               projectId: currentProject._id,
@@ -339,6 +350,50 @@ export default function SidebarV2({
             if (result.success) {
               setCurrentRequest(result.request);
               toast.success('Request created');
+            } else {
+              toast.error(result.error);
+            }
+          }
+        },
+        {
+          id: 'add-ws-request',
+          label: 'New WebSocket Request',
+          icon: <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>,
+          onClick: async () => {
+            const newRequest = {
+              name: 'New WebSocket',
+              protocol: 'ws',
+              url: '',
+              collectionId: collection._id,
+              projectId: currentProject._id,
+              teamId: currentTeam._id,
+            };
+            const result = await createRequest(newRequest);
+            if (result.success) {
+              setCurrentRequest(result.request);
+              toast.success('WS Request created');
+            } else {
+              toast.error(result.error);
+            }
+          }
+        },
+        {
+          id: 'add-sio-request',
+          label: 'New Socket.IO Request',
+          icon: <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 21a9 9 0 110-18 9 9 0 010 18zm0-15v15m-7.5-7.5h15" /></svg>,
+          onClick: async () => {
+            const newRequest = {
+              name: 'New Socket.IO',
+              protocol: 'socketio',
+              url: 'http://localhost:3000',
+              collectionId: collection._id,
+              projectId: currentProject._id,
+              teamId: currentTeam._id,
+            };
+            const result = await createRequest(newRequest);
+            if (result.success) {
+              setCurrentRequest(result.request);
+              toast.success('Socket.IO Request created');
             } else {
               toast.error(result.error);
             }
@@ -745,15 +800,22 @@ export default function SidebarV2({
 }
 
 function SidebarRequest({ request, onSelect, isActive, onContextMenu }) {
-  const color = METHOD_COLORS[request.method] || '#9A9A9A';
+  const isWs = request.protocol === 'ws';
+  const isSio = request.protocol === 'socketio';
+  const color = isWs ? '#38bdf8' : isSio ? '#f0883e' : (METHOD_COLORS[request.method] || '#9A9A9A');
+  
   return (
     <button 
       onClick={() => onSelect(request)} 
       onContextMenu={onContextMenu}
       className={`sdbv2-tree-row sdbv2-req-row ${isActive ? 'sdbv2-tree-row--active' : ''}`}
     >
-      <span className="sdbv2-method-badge" style={{ color, background: `${color}18` }}>
-        {request.method}
+      <span className="sdbv2-method-badge" style={{ 
+        color, 
+        background: `${color}18`,
+        fontSize: (isWs || isSio) ? '9px' : '10px'
+      }}>
+        {isWs ? 'WS' : isSio ? 'SIO' : request.method}
       </span>
       <span className="sdbv2-tree-text">{request.name}</span>
     </button>
