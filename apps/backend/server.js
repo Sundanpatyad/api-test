@@ -24,6 +24,18 @@ const requestViewers = new Map();
 app.prepare().then(() => {
   const server = http.createServer((req, res) => {
     const parsedUrl = parse(req.url, true);
+
+    // CORS headers for desktop app / browser support
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+
+    if (req.method === 'OPTIONS') {
+      res.writeHead(200);
+      res.end();
+      return;
+    }
+
     handle(req, res, parsedUrl);
   });
 
