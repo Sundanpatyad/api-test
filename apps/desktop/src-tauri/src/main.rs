@@ -1,3 +1,6 @@
+// Prevents additional console window on Windows in release, DO NOT REMOVE!!
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 use tauri::Manager;
 
 mod commands;
@@ -36,5 +39,5 @@ fn main() {
             list_local_files,
         ])
         .run(tauri::generate_context!())
-        .expect("error while running SyncNest API Studio");
+        .expect("error while running PayloadX API Studio");
 }

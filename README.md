@@ -1,8 +1,8 @@
-# SyncNest API Studio
+# PayloadX API Studio
 
 > 🚀 A production-ready, Postman-alternative API Testing Platform with real-time team collaboration built on Tauri + React + Next.js + MongoDB + Socket.IO.
 
-![SyncNest API Studio](https://img.shields.io/badge/SyncNest-API%20Studio-7c3aed?style=for-the-badge)
+![PayloadX API Studio](https://img.shields.io/badge/PayloadX-API%20Studio-7c3aed?style=for-the-badge)
 ![Tauri](https://img.shields.io/badge/Tauri-1.6-24C8DB?style=flat-square&logo=tauri)
 ![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react)
 ![Next.js](https://img.shields.io/badge/Next.js-14-000?style=flat-square&logo=next.js)
@@ -243,4 +243,44 @@ npm run tauri:build
 
 ## 📄 License
 
-MIT © SyncNest Team
+MIT © PayloadX Team
+
+---
+
+## 🛠️ Troubleshooting Installation
+
+If you encounter issues while installing or opening the application, please refer to the platform-specific solutions below.
+
+### 🍎 macOS: "App is damaged and can't be opened"
+> [!IMPORTANT]
+> Since this is an unsigned community build, macOS will flag it as "damaged". This is normal and can be bypassed with a single command.
+
+**Solution:**
+1. Open your **Terminal** (Cmd + Space, type "Terminal").
+2. Copy and paste the following command and press Enter:
+   ```bash
+   xattr -cr /Applications/PayloadX\ API\ Studio.app
+   ```
+3. Now right-click (Control + Click) the app in your Applications folder and select **Open**.
+
+### 🪟 Windows: SmartScreen Warning / Installation
+We provide a standard **.msi** (WiX) installer.
+
+**Solution:**
+1. Run the `PayloadX_API_Studio_x64.msi`.
+2. Windows may warn you that the "publisher is unknown" because the installer is not signed.
+3. Click **"More info"** -> **"Run anyway"**.
+4. The setup will guide you through the installation and create a desktop shortcut.
+5. Ensure you have the **WebView2 Runtime** installed (standard on Windows 10/11).
+
+### 🐧 Linux: AppImage won't start
+If you are using the `.AppImage` format, you must grant it execution permissions.
+
+**Solution:**
+1. Right-click the file -> **Properties** -> **Permissions** -> **Allow executing file as program**.
+2. **OR** run in terminal:
+   ```bash
+   chmod +x PayloadX_API_Studio.AppImage
+   ./PayloadX_API_Studio.AppImage
+   ```
+

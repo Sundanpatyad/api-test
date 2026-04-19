@@ -5,7 +5,7 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Poppins', 'system-ui', 'sans-serif'],
+        sans: ['Inter', 'system-ui', 'sans-serif'],
         mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
       },
       colors: {
@@ -48,21 +48,18 @@ export default {
           hover:   'var(--accent-hover)',
         },
 
-        // ── Brand scale → pure neutral gray (NO purple) ──────────────
-        // Replaces all old purple brand-* with neutral grays so every
-        // existing className (bg-brand-500, text-brand-300, etc.) stays
-        // valid but renders as gray/white instead of purple.
+        // ── Brand scale → pure silver/chrome scale (NO purple/blue) ──
         brand: {
-          50:  '#E6F2FF',
-          100: '#CCE5FF',
-          200: '#99CCFF',
-          300: '#7CC7FF',  /* Soft Neon Blue */
-          400: '#4DA3FF',  /* Electric Blue */
-          500: 'var(--accent)',   /* Main Accent */
-          600: '#2F80ED',  /* Glow Blue */
-          700: '#1A5BB8',
-          800: '#123D7A',
-          900: '#0B264D',
+          50:  '#F5F5F7',
+          100: '#E5E5E7',
+          200: '#D2D2D7',
+          300: '#A1A1A6',
+          400: '#86868B',
+          500: 'var(--accent)',   /* Main Metallic Accent */
+          600: '#6E6E73',
+          700: '#424245',
+          800: '#1D1D1F',
+          900: '#000000',
         },
 
         // ── Semantic status colors ────────────────────────────────────
@@ -90,10 +87,9 @@ export default {
         slideUp:      { '0%': { transform: 'translateY(6px)', opacity: '0' },   '100%': { transform: 'translateY(0)', opacity: '1' } },
       },
       boxShadow: {
-        'glass':    '0 12px 40px rgba(0,0,0,0.25)', /* Softer, wider spread, less dark */
-        'glass-sm': '0 4px 16px rgba(0,0,0,0.06)',
+        'glass':    '0 12px 30px -5px rgba(0, 0, 0, 0.5)', /* Solid, high-contrast shadow */
+        'glass-sm': '0 4px 12px rgba(0, 0, 0, 0.3)',
       },
-      backdropBlur: { xs: '2px' },
     },
   },
   plugins: [],

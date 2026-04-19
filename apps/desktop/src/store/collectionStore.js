@@ -11,6 +11,8 @@ export const useCollectionStore = create((set, get) => ({
   currentCollection: localStorageService.get(localStorageService.KEYS.CURRENT_COLLECTION) || null,
   requests: [],
   isLoading: false,
+  isLoadingRequests: false,
+  loadingCollections: {}, // Track loading state per collectionId
   isRefreshing: false,
 
   initFromStorage: () => {
@@ -42,11 +44,11 @@ export const useCollectionStore = create((set, get) => ({
       // Fallback to localStorage on API failure
       const cachedCollections = localStorageService.get(localStorageService.KEYS.COLLECTIONS) || [];
       set({ collections: cachedCollections, isLoading: false });
-      return { 
-        success: cachedCollections.length > 0, 
-        collections: cachedCollections, 
+      return {
+        success: cachedCollections.length > 0,
+        collections: cachedCollections,
         fromCache: true,
-        error: err.response?.data?.error || err.message || 'Failed to fetch collections. Using cached data.' 
+        error: err.response?.data?.error || err.message || 'Failed to fetch collections. Using cached data.'
       };
     }
   },
@@ -57,37 +59,37 @@ export const useCollectionStore = create((set, get) => ({
     try {
       const { data } = await api.get('/api/collection', { params: { projectId } });
       const serverCollections = data.collections || [];
-      
+
       const syncedCollections = get().syncWithServerData(serverCollections);
-      
+
       set({ collections: syncedCollections, isRefreshing: false });
       localStorageService.saveCollections(syncedCollections);
       localStorageService.updateLastSync();
-      
+
       // Update current collection if it was deleted
       const currentCollection = get().currentCollection;
       if (currentCollection && !syncedCollections.find(c => c._id === currentCollection._id)) {
         set({ currentCollection: syncedCollections[0] || null });
         localStorageService.saveCurrentCollection(syncedCollections[0] || null);
       }
-      
+
       return { success: true, collections: syncedCollections, fromCache: false };
     } catch (err) {
       set({ isRefreshing: false });
-      const cachedCollections = get().collections.length > 0 
-        ? get().collections 
+      const cachedCollections = get().collections.length > 0
+        ? get().collections
         : (localStorageService.get(localStorageService.KEYS.COLLECTIONS) || []);
-      
+
       console.log('refreshCollections - Using cached collections:', cachedCollections.length);
-      
+
       if (get().collections.length === 0 && cachedCollections.length > 0) {
         set({ collections: cachedCollections });
       }
-      return { 
-        success: cachedCollections.length > 0, 
-        collections: cachedCollections, 
+      return {
+        success: cachedCollections.length > 0,
+        collections: cachedCollections,
         fromCache: true,
-        error: err.response?.data?.error || 'Failed to refresh. Using existing data.' 
+        error: err.response?.data?.error || 'Failed to refresh. Using existing data.'
       };
     }
   },
@@ -108,23 +110,23 @@ export const useCollectionStore = create((set, get) => ({
     const currentCollections = get().collections;
     const serverCollectionIds = new Set(serverCollections.map(c => c._id));
     const idMap = syncService.idMap;
-    
+
     const collectionsToRemove = currentCollections.filter(collection => {
       const isTempId = collection._id?.includes('-');
       if (isTempId) return false;
       return !serverCollectionIds.has(collection._id) && !idMap[collection._id];
     });
-    
+
     const reconciledServerCollections = get().reconcileIds(serverCollections, idMap);
     const tempIdCollections = currentCollections.filter(c => c._id?.includes('-') && !idMap[c._id]);
-    
+
     const merged = [...reconciledServerCollections];
     tempIdCollections.forEach(tempCollection => {
       if (!merged.find(c => c._id === tempCollection._id)) {
         merged.push(tempCollection);
       }
     });
-    
+
     return merged;
   },
 
@@ -138,7 +140,7 @@ export const useCollectionStore = create((set, get) => ({
 
   fetchCollectionRequests: async (collectionId, forceRefresh = false) => {
     const { useRequestStore } = await import('@/store/requestStore');
-    
+
     // If not forcing refresh, try to load from storage first
     if (!forceRefresh) {
       const cached = get().loadCollectionRequestsFromStorage(collectionId);
@@ -147,19 +149,29 @@ export const useCollectionStore = create((set, get) => ({
       }
     }
 
+    set((state) => ({
+      isLoadingRequests: true,
+      loadingCollections: { ...state.loadingCollections, [collectionId]: true }
+    }));
     try {
       const { data } = await api.get(`/api/collection/${collectionId}`);
       const serverRequests = data.requests || [];
-      
+
       // Sync with server data to remove deleted items and reconcile IDs
       const requestStore = useRequestStore.getState();
       const syncedRequests = requestStore.syncWithServerData(serverRequests, collectionId);
-      
+
       set((state) => {
         // Merge new requests with existing ones for other collections
         const existingRequests = state.requests.filter(r => r.collectionId !== collectionId);
         const newRequests = [...existingRequests, ...syncedRequests];
-        return { currentCollection: data.collection, requests: newRequests };
+        const newLoadingCollections = { ...state.loadingCollections, [collectionId]: false };
+        return {
+          currentCollection: data.collection,
+          requests: newRequests,
+          isLoadingRequests: Object.values(newLoadingCollections).some(v => v),
+          loadingCollections: newLoadingCollections
+        };
       });
       localStorageService.saveCurrentCollection(data.collection);
       return { ...data, requests: syncedRequests, fromCache: false };
@@ -167,47 +179,69 @@ export const useCollectionStore = create((set, get) => ({
       // Fallback to localStorage on API failure
       const cachedCollection = localStorageService.get(localStorageService.KEYS.CURRENT_COLLECTION);
       const cachedRequests = localStorageService.getRequests(collectionId);
-      
+
       if (cachedCollection?._id === collectionId || !get().currentCollection) {
         set({ currentCollection: cachedCollection });
       }
       // Add cached requests to the store
       set((state) => {
         const existingRequests = state.requests.filter(r => r.collectionId !== collectionId);
-        return { requests: [...existingRequests, ...cachedRequests] };
+        const newLoadingCollections = { ...state.loadingCollections, [collectionId]: false };
+        return {
+          requests: [...existingRequests, ...cachedRequests],
+          isLoadingRequests: Object.values(newLoadingCollections).some(v => v),
+          loadingCollections: newLoadingCollections
+        };
       });
-      return { 
-        collection: cachedCollection, 
-        requests: cachedRequests, 
+      return {
+        collection: cachedCollection,
+        requests: cachedRequests,
         fromCache: true,
-        error: 'Failed to fetch. Using cached data.' 
+        error: 'Failed to fetch. Using cached data.'
       };
     }
   },
 
   refreshCollectionRequests: async (collectionId) => {
+    const { useRequestStore } = await import('@/store/requestStore');
     try {
       const { data } = await api.get(`/api/collection/${collectionId}`);
+      const serverRequests = data.requests || [];
+
+      const requestStore = useRequestStore.getState();
+      const syncedRequests = requestStore.syncWithServerData(serverRequests, collectionId);
+
       // Merge: keep existing requests from other collections, update this collection's requests
       set((state) => {
         const existingRequests = state.requests.filter(r => r.collectionId !== collectionId);
-        const mergedRequests = [...existingRequests, ...data.requests];
+        const mergedRequests = [...existingRequests, ...syncedRequests];
         return { currentCollection: data.collection, requests: mergedRequests };
       });
+
       localStorageService.saveCurrentCollection(data.collection);
-      localStorageService.saveRequests(collectionId, data.requests);
+      // syncedRequests are already saved in syncWithServerData
       localStorageService.updateLastSync();
-      return { success: true, collection: data.collection, requests: data.requests, fromCache: false };
+
+      // Update currently active request if it was modified
+      const currentReq = requestStore.currentRequest;
+      if (currentReq && currentReq.collectionId === collectionId) {
+        const updatedCurrentReq = syncedRequests.find(r => r._id === currentReq._id);
+        if (updatedCurrentReq) {
+          requestStore.setCurrentRequest(updatedCurrentReq);
+        }
+      }
+
+      return { success: true, collection: data.collection, requests: syncedRequests, fromCache: false };
     } catch (err) {
       // Keep existing cached data on refresh failure - don't wipe
       const cachedCollection = localStorageService.get(localStorageService.KEYS.CURRENT_COLLECTION);
       const cachedRequests = localStorageService.getRequests(collectionId);
-      return { 
-        success: true, 
-        collection: cachedCollection, 
-        requests: cachedRequests, 
+      return {
+        success: true,
+        collection: cachedCollection,
+        requests: cachedRequests,
         fromCache: true,
-        error: err.response?.data?.error || 'Failed to refresh. Using existing data.' 
+        error: err.response?.data?.error || 'Failed to refresh. Using existing data.'
       };
     }
   },
@@ -216,15 +250,15 @@ export const useCollectionStore = create((set, get) => ({
   loadCollectionRequestsFromStorage: (collectionId) => {
     const cachedCollection = localStorageService.get(localStorageService.KEYS.CURRENT_COLLECTION);
     const cachedRequests = localStorageService.getRequests(collectionId);
-    
+
     // Only update if we have cached data for this collection
     if (cachedRequests.length > 0 || cachedCollection?._id === collectionId) {
       set((state) => {
         // Merge with existing requests from other collections
         const existingRequests = state.requests.filter(r => r.collectionId !== collectionId);
-        return { 
-          currentCollection: cachedCollection?._id === collectionId ? cachedCollection : state.currentCollection, 
-          requests: [...existingRequests, ...cachedRequests] 
+        return {
+          currentCollection: cachedCollection?._id === collectionId ? cachedCollection : state.currentCollection,
+          requests: [...existingRequests, ...cachedRequests]
         };
       });
       return { success: true, collection: cachedCollection, requests: cachedRequests, fromCache: true };
@@ -242,24 +276,24 @@ export const useCollectionStore = create((set, get) => ({
     set({ isLoading: true });
     try {
       const { data } = await api.post('/api/collection', { name, projectId, teamId, description });
-      
+
       set((state) => {
         const updated = [data.collection, ...state.collections];
         localStorageService.saveCollections(updated);
         return { collections: updated, isLoading: false };
       });
-      
+
       if (data.collection?._id) {
         const { useSocketStore } = await import('@/store/socketStore');
         const { useAuthStore } = await import('@/store/authStore');
         const { useTeamStore } = await import('@/store/teamStore');
         useSocketStore.getState().emitCollectionCreated(
-          useTeamStore.getState().currentTeam?._id, 
-          data.collection, 
+          useTeamStore.getState().currentTeam?._id,
+          data.collection,
           useAuthStore.getState().user?._id
         );
       }
-      
+
       return { success: true, collection: data.collection };
     } catch (err) {
       set({ isLoading: false });
@@ -288,7 +322,7 @@ export const useCollectionStore = create((set, get) => ({
 
     try {
       const { data } = await api.put(`/api/collection/${id}`, { name });
-      
+
       set((state) => {
         const updated = state.collections.map((c) => (c._id === id ? data.collection : c));
         const updatedCurrent = state.currentCollection?._id === id ? data.collection : state.currentCollection;
@@ -299,16 +333,16 @@ export const useCollectionStore = create((set, get) => ({
           currentCollection: updatedCurrent,
         };
       });
-      
+
       const { useSocketStore } = await import('@/store/socketStore');
       const { useAuthStore } = await import('@/store/authStore');
       const { useTeamStore } = await import('@/store/teamStore');
       useSocketStore.getState().emitCollectionUpdate(
-        useTeamStore.getState().currentTeam?._id, 
-        data.collection, 
+        useTeamStore.getState().currentTeam?._id,
+        data.collection,
         useAuthStore.getState().user?._id
       );
-      
+
       return { success: true, collection: data.collection };
     } catch (err) {
       return { success: false, error: err.response?.data?.error || 'Failed to update collection' };
@@ -370,13 +404,13 @@ export const useCollectionStore = create((set, get) => ({
 
     try {
       await api.delete(`/api/collection/${id}`);
-      
+
       const { useSocketStore } = await import('@/store/socketStore');
       const { useAuthStore } = await import('@/store/authStore');
       const { useTeamStore } = await import('@/store/teamStore');
       useSocketStore.getState().emitCollectionDeleted(
-        useTeamStore.getState().currentTeam?._id, 
-        id, 
+        useTeamStore.getState().currentTeam?._id,
+        id,
         useAuthStore.getState().user?._id
       );
 
@@ -390,7 +424,7 @@ export const useCollectionStore = create((set, get) => ({
           currentCollection: updatedCurrent,
         };
       });
-      
+
       return { success: true };
     } catch (err) {
       return { success: false, error: err.response?.data?.error || 'Failed to delete collection' };

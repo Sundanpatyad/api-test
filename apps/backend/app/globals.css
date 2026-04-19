@@ -9,36 +9,37 @@
 :root {
   --font-inter: 'Inter', sans-serif;
 
-  /* PayloadX — Muted Dark Theme (Dull & Premium) */
-  --bg: #0A0D12;
-  --bg-soft: #0F141C;
-  --surface: #161B22;
-  --border: #21262D;
-  --border-glow: rgba(90, 125, 154, 0.2);
+  /* Metallic Silver — Professional Chrome Theme */
+  --bg: #0A0C10;         /* Deep Graphite App Background */
+  --bg-soft: #080A0C;    /* Sidebar / Rail level bg */
+  --surface: #12161B;    /* Polished Steel Cards */
+  --surface-elevated: #1A1F26;
 
-  /* Primary Grays (Matte) */
-  --gray-700: #2A2F36;
-  --gray-600: #343A40;
-  --gray-500: #3F464F;
+  --border: rgba(255, 255, 255, 0.08); /* Hairline Metallic Border */
+  --border-strong: rgba(255, 255, 255, 0.15); /* Stronger Metallic Edge */
 
-  /* Accent Blues (Dusty / Desaturated) */
-  --accent-blue: #5A7D9A;
-  --accent-soft: #4C6378;
-  --accent-glow: #3E5568;
+  /* Metallic Accents */
+  --accent-silver: #D1D5DB;
+  --accent-chrome: #F3F4F6;
+  --accent-blue-gray: #94A3B8; /* Slate Blue for depth */
+  
+  --accent-primary: var(--accent-silver);
+  --accent-soft: #9CA3AF;
+  --accent-glow: rgba(209, 213, 219, 0.15);
 
-  /* Typography (Soft & Reduced Strain) */
-  --white: #C9D1D9;
-  --off: #8B949E;
-  --muted: #6E7681;
+  /* Typography */
+  --white: #F9FAFB;
+  --off: #D1D5DB;
+  --muted: #8B949E;
 
   /* Functional */
-  --green: #4C6378; /* Muted for consistency */
-  --amber: #3F464F;
-  --blue: var(--accent-blue);
+  --green: #22C55E;
+  --amber: #F59E0B;
+  --blue: #3B82F6;
   
   /* Utils */
-  --hover-overlay: rgba(90, 125, 154, 0.12);
-  --shadow-soft: rgba(0, 0, 0, 0.4);
+  --hover-overlay: rgba(255, 255, 255, 0.05);
+  --shadow-soft: rgba(0, 0, 0, 0.5);
 }
 
 html,

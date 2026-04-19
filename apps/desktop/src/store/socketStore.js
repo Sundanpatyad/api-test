@@ -2,13 +2,14 @@ import { create } from 'zustand';
 import { io } from 'socket.io-client';
 import { localStorageService } from '@/services/localStorageService';
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:4000';
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'https://api-test-yb7v.onrender.com';
 
 export const useSocketStore = create((set, get) => ({
   socket: null,
   isConnected: false,
   roomMembers: [],
   currentRoom: null,
+  requestViewers: {}, // { [requestId]: User[] }
 
   connect: () => {
     const existing = get().socket;
@@ -43,6 +44,13 @@ export const useSocketStore = create((set, get) => ({
       set({ roomMembers: members });
     });
 
+    // ── PRESENCE: who is viewing which request ──────────────────────
+    socket.on('request_viewers_updated', ({ requestId, viewers }) => {
+      set((state) => ({
+        requestViewers: { ...state.requestViewers, [requestId]: viewers },
+      }));
+    });
+
     set({ socket });
   },
 
@@ -52,6 +60,20 @@ export const useSocketStore = create((set, get) => ({
     socket.emit('join_team', { teamId, user });
     set({ currentRoom: `team:${teamId}` });
   },
+
+  // ── PRESENCE EMITTERS ─────────────────────────────────────────────
+  emitOpenRequest: (teamId, requestId, user) => {
+    const socket = get().socket;
+    if (!socket || !teamId || !requestId) return;
+    socket.emit('open_request', { teamId, requestId, user });
+  },
+
+  emitCloseRequest: (teamId, requestId, userId) => {
+    const socket = get().socket;
+    if (!socket || !teamId || !requestId) return;
+    socket.emit('close_request', { teamId, requestId, userId });
+  },
+  // ──────────────────────────────────────────────────────────────────
 
   emitRequestUpdate: (teamId, request, userId) => {
     const socket = get().socket;
@@ -129,21 +151,21 @@ export const useSocketStore = create((set, get) => ({
 
   onRequestUpdated: (callback) => {
     const socket = get().socket;
-    if (!socket) return () => {};
+    if (!socket) return () => { };
     socket.on('request_updated', callback);
     return () => socket.off('request_updated', callback);
   },
 
   onCollectionUpdated: (callback) => {
     const socket = get().socket;
-    if (!socket) return () => {};
+    if (!socket) return () => { };
     socket.on('collection_updated', callback);
     return () => socket.off('collection_updated', callback);
   },
 
   onCollectionImported: (callback) => {
     const socket = get().socket;
-    if (!socket) return () => {};
+    if (!socket) return () => { };
     socket.on('collection_imported', callback);
     return () => socket.off('collection_imported', callback);
   },
@@ -151,7 +173,7 @@ export const useSocketStore = create((set, get) => ({
   // Listen for real-time data updates and sync to localStorage
   onTeamUpdated: (callback) => {
     const socket = get().socket;
-    if (!socket) return () => {};
+    if (!socket) return () => { };
     socket.on('team_updated', (data) => {
       // Update localStorage
       const teams = localStorageService.get(localStorageService.KEYS.TEAMS) || [];
@@ -164,7 +186,7 @@ export const useSocketStore = create((set, get) => ({
 
   onTeamDeleted: (callback) => {
     const socket = get().socket;
-    if (!socket) return () => {};
+    if (!socket) return () => { };
     socket.on('team_deleted', (data) => {
       // Update localStorage
       const teams = localStorageService.get(localStorageService.KEYS.TEAMS) || [];
@@ -177,7 +199,7 @@ export const useSocketStore = create((set, get) => ({
 
   onProjectUpdated: (callback) => {
     const socket = get().socket;
-    if (!socket) return () => {};
+    if (!socket) return () => { };
     socket.on('project_updated', (data) => {
       // Update localStorage
       const projects = localStorageService.get(localStorageService.KEYS.PROJECTS) || [];
@@ -190,7 +212,7 @@ export const useSocketStore = create((set, get) => ({
 
   onProjectDeleted: (callback) => {
     const socket = get().socket;
-    if (!socket) return () => {};
+    if (!socket) return () => { };
     socket.on('project_deleted', (data) => {
       // Update localStorage
       const projects = localStorageService.get(localStorageService.KEYS.PROJECTS) || [];
@@ -203,7 +225,7 @@ export const useSocketStore = create((set, get) => ({
 
   onCollectionUpdated: (callback) => {
     const socket = get().socket;
-    if (!socket) return () => {};
+    if (!socket) return () => { };
     socket.on('collection_updated', (data) => {
       // Update localStorage
       const collections = localStorageService.get(localStorageService.KEYS.COLLECTIONS) || [];
@@ -216,7 +238,7 @@ export const useSocketStore = create((set, get) => ({
 
   onCollectionDeleted: (callback) => {
     const socket = get().socket;
-    if (!socket) return () => {};
+    if (!socket) return () => { };
     socket.on('collection_deleted', (data) => {
       // Update localStorage
       const collections = localStorageService.get(localStorageService.KEYS.COLLECTIONS) || [];
@@ -229,7 +251,7 @@ export const useSocketStore = create((set, get) => ({
 
   onRequestUpdated: (callback) => {
     const socket = get().socket;
-    if (!socket) return () => {};
+    if (!socket) return () => { };
     socket.on('request_updated', (data) => {
       // Update localStorage requests for this collection
       if (data.request?.collectionId) {
@@ -244,7 +266,7 @@ export const useSocketStore = create((set, get) => ({
 
   onRequestDeleted: (callback) => {
     const socket = get().socket;
-    if (!socket) return () => {};
+    if (!socket) return () => { };
     socket.on('request_deleted', (data) => {
       // Update localStorage requests for this collection
       if (data.collectionId) {
@@ -259,7 +281,7 @@ export const useSocketStore = create((set, get) => ({
 
   onRequestCreated: (callback) => {
     const socket = get().socket;
-    if (!socket) return () => {};
+    if (!socket) return () => { };
     socket.on('request_created', (data) => {
       // Update localStorage requests for this collection
       if (data.request?.collectionId) {

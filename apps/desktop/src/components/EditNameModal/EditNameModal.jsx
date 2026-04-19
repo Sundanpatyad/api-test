@@ -33,10 +33,10 @@ export default function EditNameModal() {
 
   return (
     <div
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
       onClick={(e) => e.target === e.currentTarget && handleClose()}
     >
-      <div className="bg-surface-850 border border-surface-700 rounded-2xl shadow-glass w-full max-w-md animate-slide-up">
+      <div className="bg-surface-1 border border-surface-700 rounded-2xl shadow-glass w-full max-w-md animate-slide-up">
         <div className="flex items-center justify-between px-5 py-4 border-b border-surface-700">
           <h2 className="text-sm font-semibold text-tx-primary">{title}</h2>
           <button onClick={handleClose} className="text-surface-500 hover:text-tx-primary transition-colors">

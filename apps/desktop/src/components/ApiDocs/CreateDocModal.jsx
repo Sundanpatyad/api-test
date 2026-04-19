@@ -33,7 +33,7 @@ export default function CreateDocModal({ onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
       <div 
         className="w-full max-w-md rounded-xl bg-surface-1 border border-[var(--border-1)] shadow-xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200"
       >

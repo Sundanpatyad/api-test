@@ -38,12 +38,12 @@ export function isJson(str) {
  * Get status class based on HTTP code
  */
 export function getStatusClass(status) {
-  if (!status) return 'status-badge bg-surface-700 text-surface-300';
+  if (!status) return 'status-badge bg-surface-700 text-tx-secondary';
   if (status >= 200 && status < 300) return 'status-badge status-2xx';
   if (status >= 300 && status < 400) return 'status-badge status-3xx';
   if (status >= 400 && status < 500) return 'status-badge status-4xx';
   if (status >= 500) return 'status-badge status-5xx';
-  return 'status-badge bg-surface-700 text-surface-300';
+  return 'status-badge bg-surface-700 text-tx-secondary';
 }
 
 /**

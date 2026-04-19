@@ -9,9 +9,10 @@ import { isTauri } from '@/lib/executor';
 import api from '@/lib/api';
 import EnvironmentSelector from '@/components/EnvironmentSelector/EnvironmentSelector';
 import SyncStatusTag from '@/components/SyncStatusTag/SyncStatusTag';
+import ContextSelector from './ContextSelector';
 
 export default function TopBarV2({ onToggleSidebar, sidebarOpen, orientation, onToggleOrientation }) {
-  const { theme, toggleTheme, toggleLayout } = useUIStore();
+  const { theme, toggleTheme, toggleLayout, setActiveV2Nav } = useUIStore();
   const { user } = useAuthStore();
   const { isConnected } = useSocketStore();
   const { currentTeam } = useTeamStore();
@@ -74,11 +75,11 @@ export default function TopBarV2({ onToggleSidebar, sidebarOpen, orientation, on
 
   return (
     <header className="v2-header">
-      {/* Left — sidebar toggle */}
-      <div className="v2-header-left">
+      {/* Left — sidebar toggle & Context Selector */}
+      <div className="v2-header-left flex items-center gap-2 relative" style={{ zIndex: 50 }}>
         <button
           onClick={onToggleSidebar}
-          className="v2-header-icon-btn"
+          className="v2-header-icon-btn flex-shrink-0"
           title={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
         >
           {sidebarOpen ? (
@@ -93,6 +94,7 @@ export default function TopBarV2({ onToggleSidebar, sidebarOpen, orientation, on
             </svg>
           )}
         </button>
+        <ContextSelector />
       </div>
 
       {/* Center — Search */}
@@ -119,7 +121,7 @@ export default function TopBarV2({ onToggleSidebar, sidebarOpen, orientation, on
               <span>{currentProject?.name} Search Results</span>
               <span className="text-[9px] opacity-70">Project scope</span>
             </div>
-            
+
             <div className="overflow-y-auto p-1.5 flex flex-col gap-0.5">
               {isSearching ? (
                 <div className="p-4 text-xs text-center text-surface-400">Scanning Project...</div>
@@ -131,6 +133,7 @@ export default function TopBarV2({ onToggleSidebar, sidebarOpen, orientation, on
                       key={req._id}
                       onClick={() => {
                         setCurrentRequest(req);
+                        setActiveV2Nav('collections');
                         setShowDropdown(false);
                         setGlobalSearch('');
                         searchInputRef.current?.blur();
@@ -201,9 +204,6 @@ export default function TopBarV2({ onToggleSidebar, sidebarOpen, orientation, on
                 d="M3 9h18M3 15h18M3 5a2 2 0 012-2h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5z" />
             </svg>
           )}
-          <span className="v2-orientation-label">
-            {orientation === 'vertical' ? 'Side by Side' : 'Stacked'}
-          </span>
         </button>
 
         {/* Theme toggle */}
@@ -224,10 +224,7 @@ export default function TopBarV2({ onToggleSidebar, sidebarOpen, orientation, on
           )}
         </button>
 
-        {/* User avatar */}
-        <div className="v2-header-avatar" title={user?.name}>
-          {user?.name?.[0]?.toUpperCase()}
-        </div>
+
       </div>
     </header>
   );

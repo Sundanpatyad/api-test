@@ -30,46 +30,55 @@ export default function SplashScreen({ onComplete }) {
   }, [onComplete]);
 
   return (
-    <div className="fixed inset-0 bg-surface-900 flex flex-col items-center justify-center z-50">
-      {/* Background glow */}
+    <div className="fixed inset-0 bg-[#040506] flex flex-col items-center justify-center z-50 overflow-hidden">
+      {/* Dynamic Metallic Background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-brand-500/10 rounded-full blur-3xl animate-pulse-slow" />
-        <div className="absolute top-1/3 left-1/3 w-64 h-64 bg-brand-600/5 rounded-full blur-2xl" />
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-white/5 blur-[120px] rounded-full animate-pulse-slow" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-white/5 blur-[120px] rounded-full" />
       </div>
 
-      <div className="relative flex flex-col items-center gap-8 animate-fade-in">
-        {/* Logo */}
-        <div className="flex items-center gap-4">
-          <div className="relative">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center p-3 shadow-glow-lg splash-logo-glow">
-              <img src={logo} alt="PayloadX" className="w-full h-full object-contain" />
+      <div className="relative flex flex-col items-center gap-10 animate-fade-in">
+        {/* Logo Section */}
+        <div className="flex flex-col items-center gap-6">
+          <div className="relative group">
+            {/* Main Logo Container with Metallic Gradient */}
+            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#E6EDF3] via-[#8B949E] to-[#484F58] flex items-center justify-center p-4 shadow-2xl relative z-10 overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-tr from-white/20 to-transparent pointer-events-none" />
+              <img src={logo} alt="PayloadX" className="w-full h-full object-contain filter drop-shadow-md" />
+              {/* Shimmer Effect */}
+              <div className="absolute -inset-full bg-gradient-to-r from-transparent via-white/40 to-transparent transform rotate-45 animate-shimmer" />
             </div>
-            <div className="absolute -inset-1 rounded-2xl bg-brand-500/30 blur-lg -z-10" />
+            {/* Outer Glow */}
+            <div className="absolute -inset-2 rounded-2xl bg-white/10 blur-xl -z-10 group-hover:bg-white/20 transition-all duration-700" />
           </div>
-          <div>
-            <h1 className="text-3xl font-bold text-tx-primary tracking-tight">PayloadX</h1>
-            <p className="text-brand-300 text-sm font-medium tracking-widest uppercase">API Studio</p>
+          
+          <div className="text-center">
+            <h1 className="text-4xl font-bold text-white tracking-tight mb-1">PayloadX</h1>
+            <p className="text-[#8B949E] text-xs font-bold tracking-[0.3em] uppercase">API Studio</p>
           </div>
         </div>
 
         {/* Tagline */}
-        <p className="text-surface-400 text-sm text-center max-w-xs">
-          Professional API Testing with Real-time Collaboration
+        <p className="text-[#6E7681] text-xs text-center max-w-[280px] leading-relaxed">
+          High-performance API testing with <br/> refined metallic aesthetics.
         </p>
 
-        {/* Progress */}
-        <div className="w-64 flex flex-col gap-3 items-center">
-          <div className="w-full h-1 bg-surface-800 rounded-full overflow-hidden">
+        {/* Progress Section */}
+        <div className="w-72 flex flex-col gap-4 items-center mt-4">
+          <div className="w-full h-[3px] bg-white/5 rounded-full overflow-hidden relative">
             <div
-              className="h-full bg-gradient-to-r from-brand-500 to-brand-300 rounded-full transition-all duration-300 ease-out shadow-glow"
+              className="h-full bg-gradient-to-r from-[#8B949E] via-white to-[#8B949E] rounded-full transition-all duration-500 ease-out shadow-[0_0_12px_rgba(255,255,255,0.3)]"
               style={{ width: `${progress}%` }}
             />
           </div>
-          <p className="text-surface-500 text-xs animate-pulse">{statusText}</p>
+          <div className="flex flex-col items-center gap-1">
+            <p className="text-[#8B949E] text-[11px] font-medium transition-all duration-300">{statusText}</p>
+            <p className="text-white/20 text-[10px] tabular-nums font-mono">{progress}%</p>
+          </div>
         </div>
 
-        {/* Version */}
-        <p className="text-surface-700 text-xs absolute -bottom-12">v1.0.0</p>
+        {/* Version Footer */}
+        <p className="text-white/10 text-[10px] font-mono absolute -bottom-24">VER 1.2.0 • STABLE</p>
       </div>
     </div>
   );

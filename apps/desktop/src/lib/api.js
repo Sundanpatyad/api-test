@@ -1,7 +1,8 @@
 import axios from 'axios';
 import { useSyncQueueStore } from '@/store/syncQueueStore';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+// const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const API_URL = import.meta.env.VITE_API_URL || 'https://api-test-backend-pdty.vercel.app';
 
 const api = axios.create({
   baseURL: API_URL,
@@ -11,7 +12,7 @@ const api = axios.create({
 
 // Inject JWT token
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('syncnest_token');
+  const token = localStorage.getItem('payloadx_token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
@@ -26,8 +27,13 @@ api.interceptors.response.use(
       if (error.config?.isSyncOperation || error.config?.syncContext) {
         return Promise.reject(error);
       }
-      localStorage.removeItem('syncnest_token');
-      window.location.href = '/';
+      // Inform the user and log them out cleanly (prevents infinite refresh loops)
+      import('@/store/authStore').then(({ useAuthStore }) => {
+        const store = useAuthStore.getState();
+        if (store.user || localStorage.getItem('payloadx_token')) {
+          store.logout();
+        }
+      });
       return Promise.reject(error);
     }
 

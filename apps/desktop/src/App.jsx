@@ -6,10 +6,12 @@ import { useSocketStore } from '@/store/socketStore';
 import { useUIStore } from '@/store/uiStore';
 import { useCollectionStore } from '@/store/collectionStore';
 import { useTeamStore } from '@/store/teamStore';
+import { useRequestStore } from '@/store/requestStore';
 import SplashScreen from '@/components/SplashScreen/SplashScreen';
 import AuthPage from '@/components/Auth/AuthPage';
 import Sidebar from '@/components/Sidebar/Sidebar';
 import RequestBuilder from '@/components/RequestBuilder/RequestBuilder';
+import WSRequestBuilder from '@/components/RequestBuilder/WSRequestBuilder';
 import ResponseViewer from '@/components/ResponseViewer/ResponseViewer';
 import EnvironmentPanel from '@/components/EnvironmentPanel/EnvironmentPanel';
 import ImportModal from '@/components/ImportModal/ImportModal';
@@ -33,12 +35,12 @@ export default function App() {
   const dragRef = useRef(null);
 
   const { user, fetchMe } = useAuthStore();
-  const { 
-    connect, 
-    isConnected, 
-    joinTeam, 
-    onRequestUpdated, 
-    onCollectionUpdated, 
+  const {
+    connect,
+    isConnected,
+    joinTeam,
+    onRequestUpdated,
+    onCollectionUpdated,
     onCollectionImported,
     onTeamUpdated,
     onTeamDeleted,
@@ -70,9 +72,8 @@ export default function App() {
   } = useUIStore();
 
   // Fetch user on mount and initialize data from localStorage
-  useEffect(() => { 
-    const initData = async () => {
-      // Robust offline check: Skip session API if hardware or system thinks we are offline
+  useEffect(() => {
+    const attemptAuthCheck = async () => {
       if (navigator.onLine) {
         try {
           // Wrap in a small timeout to avoid long hangs on unreliable connections
@@ -84,11 +85,25 @@ export default function App() {
           console.log('[App] Auth check skipped or timed out:', e.message);
         }
       }
+    };
+
+    const initData = async () => {
+      await attemptAuthCheck();
+
       // Initialize stores from localStorage for offline-first experience
       initTeams();
       initProjects();
     };
+
+    // Check on initial load
     initData();
+
+    // Re-check auth immediately when network comes back online
+    window.addEventListener('online', attemptAuthCheck);
+
+    return () => {
+      window.removeEventListener('online', attemptAuthCheck);
+    };
   }, []);
 
   // Fetch from API if localStorage is empty (first time load)
@@ -103,6 +118,7 @@ export default function App() {
       fetchProjects(currentTeam._id);
     }
   }, [user, currentTeam, projects.length]);
+
 
   // Apply theme class to <html> so CSS variables switch correctly
   useEffect(() => {
@@ -134,6 +150,11 @@ export default function App() {
 
     const offRequest = onRequestUpdated(({ request }) => {
       updateRequest(request);
+
+      const reqStore = useRequestStore.getState();
+      if (reqStore.currentRequest?._id === request._id) {
+        reqStore.setCurrentRequest(request);
+      }
     });
     const offCollection = onCollectionUpdated(({ collection }) => {
       updateCollection(collection);
@@ -225,17 +246,17 @@ export default function App() {
         />
 
         {/* Shared Modals */}
-        {showEnvironmentPanel  && <EnvironmentPanel />}
-        {showImportModal       && <ImportModal />}
-        {showTeamModal         && <CreateTeamModal />}
-        {showProjectModal      && <CreateProjectModal />}
-        {showCollectionModal   && <CreateCollectionModal />}
-        {showInviteModal       && <InviteModal />}
+        {showEnvironmentPanel && <EnvironmentPanel />}
+        {showImportModal && <ImportModal />}
+        {showTeamModal && <CreateTeamModal />}
+        {showProjectModal && <CreateProjectModal />}
+        {showCollectionModal && <CreateCollectionModal />}
+        {showInviteModal && <InviteModal />}
         <ContextMenu />
         <ConfirmDialog />
         <EditNameModal />
 
-        
+
 
         <Toaster
           position="bottom-right"
@@ -259,122 +280,126 @@ export default function App() {
     <>
       <OfflineSyncManager />
       <div className="flex h-screen overflow-hidden" style={{ background: 'var(--bg-primary)' }}>
-      {/* Sidebar */}
-      <div style={{ width: sidebarWidth }} className="flex-shrink-0 h-full overflow-hidden flex flex-col">
-        <Sidebar />
-      </div>
-
-      {/* Sidebar resize handle */}
-      <div
-        className="w-1 cursor-col-resize bg-surface-700/30 hover:bg-brand-500/50 transition-colors flex-shrink-0 relative group"
-        onMouseDown={(e) => {
-          e.preventDefault();
-          const startX = e.clientX;
-          const startW = sidebarWidth;
-          const onMove = (e) => setSidebarWidth(startW + (e.clientX - startX));
-          const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
-          window.addEventListener('mousemove', onMove);
-          window.addEventListener('mouseup', onUp);
-        }}
-      >
-        <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-px bg-brand-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-      </div>
-
-      {/* Main content */}
-      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-        {/* Top bar — V1 with added layout toggle */}
-        <div className="flex items-center justify-between h-10 px-3 border-b border-[var(--border-1)] bg-surface-900 flex-shrink-0">
-          <div className="flex items-center gap-2">
-            {currentTeam && (
-              <span className="text-surface-500 text-xs">
-                {currentTeam.name}
-              </span>
-            )}
-            <div className={`w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-success' : 'bg-surface-600'} animate-pulse-slow`} title={isConnected ? 'Real-time connected' : 'Offline'} />
-          </div>
-
-          {/* Right side */}
-          <div className="flex items-center gap-2">
-            <SyncStatusTag />
-            <EnvironmentSelector />
-            {!isTauri() && (
-              <div className="flex items-center gap-1.5 bg-warning/10 border border-warning/20 text-warning text-[10px] px-2.5 py-1 rounded-lg">
-                <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                Browser mode
-              </div>
-            )}
-            {/* ← Switch to V2 */}
-            <button
-              onClick={toggleLayout}
-              title="Switch to New Layout (V2)"
-              className="flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-lg transition-all"
-              style={{
-                background: 'var(--surface-2)',
-                border: '1px solid var(--border-1)',
-                color: 'var(--text-secondary)',
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-primary)'; e.currentTarget.style.borderColor = 'var(--border-2)'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.borderColor = 'var(--border-1)'; }}
-            >
-              <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zM14 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
-              </svg>
-              New UI
-            </button>
-          </div>
+        {/* Sidebar */}
+        <div style={{ width: sidebarWidth }} className="flex-shrink-0 h-full overflow-hidden flex flex-col">
+          <Sidebar />
         </div>
 
-        {/* Request builder */}
-        <div className="flex-1 overflow-hidden">
-          <RequestBuilder />
-        </div>
-
-        {/* Response height resize handle */}
+        {/* Sidebar resize handle */}
         <div
-          className="h-1 cursor-row-resize bg-surface-700/30 hover:bg-brand-500/50 transition-colors flex-shrink-0"
+          className="w-1 cursor-col-resize bg-surface-700/30 hover:bg-brand-500/50 transition-colors flex-shrink-0 relative group"
           onMouseDown={(e) => {
             e.preventDefault();
-            const startY = e.clientY;
-            const startH = responseHeight;
-            const onMove = (e) => setResponseHeight(startH + (startY - e.clientY));
+            const startX = e.clientX;
+            const startW = sidebarWidth;
+            const onMove = (e) => setSidebarWidth(startW + (e.clientX - startX));
             const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
             window.addEventListener('mousemove', onMove);
             window.addEventListener('mouseup', onUp);
           }}
-        />
-
-        {/* Response viewer */}
-        <div style={{ height: responseHeight }} className="flex-shrink-0 border-t border-[var(--border-1)] overflow-hidden bg-surface-850">
-          <ResponseViewer />
+        >
+          <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-px bg-brand-500 opacity-0 group-hover:opacity-100 transition-opacity" />
         </div>
+
+        {/* Main content */}
+        <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+          {/* Top bar — V1 with added layout toggle */}
+          <div className="flex items-center justify-between h-10 px-3 border-b border-[var(--border-1)] bg-surface-900 flex-shrink-0">
+            <div className="flex items-center gap-2">
+              {currentTeam && (
+                <span className="text-surface-500 text-xs">
+                  {currentTeam.name}
+                </span>
+              )}
+              <div className={`w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-success' : 'bg-surface-600'} animate-pulse-slow`} title={isConnected ? 'Real-time connected' : 'Offline'} />
+            </div>
+
+            {/* Right side */}
+            <div className="flex items-center gap-2">
+              <SyncStatusTag />
+              <EnvironmentSelector />
+              {!isTauri() && (
+                <div className="flex items-center gap-1.5 bg-warning/10 border border-warning/20 text-warning text-[10px] px-2.5 py-1 rounded-lg">
+                  <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                  Browser mode
+                </div>
+              )}
+              {/* ← Switch to V2 */}
+              <button
+                onClick={toggleLayout}
+                title="Switch to New Layout (V2)"
+                className="flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-lg transition-all"
+                style={{
+                  background: 'var(--surface-2)',
+                  border: '1px solid var(--border-1)',
+                  color: 'var(--text-secondary)',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-primary)'; e.currentTarget.style.borderColor = 'var(--border-2)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.borderColor = 'var(--border-1)'; }}
+              >
+                <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zM14 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+                </svg>
+                New UI
+              </button>
+            </div>
+          </div>
+
+          {/* Request builder */}
+          <div className="flex-1 overflow-hidden">
+            {useRequestStore.getState().currentRequest?.protocol === 'ws' ? (
+              <WSRequestBuilder />
+            ) : (
+              <RequestBuilder />
+            )}
+          </div>
+
+          {/* Response height resize handle */}
+          <div
+            className="h-1 cursor-row-resize bg-surface-700/30 hover:bg-brand-500/50 transition-colors flex-shrink-0"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              const startY = e.clientY;
+              const startH = responseHeight;
+              const onMove = (e) => setResponseHeight(startH + (startY - e.clientY));
+              const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+              window.addEventListener('mousemove', onMove);
+              window.addEventListener('mouseup', onUp);
+            }}
+          />
+
+          {/* Response viewer */}
+          <div style={{ height: responseHeight }} className="flex-shrink-0 border-t border-[var(--border-1)] overflow-hidden bg-surface-850">
+            <ResponseViewer />
+          </div>
+        </div>
+
+        {/* Modals */}
+        {showEnvironmentPanel && <EnvironmentPanel />}
+        {showImportModal && <ImportModal />}
+        {showTeamModal && <CreateTeamModal />}
+        {showProjectModal && <CreateProjectModal />}
+        {showCollectionModal && <CreateCollectionModal />}
+        {showInviteModal && <InviteModal />}
+        <ContextMenu />
+        <ConfirmDialog />
+        <EditNameModal />
+
+        {/* Toast notifications */}
+        <Toaster
+          position="bottom-right"
+          toastOptions={{
+            style: {
+              background: theme === 'light' ? '#FFFFFF' : '#1A1F2B',
+              color: theme === 'light' ? '#111111' : '#D8DEE9',
+              border: `1px solid ${theme === 'light' ? '#E1E4E8' : 'rgba(216, 222, 233, 0.1)'}`,
+              borderRadius: '12px',
+              fontSize: '13px',
+              fontFamily: 'Poppins, sans-serif',
+            },
+          }}
+        />
       </div>
-
-      {/* Modals */}
-      {showEnvironmentPanel  && <EnvironmentPanel />}
-      {showImportModal       && <ImportModal />}
-      {showTeamModal         && <CreateTeamModal />}
-      {showProjectModal      && <CreateProjectModal />}
-      {showCollectionModal   && <CreateCollectionModal />}
-      {showInviteModal       && <InviteModal />}
-      <ContextMenu />
-      <ConfirmDialog />
-      <EditNameModal />
-
-      {/* Toast notifications */}
-      <Toaster
-        position="bottom-right"
-        toastOptions={{
-          style: {
-            background: theme === 'light' ? '#FFFFFF' : '#1A1F2B',
-            color: theme === 'light' ? '#111111' : '#D8DEE9',
-            border: `1px solid ${theme === 'light' ? '#E1E4E8' : 'rgba(216, 222, 233, 0.1)'}`,
-            borderRadius: '12px',
-            fontSize: '13px',
-            fontFamily: 'Poppins, sans-serif',
-          },
-        }}
-      />
-    </div>
     </>
   );
 }

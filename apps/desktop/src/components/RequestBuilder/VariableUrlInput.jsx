@@ -36,10 +36,10 @@ export default function VariableUrlInput({ value, onChange, placeholder }) {
     <div className="relative flex-1 min-w-0 h-full">
       {/* Container — provides border + background */}
       <div
-        className={`flex items-center w-full h-full px-3 font-mono text-sm outline-none transition-all duration-150 border rounded-lg ${
+        className={`flex items-center w-full h-full px-2.5 font-mono text-xs outline-none transition-all duration-150 ${
           hasUnresolved 
-            ? 'border-warning/40 bg-[var(--bg-tertiary)]' 
-            : 'border-[var(--border-1)] bg-[var(--bg-tertiary)] focus-within:border-[var(--accent)] focus-within:ring-2 focus-within:ring-[var(--accent)]/10'
+            ? 'bg-warning/10' 
+            : 'bg-transparent'
         }`}
       >
         {/* Scrollable Container */}
@@ -55,7 +55,7 @@ export default function VariableUrlInput({ value, onChange, placeholder }) {
               placeholder={placeholder}
               value={value}
               onChange={onChange}
-              className="absolute inset-0 bg-transparent border-0 outline-0 font-mono text-sm pl-0 pr-0"
+              className="absolute inset-0 bg-transparent border-0 outline-0 font-mono text-xs pl-0 pr-0"
               style={{ color: 'transparent', caretColor: '#e2e8f0', letterSpacing: 'inherit', width: '100%', height: '100%' }}
               spellCheck={false}
               autoComplete="off"
@@ -120,7 +120,7 @@ export default function VariableUrlInput({ value, onChange, placeholder }) {
               )}
             </div>
             {tooltip.found ? (
-              <p className="text-surface-300 font-mono truncate max-w-[240px]">
+              <p className="text-tx-secondary font-mono truncate max-w-[240px]">
                 → {tooltip.value || '(empty)'}
               </p>
             ) : (

@@ -38,6 +38,14 @@ async function executeFetchFallback(payload) {
     reqHeaders.set(h.key, h.value);
   });
 
+  // Automatically bypass ngrok and localtunnel browser warnings for web users
+  if (!reqHeaders.has('ngrok-skip-browser-warning')) {
+    reqHeaders.set('ngrok-skip-browser-warning', 'true');
+  }
+  if (!reqHeaders.has('Bypass-Tunnel-Reminder')) {
+    reqHeaders.set('Bypass-Tunnel-Reminder', 'true');
+  }
+
   // Auth header
   if (auth?.type === 'bearer' && auth.bearer?.token) {
     reqHeaders.set('Authorization', `Bearer ${auth.bearer.token}`);
@@ -99,14 +107,7 @@ async function executeFetchFallback(payload) {
     // CORS error detection
     const msg = err.message || String(err);
     if (msg === 'Failed to fetch' || msg.includes('NetworkError') || msg.includes('CORS')) {
-      throw [
-        'CORS Error: The target server blocked this request from the browser.',
-        '',
-        '💡 Options:',
-        '  1. Run the app with Tauri (npm run tauri:dev) — bypasses CORS entirely',
-        '  2. Ensure the target API has Access-Control-Allow-Origin: * header',
-        '  3. For ngrok URLs: add "ngrok-skip-browser-warning: true" header',
-      ].join('\n');
+      throw 'CORS Error: The target server blocked this request from the browser.';
     }
 
     throw msg;
