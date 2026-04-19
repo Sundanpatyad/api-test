@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useTeamStore } from '@/store/teamStore';
 import { useProjectStore } from '@/store/projectStore';
 import { useCollectionStore } from '@/store/collectionStore';
@@ -51,7 +51,10 @@ export default function ContextSelector() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const filteredProjects = currentTeam ? getFilteredProjects(currentTeam._id) : [];
+  const filteredProjects = useMemo(() => 
+    currentTeam ? getFilteredProjects(currentTeam._id) : [],
+    [currentTeam?._id, projects]
+  );
 
   return (
     <div className="flex items-center gap-1 ml-2">

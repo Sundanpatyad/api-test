@@ -9,7 +9,7 @@ import toast from 'react-hot-toast';
 
 export default function Dashboard() {
   const { user } = useAuthStore();
-  const { collections, requests } = useCollectionStore();
+  const { collections, requests, setCurrentCollection } = useCollectionStore();
   const { history, setCurrentRequest, newRequest } = useRequestStore();
   const { connections } = useWSStore();
   const { currentProject } = useProjectStore();
@@ -18,12 +18,12 @@ export default function Dashboard() {
     const projectCollections = collections.filter(c => c.projectId === currentProject?._id);
     const collectionIds = new Set(projectCollections.map(c => c._id));
     const projectRequests = requests.filter(r => collectionIds.has(r.collectionId));
-    
+
     const wsCount = projectRequests.filter(r => r.protocol === 'ws').length;
     const restCount = projectRequests.filter(r => r.protocol !== 'ws').length;
     const activeWS = Object.keys(connections).filter(id => {
-        const req = projectRequests.find(r => r._id === id);
-        return req && req.protocol === 'ws';
+      const req = projectRequests.find(r => r._id === id);
+      return req && req.protocol === 'ws';
     }).length;
 
     return {
@@ -42,12 +42,11 @@ export default function Dashboard() {
   }, []);
 
   const { setActiveV2Nav } = useUIStore();
-  const { collections, requests, setCurrentCollection } = useCollectionStore();
 
   const handleRecentClick = (entry) => {
     // Set request
     setCurrentRequest(entry.request);
-    
+
     // Set parent collection so breadcrumbs/sidebar stay in sync
     const parentCol = collections.find(c => c._id === entry.request.collectionId);
     if (parentCol) {
@@ -56,7 +55,7 @@ export default function Dashboard() {
 
     // Switch view to Workspace
     setActiveV2Nav('collections');
-    
+
     toast.success(`Opened ${entry.request.name}`);
   };
 
@@ -68,31 +67,31 @@ export default function Dashboard() {
           <h1 className="dash-title">{greeting}, {user?.email?.split('@')[0] || 'User'}</h1>
           <p className="dash-subtitle">Here's what's happening in <strong>{currentProject?.name || 'your project'}</strong> today.</p>
         </div>
-        <div className="dash-actions">
+        {/* <div className="dash-actions">
            <button onClick={() => newRequest()} className="dash-cta dash-cta--primary">
               <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
               New Request
            </button>
-        </div>
+        </div> */}
       </header>
 
       {/* ── Stats Grid ── */}
       <div className="dash-grid">
-        <StatCard 
-          label="Collections" 
-          value={stats.collections} 
+        <StatCard
+          label="Collections"
+          value={stats.collections}
           icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />}
           color="var(--accent)"
         />
-        <StatCard 
-          label="REST APIs" 
-          value={stats.rest} 
+        <StatCard
+          label="REST APIs"
+          value={stats.rest}
           icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />}
           color="#3fb950"
         />
-        <StatCard 
-          label="WS Streams" 
-          value={stats.ws} 
+        <StatCard
+          label="WS Streams"
+          value={stats.ws}
           subValue={stats.activeWS > 0 ? `${stats.activeWS} active` : null}
           icon={<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />}
           color="#38bdf8"
@@ -131,26 +130,26 @@ export default function Dashboard() {
 
         {/* ── Quick Links ── */}
         <div className="dash-panel dash-quick-links">
-           <div className="dash-panel-header">
-              <h2 className="dash-panel-title">Getting Started</h2>
-           </div>
-           <div className="dash-links-grid">
-              <QuickLink 
-                title="New Collection" 
-                desc="Group your related APIs"
-                onClick={() => document.querySelector('[title="New collection"]')?.click()}
-              />
-              <QuickLink 
-                title="Import Project" 
-                desc="Import from Postman/Insomnia"
-                onClick={() => document.querySelector('[title="Import"]')?.click()}
-              />
-              <QuickLink 
-                title="Environments" 
-                desc="Manage your variables"
-                onClick={() => document.querySelector('[title="Environments"]')?.click()}
-              />
-           </div>
+          <div className="dash-panel-header">
+            <h2 className="dash-panel-title">Getting Started</h2>
+          </div>
+          <div className="dash-links-grid">
+            <QuickLink
+              title="New Collection"
+              desc="Group your related APIs"
+              onClick={() => document.querySelector('[title="New collection"]')?.click()}
+            />
+            <QuickLink
+              title="Import Project"
+              desc="Import from Postman/Insomnia"
+              onClick={() => document.querySelector('[title="Import"]')?.click()}
+            />
+            <QuickLink
+              title="Environments"
+              desc="Manage your variables"
+              onClick={() => document.querySelector('[title="Environments"]')?.click()}
+            />
+          </div>
         </div>
       </div>
     </div>

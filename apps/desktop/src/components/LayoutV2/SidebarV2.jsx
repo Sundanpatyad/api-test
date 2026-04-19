@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useTeamStore } from '@/store/teamStore';
 import { useProjectStore } from '@/store/projectStore';
 import { useCollectionStore } from '@/store/collectionStore';
@@ -56,12 +56,12 @@ const NAV_ITEMS = [
 ];
 
 const METHOD_COLORS = {
-  GET:     '#3FB950',
-  POST:    '#58A6FF',
-  PUT:     '#E3B341',
-  PATCH:   '#A8A8A8',
-  DELETE:  '#F85149',
-  HEAD:    '#5A5A5A',
+  GET: '#3FB950',
+  POST: '#58A6FF',
+  PUT: '#E3B341',
+  PATCH: '#A8A8A8',
+  DELETE: '#F85149',
+  HEAD: '#5A5A5A',
   OPTIONS: '#39C5CF',
 };
 
@@ -75,68 +75,72 @@ export default function SidebarV2({
 }) {
   const [refreshingColId, setRefreshingColId] = useState(null);
   const { user, logout } = useAuthStore();
-  const { 
-    teams, 
-    currentTeam, 
-    fetchTeams, 
-    setCurrentTeam, 
-    updateTeamName, 
+  const {
+    teams,
+    currentTeam,
+    fetchTeams,
+    setCurrentTeam,
+    updateTeamName,
     deleteTeam,
     isLoading: isLoadingTeams,
     isRefreshing: isRefreshingTeams,
     refreshTeams
   } = useTeamStore();
-  const { 
-    projects, 
-    currentProject, 
-    fetchProjects, 
-    setCurrentProject, 
-    updateProjectName, 
+  const {
+    projects,
+    currentProject,
+    fetchProjects,
+    setCurrentProject,
+    updateProjectName,
     deleteProject,
     isLoading: isLoadingProjects,
     isRefreshing: isRefreshingProjects,
     refreshProjects,
     getFilteredProjects
   } = useProjectStore();
-  const { 
-    collections, 
-    currentCollection, 
-    fetchCollections, 
-    fetchCollectionRequests, 
+  const {
+    collections,
+    currentCollection,
+    fetchCollections,
+    fetchCollectionRequests,
     requests,
     updateCollectionName,
     deleteCollection,
-    removeRequest,
     addRequest,
     isLoading: isLoadingCollections,
+    loadingCollections,
     isLoadingRequests,
     isRefreshing: isRefreshingCollections,
     refreshCollections,
     refreshCollectionRequests,
     loadCollectionRequestsFromStorage,
-    getFilteredCollections
+    getFilteredCollections,
+    setCurrentCollection
   } = useCollectionStore();
-  const { 
-    setCurrentRequest, 
-    currentRequest,
-    createRequest,
-    updateRequestName,
-    deleteRequest,
-    setNoActiveRequest
-  } = useRequestStore();
+
   const { disconnect } = useSocketStore();
   const { isConnected } = useSocketStore();
-  const { 
-    theme, 
-    toggleTheme, 
-    toggleLayout, 
-    activeV2Nav, 
+  const {
+    theme,
+    toggleTheme,
+    toggleLayout,
+    activeV2Nav,
     setActiveV2Nav,
     setContextMenu,
     setShowConfirmDialog,
     setShowEditNameModal,
     setShowInviteModal
   } = useUIStore();
+  const { currentRequest, setCurrentRequest, createRequest, updateRequestName, deleteRequest, setNoActiveRequest } = useRequestStore();
+
+  const handleRequestSelect = (request) => {
+    setCurrentRequest(request);
+    if (activeV2Nav !== 'collections') {
+      setActiveV2Nav('collections');
+    }
+  };
+
+
 
   const [expandedCollections, setExpandedCollections] = useState(() => {
     const saved = localStorage.getItem('sidebar_expanded_collections');
@@ -148,7 +152,8 @@ export default function SidebarV2({
   const [searchResults, setSearchResults] = useState(null);
   const [isSearching, setIsSearching] = useState(false);
   const [showLogout, setShowLogout] = useState(false);
-  
+  const [initializedCollections, setInitializedCollections] = useState(new Set());
+
   // Load section expansion state from localStorage
   const [showTeamsSection, setShowTeamsSection] = useState(() => {
     const saved = localStorage.getItem('sidebar_teams_expanded');
@@ -158,19 +163,33 @@ export default function SidebarV2({
     const saved = localStorage.getItem('sidebar_projects_expanded');
     return saved !== null ? saved === 'true' : true;
   });
-  
+  const [showCollectionsSection, setShowCollectionsSection] = useState(() => {
+    const saved = localStorage.getItem('sidebar_collections_expanded');
+    return saved !== null ? saved === 'true' : true;
+  });
+
   // Persist section expansion state to localStorage
+  useEffect(() => {
+    localStorage.setItem('sidebar_collections_expanded', showCollectionsSection);
+  }, [showCollectionsSection]);
   useEffect(() => {
     localStorage.setItem('sidebar_teams_expanded', showTeamsSection);
   }, [showTeamsSection]);
-  
+
   useEffect(() => {
     localStorage.setItem('sidebar_projects_expanded', showProjectsSection);
   }, [showProjectsSection]);
 
   // Filtered data based on current selection
-  const filteredProjects = currentTeam ? getFilteredProjects(currentTeam._id) : [];
-  const filteredCollections = currentProject ? getFilteredCollections(currentProject._id) : [];
+  const filteredProjects = useMemo(() =>
+    currentTeam ? getFilteredProjects(currentTeam._id) : [],
+    [currentTeam?._id, projects]
+  );
+
+  const filteredCollections = useMemo(() =>
+    currentProject ? getFilteredCollections(currentProject._id) : [],
+    [currentProject?._id, collections]
+  );
 
   // ── Data fetching ──────────────────
   useEffect(() => { fetchTeams(); }, []);
@@ -214,17 +233,33 @@ export default function SidebarV2({
     return () => window.removeEventListener('collection-imported', handleCollectionImported);
   }, []);
 
+  // ── Sync expanded collections with data (Persistence) ──────────────────
+  useEffect(() => {
+    if (filteredCollections.length > 0) {
+      expandedCollections.forEach(id => {
+        const possessesData = requests.some(r => r.collectionId === id);
+        const isCurrentlyLoading = loadingCollections[id];
+        const isInitialized = initializedCollections.has(id);
+
+        if (!possessesData && !isCurrentlyLoading && !isInitialized) {
+          setInitializedCollections(prev => new Set(prev).add(id));
+          fetchCollectionRequests(id);
+        }
+      });
+    }
+  }, [filteredCollections, expandedCollections, requests.length, loadingCollections, initializedCollections]);
+
   // ── Permission helpers ──────────────────
   const isTeamOwner = (team) => team?.ownerId?._id === user?._id || team?.ownerId === user?._id;
   const isTeamAdmin = (team) => {
     if (isTeamOwner(team)) return true;
-    return team?.members?.some(m => 
+    return team?.members?.some(m =>
       (m.userId?._id || m.userId) === user?._id && m.role === 'admin'
     );
   };
   const isProjectAdmin = (project) => {
     if (project?.ownerId?._id === user?._id || project?.ownerId === user?._id) return true;
-    return project?.members?.some(m => 
+    return project?.members?.some(m =>
       (m.userId?._id || m.userId) === user?._id && m.role === 'admin'
     );
   };
@@ -234,7 +269,7 @@ export default function SidebarV2({
     e.preventDefault();
     e.stopPropagation();
     if (!isTeamOwner(team)) return; // Only owner can edit/delete team
-    
+
     setContextMenu({
       x: e.clientX,
       y: e.clientY,
@@ -279,7 +314,7 @@ export default function SidebarV2({
     e.preventDefault();
     e.stopPropagation();
     if (!isProjectAdmin(project)) return; // Only admins can edit/delete project
-    
+
     setContextMenu({
       x: e.clientX,
       y: e.clientY,
@@ -323,7 +358,7 @@ export default function SidebarV2({
   const showCollectionContextMenu = (e, collection) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     setContextMenu({
       x: e.clientX,
       y: e.clientY,
@@ -438,7 +473,7 @@ export default function SidebarV2({
   const showRequestContextMenu = (e, request) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     setContextMenu({
       x: e.clientX,
       y: e.clientY,
@@ -522,7 +557,12 @@ export default function SidebarV2({
       setExpandedCollections(next);
       localStorage.setItem('sidebar_expanded_collections', JSON.stringify([...next]));
       // Automatically fetch requests from API if they aren't in local storage/state
-      fetchCollectionRequests(id);
+      if (!initializedCollections.has(id)) {
+        setInitializedCollections(prev => new Set(prev).add(id));
+        fetchCollectionRequests(id);
+      }
+      // Ensure it becomes current
+      setCurrentCollection(col);
     }
   };
 
@@ -589,14 +629,14 @@ export default function SidebarV2({
                 </svg>
               </span>
             </button>
-            <button 
+            <button
               className="sdbv2-activity-avatar"
               onClick={() => setShowLogout(!showLogout)}
               title={user?.email || 'Profile'}
             >
               {user?.email?.[0]?.toUpperCase() || 'U'}
             </button>
-            
+
             {showLogout && (
               <div className="sdbv2-logout-menu">
                 <div className="sdbv2-logout-email">{user?.email}</div>
@@ -654,7 +694,7 @@ export default function SidebarV2({
                 <p className="sdbv2-empty-note">Searching database...</p>
               ) : searchResults?.length > 0 ? (
                 searchResults.map((req) => (
-                  <SidebarRequest key={`search-${req._id}`} request={req} onSelect={setCurrentRequest} />
+                  <SidebarRequest key={`search-${req._id}`} request={req} onSelect={handleRequestSelect} />
                 ))
               ) : (
                 <p className="sdbv2-empty-note">No matches found in project</p>
@@ -667,10 +707,15 @@ export default function SidebarV2({
               {/* Collections */}
               {currentProject && (
                 <div className="sdbv2-section">
-                  <div className="sdbv2-section-head">
-                    <span className="sdbv2-section-label">Collections</span>
-                    <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                      <RefreshButton 
+                  <div className="sdbv2-section-head clickable" onClick={() => setShowCollectionsSection(!showCollectionsSection)}>
+                    <div className="flex items-center gap-1">
+                      <svg className={`sdbv2-chevron ${showCollectionsSection ? 'sdbv2-chevron--open' : ''}`} width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                      <span className="sdbv2-section-label">Collections</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: 4, alignItems: 'center' }} onClick={(e) => e.stopPropagation()}>
+                      <RefreshButton
                         onRefresh={async () => {
                           const result = await refreshCollections(currentProject._id);
                           if (result.fromCache) {
@@ -678,7 +723,7 @@ export default function SidebarV2({
                           } else if (result.success) {
                             toast.success('Collections synced');
                           }
-                        }} 
+                        }}
                         loading={isRefreshingCollections}
                         tooltip="Refresh collections"
                         size={12}
@@ -691,108 +736,113 @@ export default function SidebarV2({
                       </button>
                     </div>
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                    {(isLoadingCollections || isRefreshingCollections) ? (
-                      <div className="flex flex-col gap-1 py-1 pr-2">
-                        <div className="h-7 w-full bg-[var(--surface-3)] rounded-md animate-pulse" />
-                        <div className="h-7 w-[90%] bg-[var(--surface-2)] rounded-md animate-pulse" />
-                        <div className="h-7 w-[80%] bg-[var(--surface-1)] rounded-md animate-pulse" />
-                      </div>
-                    ) : (
-                      <>
-                        {filteredCollections.map((col) => {
-                          const isExp = expandedCollections.has(col._id);
-                          return (
-                            <div key={col._id}>
-                              <div className="group relative pr-1">
-                                <button 
-                                  onClick={() => toggleCollection(col)}
-                                  onContextMenu={(e) => showCollectionContextMenu(e, col)}
-                                  className={`sdbv2-tree-row w-full ${currentCollection?._id === col._id ? 'sdbv2-tree-row--active' : ''}`}>
-                                  <svg className={`sdbv2-chevron ${isExp ? 'sdbv2-chevron--open' : ''}`} width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                  </svg>
-                                  <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ color: 'var(--text-muted)', flexShrink: 0 }}>
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                                  </svg>
-                                  <span className="sdbv2-tree-text flex-1 text-left">{col.name}</span>
-                                </button>
-                                
-                                {/* Refresh Collection Requests Button (shows on hover) */}
-                                <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <RefreshButton 
-                                    onRefresh={async () => {
-                                      setRefreshingColId(col._id);
-                                      const result = await refreshCollectionRequests(col._id);
-                                      setRefreshingColId(null);
-                                      if (result.success) toast.success(`Synced ${col.name}`);
-                                      else toast.error('Sync failed');
-                                    }}
-                                    loading={refreshingColId === col._id}
-                                    tooltip="Refresh APIs"
-                                    size={12}
-                                  />
+                  {showCollectionsSection && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                      {(isLoadingCollections || isRefreshingCollections) ? (
+                        <div className="flex flex-col gap-1 py-1 pr-2">
+                          <div className="h-7 w-full bg-[var(--surface-3)] rounded-md animate-pulse" />
+                          <div className="h-7 w-[90%] bg-[var(--surface-2)] rounded-md animate-pulse" />
+                          <div className="h-7 w-[80%] bg-[var(--surface-1)] rounded-md animate-pulse" />
+                        </div>
+                      ) : (
+                        <>
+                          {filteredCollections.map((col) => {
+                            const isExp = expandedCollections.has(col._id);
+                            return (
+                              <div key={col._id}>
+                                <div className="group relative pr-1">
+                                  <button
+                                    onClick={() => toggleCollection(col)}
+                                    onContextMenu={(e) => showCollectionContextMenu(e, col)}
+                                    className={`sdbv2-tree-row w-full ${currentCollection?._id === col._id ? 'sdbv2-tree-row--active' : ''}`}>
+                                    <svg className={`sdbv2-chevron ${isExp ? 'sdbv2-chevron--open' : ''}`} width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                    </svg>
+                                    <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ color: 'var(--text-muted)', flexShrink: 0 }}>
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                                    </svg>
+                                    <span className="sdbv2-tree-text flex-1 text-left">{col.name}</span>
+                                  </button>
+
+                                  {/* Refresh Collection Requests Button (shows on hover) */}
+                                  <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <RefreshButton
+                                      onRefresh={async () => {
+                                        setRefreshingColId(col._id);
+                                        const result = await refreshCollectionRequests(col._id);
+                                        setRefreshingColId(null);
+                                        if (result.success) toast.success(`Synced ${col.name}`);
+                                        else toast.error('Sync failed');
+                                      }}
+                                      loading={refreshingColId === col._id}
+                                      tooltip="Refresh APIs"
+                                      size={12}
+                                    />
+                                  </div>
                                 </div>
+                                {isExp && (
+                                  <div className="sdbv2-indent animate-in">
+                                    {loadingCollections[col._id] ? (
+                                      <div className="flex flex-col gap-1 py-1 pr-2 pl-4">
+                                        <div className="h-6 w-full bg-[var(--surface-3)] rounded-md animate-pulse" />
+                                        <div className="h-6 w-[80%] bg-[var(--surface-2)] rounded-md animate-pulse" />
+                                      </div>
+                                    ) : (
+                                      <>
+                                        {(col.folders || []).map(folder => {
+                                          const isFolderExp = expandedFolders.has(folder._id);
+                                          return (
+                                            <div key={folder._id}>
+                                              <button onClick={() => toggleFolder(folder._id)} className="sdbv2-tree-row">
+                                                <svg className={`sdbv2-chevron ${isFolderExp ? 'sdbv2-chevron--open' : ''}`} width="9" height="9" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                                </svg>
+                                                <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ color: 'var(--warning)', flexShrink: 0 }}>
+                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                                                </svg>
+                                                <span className="sdbv2-tree-text">{folder.name}</span>
+                                              </button>
+                                              {isFolderExp && requests.filter(r => r.folderId === folder._id).map(req => (
+                                                <SidebarRequest key={req._id} request={req} onSelect={handleRequestSelect} isActive={currentRequest?._id === req._id} />
+                                              ))}
+                                            </div>
+                                          );
+                                        })}
+                                        {requests.filter(r => r.collectionId === col._id && !r.folderId).map(req => (
+                                          <SidebarRequest
+                                            key={req._id}
+                                            request={req}
+                                            onSelect={handleRequestSelect}
+                                            isActive={currentRequest?._id === req._id}
+                                            onContextMenu={(e) => showRequestContextMenu(e, req)}
+                                          />
+                                        ))}
+                                        {requests.filter(r => r.collectionId === col._id).length === 0 && (col.folders || []).length === 0 && (
+                                          <div className="sdbv2-empty-note py-1 pl-4 opacity-50">Empty collection</div>
+                                        )}
+                                      </>
+                                    )}
+                                  </div>
+                                )}
                               </div>
-                              {isExp && (
-                                <div className="sdbv2-indent animate-in">
-                                  {isLoadingRequests ? (
-                                    <div className="flex flex-col gap-1 py-1 pr-2 pl-4">
-                                      <div className="h-6 w-full bg-[var(--surface-3)] rounded-md animate-pulse" />
-                                      <div className="h-6 w-[80%] bg-[var(--surface-2)] rounded-md animate-pulse" />
-                                    </div>
-                                  ) : (
-                                    <>
-                                      {(col.folders || []).map(folder => {
-                                        const isFolderExp = expandedFolders.has(folder._id);
-                                        return (
-                                          <div key={folder._id}>
-                                            <button onClick={() => toggleFolder(folder._id)} className="sdbv2-tree-row">
-                                              <svg className={`sdbv2-chevron ${isFolderExp ? 'sdbv2-chevron--open' : ''}`} width="9" height="9" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                              </svg>
-                                              <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ color: 'var(--warning)', flexShrink: 0 }}>
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                                              </svg>
-                                              <span className="sdbv2-tree-text">{folder.name}</span>
-                                            </button>
-                                            {isFolderExp && requests.filter(r => r.folderId === folder._id).map(req => (
-                                              <SidebarRequest key={req._id} request={req} onSelect={setCurrentRequest} isActive={currentRequest?._id === req._id} />
-                                            ))}
-                                          </div>
-                                        );
-                                      })}
-                                      {requests.filter(r => r.collectionId === col._id && !r.folderId).map(req => (
-                                        <SidebarRequest 
-                                          key={req._id} 
-                                          request={req} 
-                                          onSelect={setCurrentRequest} 
-                                          isActive={currentRequest?._id === req._id}
-                                          onContextMenu={(e) => showRequestContextMenu(e, req)}
-                                        />
-                                      ))}
-                                    </>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                        {filteredCollections.length === 0 && <p className="sdbv2-empty-note">No collections yet</p>}
-                      </>
-                    )}
-                  </div>
+                            );
+                          })}
+                          {filteredCollections.length === 0 && <p className="sdbv2-empty-note">No collections yet</p>}
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </>
           )}
         </div>
-        
+
         {/* Creator attribution */}
         <div style={{ padding: '12px', borderTop: '1px solid var(--border-1)', opacity: 0.3, marginTop: 'auto' }}>
-           <p style={{ fontSize: '10px', fontWeight: 500, color: 'var(--text-muted)' }}>
-             Project by <span style={{ color: 'var(--text-primary)' }}>Sundan Sharma</span>
-           </p>
+          <p style={{ fontSize: '10px', fontWeight: 500, color: 'var(--text-muted)' }}>
+            Project by <span style={{ color: 'var(--text-primary)' }}>Sundan Sharma</span>
+          </p>
         </div>
       </aside>
     </div>
@@ -803,15 +853,15 @@ function SidebarRequest({ request, onSelect, isActive, onContextMenu }) {
   const isWs = request.protocol === 'ws';
   const isSio = request.protocol === 'socketio';
   const color = isWs ? '#38bdf8' : isSio ? '#f0883e' : (METHOD_COLORS[request.method] || '#9A9A9A');
-  
+
   return (
-    <button 
-      onClick={() => onSelect(request)} 
+    <button
+      onClick={() => onSelect(request)}
       onContextMenu={onContextMenu}
       className={`sdbv2-tree-row sdbv2-req-row ${isActive ? 'sdbv2-tree-row--active' : ''}`}
     >
-      <span className="sdbv2-method-badge" style={{ 
-        color, 
+      <span className="sdbv2-method-badge" style={{
+        color,
         background: `${color}18`,
         fontSize: (isWs || isSio) ? '9px' : '10px'
       }}>

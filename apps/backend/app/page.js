@@ -6,7 +6,7 @@ import {
   Box, Atom, Triangle, Leaf, Hexagon, Settings,
   Zap, Lock, Package, Users, Cpu, Globe
 } from "lucide-react";
-import { FaApple, FaWindows, FaLinux } from "react-icons/fa";
+import * as FaIcons from "react-icons/fa";
 
 const getIcon = (name, size) => {
   switch (name) {
@@ -22,9 +22,9 @@ const getIcon = (name, size) => {
     case "Users": return <Users size={size} />;
     case "Cpu": return <Cpu size={size} />;
     case "Globe": return <Globe size={size} />;
-    case "Apple": return <FaApple size={size} />;
-    case "Windows": return <FaWindows size={size} />;
-    case "Linux": return <FaLinux size={size} />;
+    case "Apple": return FaIcons.FaApple ? <FaIcons.FaApple size={size} /> : <Box size={size} />;
+    case "Windows": return FaIcons.FaWindows ? <FaIcons.FaWindows size={size} /> : <Box size={size} />;
+    case "Linux": return FaIcons.FaLinux ? <FaIcons.FaLinux size={size} /> : <Box size={size} />;
     default: return null;
   }
 };
@@ -47,7 +47,6 @@ const FEATURES = [
   { iconName: "Globe", label: "Open Source" },
 ];
 
-// Tech stack that orbits — 6 icons, each on its own unique ring
 const ORBIT_ICONS = [
   { id: "o-tauri", label: "Tauri", iconName: "Tauri", ring: 0, dur: "18s", rev: false },
   { id: "o-rust", label: "Rust", iconName: "Rust", ring: 1, dur: "22s", rev: true },
@@ -57,7 +56,6 @@ const ORBIT_ICONS = [
   { id: "o-socket", label: "Socket.IO", iconName: "Socket.IO", ring: 5, dur: "54s", rev: true },
 ];
 
-// Ring radii as % of orbitScene width:
 const RING_RADII = ["16%", "23%", "30%", "37%", "44%", "51%"];
 
 const BASE_DOWNLOADS = [
@@ -125,7 +123,10 @@ export default function LandingPage() {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  const primaryDl = downloads.find(d => d.platform === userOS) ?? downloads[2];
+  // On the server and during the FIRST client render, hasMounted is false.
+  // We MUST ensure the UI matches the server during that first render.
+  const activeOS = hasMounted ? userOS : "Windows";
+  const primaryDl = downloads.find(d => d.platform === activeOS) ?? downloads[2];
 
   return (
     <main className={styles.root}>
@@ -142,7 +143,7 @@ export default function LandingPage() {
           <a href="https://api-test-desktop.vercel.app/" target="_blank" rel="noreferrer" className={styles.navLink}>Web App</a>
         </div>
         <div className={styles.navRight}>
-          <a href={(hasMounted && primaryDl?.href) || fallback} className={styles.navCta}>Free Download</a>
+          <a href={primaryDl?.href || fallback} className={styles.navCta}>Free Download</a>
         </div>
       </nav>
 
@@ -177,24 +178,27 @@ export default function LandingPage() {
           <div className={styles.dlSection}>
             <div className={styles.dlLabel}>Download for your platform</div>
             <div className={styles.dlButtons}>
-              {downloads.map((d, i) => (
-                <a
-                  key={d.id}
-                  id={d.id}
-                  href={d.href ?? fallback}
-                  className={`${styles.dlBtn} ${(hasMounted && d.platform === userOS) || (!hasMounted && i === 0) ? styles.dlBtnPrimary : ""}`}
-                >
-                  <span className={styles.dlBtnIcon}>{getIcon(d.iconName, 22)}</span>
-                  <div className={styles.dlBtnLabel}>
-                    <span className={styles.dlBtnPlatform}>{d.platform}</span>
-                    <span className={styles.dlBtnName}>
-                      {d.name} {d.ext}
-                      {!isLoading && d.size ? ` · ${d.size}` : ""}
-                      {isLoading ? " ···" : ""}
-                    </span>
-                  </div>
-                </a>
-              ))}
+              {downloads.map((d, i) => {
+                const isPrimary = hasMounted ? d.platform === userOS : i === 0;
+                return (
+                  <a
+                    key={d.id}
+                    id={d.id}
+                    href={d.href ?? fallback}
+                    className={`${styles.dlBtn} ${isPrimary ? styles.dlBtnPrimary : ""}`}
+                  >
+                    <span className={styles.dlBtnIcon}>{getIcon(d.iconName, 22)}</span>
+                    <div className={styles.dlBtnLabel}>
+                      <span className={styles.dlBtnPlatform}>{d.platform}</span>
+                      <span className={styles.dlBtnName}>
+                        {d.name} {d.ext}
+                        {!isLoading && d.size && ` · ${d.size}`}
+                        {isLoading && " ···"}
+                      </span>
+                    </div>
+                  </a>
+                );
+              })}
             </div>
           </div>
         </div>

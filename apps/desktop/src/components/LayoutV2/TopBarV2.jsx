@@ -12,7 +12,7 @@ import SyncStatusTag from '@/components/SyncStatusTag/SyncStatusTag';
 import ContextSelector from './ContextSelector';
 
 export default function TopBarV2({ onToggleSidebar, sidebarOpen, orientation, onToggleOrientation }) {
-  const { theme, toggleTheme, toggleLayout } = useUIStore();
+  const { theme, toggleTheme, toggleLayout, setActiveV2Nav } = useUIStore();
   const { user } = useAuthStore();
   const { isConnected } = useSocketStore();
   const { currentTeam } = useTeamStore();
@@ -133,6 +133,7 @@ export default function TopBarV2({ onToggleSidebar, sidebarOpen, orientation, on
                       key={req._id}
                       onClick={() => {
                         setCurrentRequest(req);
+                        setActiveV2Nav('collections');
                         setShowDropdown(false);
                         setGlobalSearch('');
                         searchInputRef.current?.blur();
