@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import api from '@/lib/api';
 import { localStorageService } from '@/services/localStorageService';
 import { syncService } from '@/services/syncService';
+import { v4 as uuidv4 } from 'uuid';
 import toast from 'react-hot-toast';
 
 export const useTeamStore = create((set, get) => ({
