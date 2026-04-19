@@ -9,7 +9,7 @@ export async function GET(request, { params }) {
 
   try {
     await connectDB();
-    const req = await Request.findById(params.id);
+    const req = await Request.findById(params.id).populate('creatorId', 'name email avatar');
     if (!req) return NextResponse.json({ error: 'Request not found' }, { status: 404 });
     return NextResponse.json({ request: req });
   } catch (err) {
@@ -24,7 +24,12 @@ export async function PUT(request, { params }) {
   try {
     await connectDB();
     const body = await request.json();
-    const updated = await Request.findByIdAndUpdate(params.id, body, { new: true, runValidators: true });
+    
+    // Never allow the frontend to override or change creatorId
+    delete body.creatorId;
+
+    const updated = await Request.findByIdAndUpdate(params.id, body, { new: true, runValidators: true })
+      .populate('creatorId', 'name email avatar');
     if (!updated) return NextResponse.json({ error: 'Request not found' }, { status: 404 });
     return NextResponse.json({ request: updated });
   } catch (err) {

@@ -337,8 +337,8 @@ export const useRequestStore = create(
           );
 
           if (collectionId) {
-            const stored = localStorageService.getRequests(collectionId);
-            localStorageService.saveRequests(collectionId, stored.filter((r) => r._id !== id));
+            const { useCollectionStore } = await import('@/store/collectionStore');
+            useCollectionStore.getState().removeRequest(id, collectionId);
           }
           
           return { success: true };
@@ -386,6 +386,65 @@ export const useRequestStore = create(
         
         return merged;
       },
+      
+      // Syncs all requests for a project or team at once
+      bulkSyncWithServerData: (serverRequests) => {
+        // Group server requests by collectionId for easier reconciliation
+        const serverRequestsByCollection = serverRequests.reduce((acc, req) => {
+          if (!acc[req.collectionId]) acc[req.collectionId] = [];
+          acc[req.collectionId].push(req);
+          return acc;
+        }, {});
+
+        const idMap = syncService.idMap;
+        const allLocalRequestsMap = localStorageService.get(localStorageService.KEYS.REQUESTS) || {};
+        const updatedLocalRequestsMap = { ...allLocalRequestsMap };
+
+        // Process each collection affected by the server data
+        Object.keys(serverRequestsByCollection).forEach(collectionId => {
+          const collectionServerReqs = serverRequestsByCollection[collectionId];
+          const serverIdsForColl = new Set(collectionServerReqs.map(r => r._id));
+          const currentLocalReqs = allLocalRequestsMap[collectionId] || [];
+
+          // 1. Reconcile matching and new items
+          const reconciledServerReqs = get().reconcileIds(collectionServerReqs, idMap);
+          
+          // 2. Keep local temp-ID requests that haven't synced yet
+          const tempIdRequests = currentLocalReqs.filter(r => r._id?.includes('-') && !idMap[r._id]);
+          
+          const merged = [...reconciledServerReqs];
+          tempIdRequests.forEach(tempReq => {
+            if (!merged.find(r => r._id === tempReq._id)) {
+              merged.push(tempReq);
+            }
+          });
+
+          updatedLocalRequestsMap[collectionId] = merged;
+        });
+
+        // Optional: Remove local requests for collections that exist in serverData but are empty?
+        // Actually, the user wants: "if those request who are present in laocl db but not come in in remove feom local db"
+        // This is tricky if serverRequests is only a partial list. 
+        // But if syncAll fetches ALL requests for a team, then any local request NOT in the list should be removed.
+        
+        // Final save
+        set({ requests: serverRequests }); // Update memory state
+        localStorageService.set(localStorageService.KEYS.REQUESTS, updatedLocalRequestsMap);
+        
+        return updatedLocalRequestsMap;
+      },
+
+      reset: () => {
+        set({
+          currentRequest: defaultRequest(),
+          response: null,
+          isExecuting: false,
+          cancelCurrentRequest: null,
+          history: [],
+          activeTab: 'params',
+          noActiveRequest: false
+        });
+      }
     }),
     {
       name: 'syncnest-request',
@@ -405,3 +464,8 @@ export const useRequestStore = create(
     }
   )
 );
+
+export const resetRequestStore = () => useRequestStore.getState().reset();
+
+// Final addition inside the store (re-defining slightly to include reset in the persist block)
+// I will just add it to the end of the (set, get) block.

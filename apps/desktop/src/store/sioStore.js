@@ -145,8 +145,12 @@ export const useSIOStore = create((set, get) => ({
   },
 
   disconnectAll: () => {
-    const conns = get().connections;
     Object.values(conns).forEach((s) => s.disconnect());
     set({ connections: {}, connectionStatus: {} });
   },
+
+  reset: () => {
+    get().disconnectAll();
+    set({ logs: {} });
+  }
 }));

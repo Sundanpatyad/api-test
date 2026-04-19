@@ -274,4 +274,13 @@ export const useProjectStore = create((set, get) => ({
       return { success: false, error: err.response?.data?.error || 'Failed to delete project' };
     }
   },
+
+  reset: () => {
+    set({
+      projects: [],
+      currentProject: null,
+      isLoading: false,
+      isRefreshing: false
+    });
+  }
 }));

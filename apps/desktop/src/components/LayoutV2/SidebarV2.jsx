@@ -153,6 +153,11 @@ export default function SidebarV2({
   const [isSearching, setIsSearching] = useState(false);
   const [showLogout, setShowLogout] = useState(false);
   const [initializedCollections, setInitializedCollections] = useState(new Set());
+  
+  const [expandedProjects, setExpandedProjects] = useState(() => {
+    const saved = localStorage.getItem('sidebar_expanded_projects');
+    return saved ? new Set(JSON.parse(saved)) : new Set();
+  });
 
   // Load section expansion state from localStorage
   const [showTeamsSection, setShowTeamsSection] = useState(() => {
@@ -194,7 +199,25 @@ export default function SidebarV2({
   // ── Data fetching ──────────────────
   useEffect(() => { fetchTeams(); }, []);
   useEffect(() => { if (currentTeam) fetchProjects(currentTeam._id); }, [currentTeam?._id]);
-  useEffect(() => { if (currentProject) fetchCollections(currentProject._id); }, [currentProject?._id]);
+  
+  // Auto-Sync everything if collections is empty or on team change
+  useEffect(() => { 
+    if (currentTeam && collections.length === 0) {
+      syncAll(currentTeam._id);
+    }
+  }, [currentTeam?._id]);
+
+  // Use a derived state for grouped collections to avoid recalculating during render
+  const collectionsByProject = useMemo(() => {
+    return collections.reduce((acc, col) => {
+      const pid = col.projectId;
+      if (!acc[pid]) acc[pid] = [];
+      acc[pid].push(col);
+      return acc;
+    }, {});
+  }, [collections]);
+
+  const { syncAll } = useCollectionStore();
 
   // ── Update ref when expandedCollections changes ──────────────────
   useEffect(() => {
@@ -213,6 +236,16 @@ export default function SidebarV2({
 
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
+  // ── Load cached requests for expanded collections on mount ──────────────────
+  useEffect(() => {
+    // Load from localStorage for any collections that were previously expanded
+    // This ensures requests are shown immediately without waiting for API
+    expandedCollections.forEach(id => {
+      loadCollectionRequestsFromStorage(id);
+      setInitializedCollections(prev => new Set(prev).add(id));
+    });
   }, []);
 
   // ── Listen for collection import events to auto-expand ──────────────────
@@ -268,7 +301,7 @@ export default function SidebarV2({
   const showTeamContextMenu = (e, team) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!isTeamOwner(team)) return; // Only owner can edit/delete team
+    if (!isTeamAdmin(team)) return; // Only admins (including owner) can edit/delete team
 
     setContextMenu({
       x: e.clientX,
@@ -566,6 +599,14 @@ export default function SidebarV2({
     }
   };
 
+  const toggleProject = (projectId) => {
+    const next = new Set(expandedProjects);
+    if (next.has(projectId)) next.delete(projectId);
+    else next.add(projectId);
+    setExpandedProjects(next);
+    localStorage.setItem('sidebar_expanded_projects', JSON.stringify([...next]));
+  };
+
   const toggleFolder = (fid) => {
     const next = new Set(expandedFolders);
     next.has(fid) ? next.delete(fid) : next.add(fid);
@@ -702,30 +743,27 @@ export default function SidebarV2({
             </div>
           ) : (
             <>
-
-
-              {/* Collections */}
-              {currentProject && (
+              {/* Grouped Projects & Collections - Only show when project is selected */}
+              {currentProject ? (
                 <div className="sdbv2-section">
                   <div className="sdbv2-section-head clickable" onClick={() => setShowCollectionsSection(!showCollectionsSection)}>
                     <div className="flex items-center gap-1">
                       <svg className={`sdbv2-chevron ${showCollectionsSection ? 'sdbv2-chevron--open' : ''}`} width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                       </svg>
-                      <span className="sdbv2-section-label">Collections</span>
+                      <span className="sdbv2-section-label">All Collections</span>
                     </div>
                     <div style={{ display: 'flex', gap: 4, alignItems: 'center' }} onClick={(e) => e.stopPropagation()}>
                       <RefreshButton
                         onRefresh={async () => {
-                          const result = await refreshCollections(currentProject._id);
-                          if (result.fromCache) {
-                            toast(result.error, { icon: '📦', style: { background: '#E3B341', color: '#000' } });
-                          } else if (result.success) {
-                            toast.success('Collections synced');
+                          if (currentTeam) {
+                            const res = await syncAll(currentTeam._id);
+                            if (res.success) toast.success('Workspace synced');
+                            else toast.error('Sync failed');
                           }
                         }}
                         loading={isRefreshingCollections}
-                        tooltip="Refresh collections"
+                        tooltip="Sync everything"
                         size={12}
                       />
                       <button className="sdbv2-section-add" onClick={onShowImportModal} title="Import">
@@ -736,104 +774,131 @@ export default function SidebarV2({
                       </button>
                     </div>
                   </div>
-                  {showCollectionsSection && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                      {(isLoadingCollections || isRefreshingCollections) ? (
-                        <div className="flex flex-col gap-1 py-1 pr-2">
-                          <div className="h-7 w-full bg-[var(--surface-3)] rounded-md animate-pulse" />
-                          <div className="h-7 w-[90%] bg-[var(--surface-2)] rounded-md animate-pulse" />
-                          <div className="h-7 w-[80%] bg-[var(--surface-1)] rounded-md animate-pulse" />
-                        </div>
-                      ) : (
-                        <>
-                          {filteredCollections.map((col) => {
-                            const isExp = expandedCollections.has(col._id);
-                            return (
-                              <div key={col._id}>
-                                <div className="group relative pr-1">
-                                  <button
-                                    onClick={() => toggleCollection(col)}
-                                    onContextMenu={(e) => showCollectionContextMenu(e, col)}
-                                    className={`sdbv2-tree-row w-full ${currentCollection?._id === col._id ? 'sdbv2-tree-row--active' : ''}`}>
-                                    <svg className={`sdbv2-chevron ${isExp ? 'sdbv2-chevron--open' : ''}`} width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                    </svg>
-                                    <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ color: 'var(--text-muted)', flexShrink: 0 }}>
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                                    </svg>
-                                    <span className="sdbv2-tree-text flex-1 text-left">{col.name}</span>
-                                  </button>
 
-                                  {/* Refresh Collection Requests Button (shows on hover) */}
-                                  <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <RefreshButton
-                                      onRefresh={async () => {
-                                        setRefreshingColId(col._id);
-                                        const result = await refreshCollectionRequests(col._id);
-                                        setRefreshingColId(null);
-                                        if (result.success) toast.success(`Synced ${col.name}`);
-                                        else toast.error('Sync failed');
-                                      }}
-                                      loading={refreshingColId === col._id}
-                                      tooltip="Refresh APIs"
-                                      size={12}
-                                    />
-                                  </div>
-                                </div>
-                                {isExp && (
-                                  <div className="sdbv2-indent animate-in">
-                                    {loadingCollections[col._id] ? (
-                                      <div className="flex flex-col gap-1 py-1 pr-2 pl-4">
-                                        <div className="h-6 w-full bg-[var(--surface-3)] rounded-md animate-pulse" />
-                                        <div className="h-6 w-[80%] bg-[var(--surface-2)] rounded-md animate-pulse" />
+                  {showCollectionsSection && (
+                    <div className="flex flex-col gap-1 mt-1">
+                      {filteredProjects.map((project) => {
+                        const projectCollections = collectionsByProject[project._id] || [];
+                        const isProjExp = expandedProjects.has(project._id);
+                        
+                        return (
+                          <div key={project._id} className="mb-1">
+                            {/* Project Header */}
+                            <button 
+                              onClick={() => toggleProject(project._id)}
+                              className="sdbv2-tree-row w-full opacity-80 hover:opacity-100"
+                              style={{ paddingLeft: '4px' }}
+                            >
+                              <svg className={`sdbv2-chevron ${isProjExp ? 'sdbv2-chevron--open' : ''}`} width="8" height="8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                              </svg>
+                              <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ color: project.color || 'var(--brand-500)', flexShrink: 0 }}>
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                              </svg>
+                              <span className="sdbv2-tree-text font-bold uppercase tracking-wider text-[9px] truncate">{project.name}</span>
+                            </button>
+
+                            {/* Collections in Project */}
+                            {isProjExp && (
+                              <div className="sdbv2-indent ml-2">
+                                {projectCollections.map((col) => {
+                                  const isExp = expandedCollections.has(col._id);
+                                  return (
+                                    <div key={col._id}>
+                                      <div className="group relative pr-1">
+                                        <button
+                                          onClick={() => toggleCollection(col)}
+                                          onContextMenu={(e) => showCollectionContextMenu(e, col)}
+                                          className={`sdbv2-tree-row w-full ${currentCollection?._id === col._id ? 'sdbv2-tree-row--active' : ''}`}>
+                                          <svg className={`sdbv2-chevron ${isExp ? 'sdbv2-chevron--open' : ''}`} width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                          </svg>
+                                          <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ color: 'var(--text-muted)', flexShrink: 0 }}>
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                                          </svg>
+                                          <span className="sdbv2-tree-text flex-1 text-left">{col.name}</span>
+                                        </button>
+
+                                      <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <RefreshButton
+                                          onRefresh={async () => {
+                                            setRefreshingColId(col._id);
+                                            const result = await refreshCollectionRequests(col._id);
+                                            setRefreshingColId(null);
+                                            if (result.success) toast.success(`Synced ${col.name}`);
+                                            else toast.error('Sync failed');
+                                          }}
+                                          loading={refreshingColId === col._id}
+                                          tooltip="Refresh APIs"
+                                          size={12}
+                                        />
                                       </div>
-                                    ) : (
-                                      <>
-                                        {(col.folders || []).map(folder => {
-                                          const isFolderExp = expandedFolders.has(folder._id);
-                                          return (
-                                            <div key={folder._id}>
-                                              <button onClick={() => toggleFolder(folder._id)} className="sdbv2-tree-row">
-                                                <svg className={`sdbv2-chevron ${isFolderExp ? 'sdbv2-chevron--open' : ''}`} width="9" height="9" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                                </svg>
-                                                <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ color: 'var(--warning)', flexShrink: 0 }}>
-                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                                                </svg>
-                                                <span className="sdbv2-tree-text">{folder.name}</span>
-                                              </button>
-                                              {isFolderExp && requests.filter(r => r.folderId === folder._id).map(req => (
-                                                <SidebarRequest key={req._id} request={req} onSelect={handleRequestSelect} isActive={currentRequest?._id === req._id} />
-                                              ))}
-                                            </div>
-                                          );
-                                        })}
-                                        {requests.filter(r => r.collectionId === col._id && !r.folderId).map(req => (
-                                          <SidebarRequest
-                                            key={req._id}
-                                            request={req}
-                                            onSelect={handleRequestSelect}
-                                            isActive={currentRequest?._id === req._id}
-                                            onContextMenu={(e) => showRequestContextMenu(e, req)}
-                                          />
-                                        ))}
-                                        {requests.filter(r => r.collectionId === col._id).length === 0 && (col.folders || []).length === 0 && (
-                                          <div className="sdbv2-empty-note py-1 pl-4 opacity-50">Empty collection</div>
+                                    </div>
+                                    {isExp && (
+                                      <div className="sdbv2-indent animate-in">
+                                        {loadingCollections[col._id] ? (
+                                          <div className="flex flex-col gap-1 py-1 pr-2 pl-4">
+                                            <div className="h-6 w-full bg-[var(--surface-3)] rounded-md animate-pulse" />
+                                            <div className="h-6 w-[80%] bg-[var(--surface-2)] rounded-md animate-pulse" />
+                                          </div>
+                                        ) : (
+                                          <>
+                                            {(col.folders || []).map(folder => {
+                                              const isFolderExp = expandedFolders.has(folder._id);
+                                              return (
+                                                <div key={folder._id}>
+                                                  <button onClick={() => toggleFolder(folder._id)} className="sdbv2-tree-row">
+                                                    <svg className={`sdbv2-chevron ${isFolderExp ? 'sdbv2-chevron--open' : ''}`} width="9" height="9" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                                    </svg>
+                                                    <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ color: 'var(--warning)', flexShrink: 0 }}>
+                                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                                                    </svg>
+                                                    <span className="sdbv2-tree-text">{folder.name}</span>
+                                                  </button>
+                                                  {isFolderExp && requests.filter(r => r.folderId === folder._id).map(req => (
+                                                    <SidebarRequest key={req._id} request={req} onSelect={handleRequestSelect} isActive={currentRequest?._id === req._id} />
+                                                  ))}
+                                                </div>
+                                              );
+                                            })}
+                                            {requests.filter(r => r.collectionId === col._id && !r.folderId).map(req => (
+                                              <SidebarRequest
+                                                key={req._id}
+                                                request={req}
+                                                onSelect={handleRequestSelect}
+                                                isActive={currentRequest?._id === req._id}
+                                                onContextMenu={(e) => showRequestContextMenu(e, req)}
+                                              />
+                                            ))}
+                                            {requests.filter(r => r.collectionId === col._id).length === 0 && (col.folders || []).length === 0 && (
+                                              <div className="sdbv2-empty-note py-1 pl-4 opacity-50">Empty collection</div>
+                                            )}
+                                          </>
                                         )}
-                                      </>
+                                      </div>
                                     )}
                                   </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                          {filteredCollections.length === 0 && <p className="sdbv2-empty-note">No collections yet</p>}
-                        </>
-                      )}
-                    </div>
-                  )}
+                                );
+                              })}
+                              {projectCollections.length === 0 && <p className="sdbv2-empty-note ml-4">No collections yet</p>}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                    {filteredProjects.length === 0 && <p className="sdbv2-empty-note">No projects yet</p>}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="sdbv2-section">
+                <div className="sdbv2-section-head">
+                  <span className="sdbv2-section-label">Collections</span>
                 </div>
-              )}
+                <p className="sdbv2-empty-note p-4 text-center">Select a project to view collections</p>
+              </div>
+            )}
             </>
           )}
         </div>

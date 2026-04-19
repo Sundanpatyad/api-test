@@ -298,4 +298,14 @@ export const useTeamStore = create((set, get) => ({
       return { success: false, error: err.response?.data?.error || 'Remove failed' };
     }
   },
+
+  reset: () => {
+    set({
+      teams: [],
+      currentTeam: null,
+      isLoading: false,
+      isRefreshing: false,
+      pendingChanges: []
+    });
+  }
 }));

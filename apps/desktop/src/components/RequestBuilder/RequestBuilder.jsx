@@ -310,31 +310,63 @@ export default function RequestBuilder() {
             )}
           </div>
 
-          {isEditingName ? (
-            <input
-              autoFocus
-              className="input text-[13px] font-semibold h-7 flex-1 max-w-sm"
-              placeholder="Request name"
-              value={currentRequest.name}
-              onChange={(e) => updateField('name', e.target.value)}
-              onBlur={() => setIsEditingName(false)}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') setIsEditingName(false); }}
-            />
-          ) : (
-            <span
-              onClick={() => setIsEditingName(true)}
-              className="text-[13px] font-semibold text-[color:var(--text-primary)] cursor-text hover:bg-[color:var(--surface-3)] px-1.5 py-0.5 rounded transition-colors truncate"
-              title="Click to edit"
-            >
-              {currentRequest.name || 'Untitled Request'}
-            </span>
-          )}
+          <div className="flex flex-col min-w-0">
+            {isEditingName ? (
+              <input
+                autoFocus
+                className="input text-[13px] font-semibold h-7 w-full max-w-sm"
+                placeholder="Request name"
+                value={currentRequest.name}
+                onChange={(e) => updateField('name', e.target.value)}
+                onBlur={() => setIsEditingName(false)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') setIsEditingName(false); }}
+              />
+            ) : (
+              <span
+                onClick={() => setIsEditingName(true)}
+                className="text-[13px] font-semibold text-[color:var(--text-primary)] cursor-text hover:bg-[color:var(--surface-3)] px-1.5 py-0.5 rounded transition-colors truncate"
+                title="Click to edit"
+              >
+                {currentRequest.name || 'Untitled Request'}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Right: Actions */}
-        <div className="flex items-center gap-1.5 flex-shrink-0">
+        <div className="flex items-center gap-2 flex-shrink-0">
           {/* Presence: who else is viewing this request */}
           <RequestPresence requestId={currentRequest?._id} />
+
+          {/* Creator Badge — near save button */}
+          {currentRequest.creatorId?.name ? (
+            <div
+              className="flex items-center gap-1.5 px-2 py-1 rounded-md"
+              style={{ background: 'var(--surface-2)', border: '1px solid var(--border-1)' }}
+              title={`Created by ${currentRequest.creatorId.name}`}
+            >
+              <div
+                style={{
+                  width: 16,
+                  height: 16,
+                  borderRadius: '50%',
+                  background: 'var(--accent)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 9,
+                  fontWeight: 700,
+                  color: '#fff',
+                  flexShrink: 0,
+                }}
+              >
+                {currentRequest.creatorId.name.charAt(0).toUpperCase()}
+              </div>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                {currentRequest.creatorId.name}
+              </span>
+            </div>
+          ) : null}
 
           {/* Save Button (Icon Only) */}
           <button

@@ -52,7 +52,7 @@ export default function App() {
   } = useSocketStore();
   const { currentTeam, initFromStorage: initTeams, updateTeamName, deleteTeam, fetchTeams, teams } = useTeamStore();
   const { initFromStorage: initProjects, updateProjectName, deleteProject, fetchProjects, projects } = useProjectStore();
-  const { updateRequest, updateCollection, deleteCollection, addRequest } = useCollectionStore();
+  const { updateRequest, updateCollection, deleteCollection, addRequest, initFromStorage: initCollections } = useCollectionStore();
   const {
     sidebarWidth,
     setSidebarWidth,
@@ -93,6 +93,7 @@ export default function App() {
       // Initialize stores from localStorage for offline-first experience
       initTeams();
       initProjects();
+      initCollections();
     };
 
     // Check on initial load

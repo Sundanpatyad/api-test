@@ -39,15 +39,41 @@ export const useAuthStore = create(
       },
 
       logout: async () => {
-        // Full data wipe
+        // 1. Disconnect Sockets first to clear presence on server
+        try {
+          const { useSocketStore } = await import('@/store/socketStore');
+          useSocketStore.getState().disconnect();
+        } catch (e) {
+          console.error('[Logout] Socket disconnect failed:', e);
+        }
+
+        // 2. Clear all LocalStorage/SessionStorage
         localStorage.clear();
         sessionStorage.clear();
         
+        // 3. Reset all memory stores to initial state
         try {
+          const { useCollectionStore } = await import('@/store/collectionStore');
+          const { useProjectStore } = await import('@/store/projectStore');
+          const { useTeamStore } = await import('@/store/teamStore');
+          const { useRequestStore } = await import('@/store/requestStore');
+          const { useUIStore } = await import('@/store/uiStore');
+          const { useEnvironmentStore } = await import('@/store/environmentStore');
           const { useSyncQueueStore } = await import('@/store/syncQueueStore');
+          const { useWSStore } = await import('@/store/wsStore');
+          const { useSIOStore } = await import('@/store/sioStore');
+
+          useCollectionStore.getState().reset();
+          useProjectStore.getState().reset();
+          useTeamStore.getState().reset();
+          useRequestStore.getState().reset();
+          useUIStore.getState().reset();
+          useEnvironmentStore.getState().reset();
+          useWSStore.getState().reset();
+          useSIOStore.getState().reset();
           useSyncQueueStore.getState().clearQueue();
         } catch (e) {
-          // Ignore
+          console.error('[Logout] Store reset failed:', e);
         }
         
         set({ user: null, token: null });
