@@ -27,9 +27,9 @@ export default function AuthPage() {
     <div className="flex h-screen bg-[#0f0f0f] overflow-hidden font-inter selection:bg-sky-500/20">
       {/* ── Left Side: Hero Image with Brand Overlay ── */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden group">
-        <img 
-          src={heroImg} 
-          alt="PayloadX Studio" 
+        <img
+          src={heroImg}
+          alt="PayloadX Studio"
           className="absolute inset-0 w-full h-full object-cover transition-transform duration-[2.5s] ease-out group-hover:scale-105"
         />
         {/* Soft Modern Overlay */}
@@ -57,15 +57,15 @@ export default function AuthPage() {
           {/* Header */}
           <div className="space-y-8">
             <div className="flex flex-col items-center lg:items-start gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-sky-500 flex items-center justify-center p-2.5 shadow-lg shadow-sky-500/20">
-                <img src={logoImg} alt="logo" className="w-full h-full object-contain invert" />
+              <div className="w-12 h-12 rounded-2xl bg-sky-500 flex items-center justify-center p-0 shadow-lg shadow-sky-500/20">
+                <img src={logoImg} alt="logo" className="w-full h-full object-contain " />
               </div>
               <h1 className="text-3xl font-bold text-white tracking-tight">
                 {mode === 'login' ? 'Welcome back' : 'Create an account'}
               </h1>
               <p className="text-slate-500 text-sm font-medium">
-                {mode === 'login' 
-                  ? 'Access your workspace and continue building.' 
+                {mode === 'login'
+                  ? 'Access your workspace and continue building.'
                   : 'Start your journey with PayloadX today.'}
               </p>
             </div>
@@ -115,8 +115,8 @@ export default function AuthPage() {
               />
             </div>
 
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               className="w-full h-12 bg-sky-500 hover:bg-sky-400 text-slate-900 font-bold rounded-full transition-all duration-300 active:scale-[0.98] mt-6 flex items-center justify-center gap-2 group disabled:opacity-50"
               disabled={isLoading}
             >
@@ -149,7 +149,7 @@ export default function AuthPage() {
               <p className="text-[10px] font-bold text-white uppercase tracking-widest">
                 PayloadX Studio
               </p>
-              <span className="text-[9px] font-medium text-slate-500">v1.2.0</span>
+              <span className="text-[9px] font-medium text-slate-500">v1.2.0 • Created by Sundan Sharma</span>
             </div>
           </div>
         </div>

@@ -35,11 +35,6 @@ export const useTeamStore = create((set, get) => ({
         localStorageService.saveTeams(syncedTeams);
         localStorageService.updateLastSync();
         
-        // Auto-select first team if none selected
-        if (!get().currentTeam && syncedTeams.length > 0) {
-          set({ currentTeam: syncedTeams[0] });
-          localStorageService.saveCurrentTeam(syncedTeams[0]);
-        }
         return { success: true, teams: syncedTeams, fromCache: false };
       }
       throw new Error('No teams returned from API');
@@ -47,10 +42,6 @@ export const useTeamStore = create((set, get) => ({
       // Fallback to localStorage on API failure
       const cachedTeams = localStorageService.get(localStorageService.KEYS.TEAMS) || [];
       set({ teams: cachedTeams, isLoading: false });
-      // Auto-select first team from cache if none selected
-      if (!get().currentTeam && cachedTeams.length > 0) {
-        set({ currentTeam: cachedTeams[0] });
-      }
       return { 
         success: cachedTeams.length > 0, 
         teams: cachedTeams, 
@@ -116,26 +107,10 @@ export const useTeamStore = create((set, get) => ({
       // Sync with server data - handles deletes from other users
       const syncedTeams = get().syncWithServerData(serverTeams);
       
-      // Auto-create default team if empty
-      if (syncedTeams.length === 0) {
-        const tempId = uuidv4();
-        const defaultTeam = { _id: tempId, name: 'My Workspace', description: 'Default personal workspace', members: [] };
-        syncedTeams.push(defaultTeam);
-        if (navigator.onLine) {
-          api.post('/api/team', { name: 'My Workspace', description: 'Default personal workspace' }).catch(() => {});
-        }
-      }
 
       set({ teams: syncedTeams, isRefreshing: false });
       localStorageService.saveTeams(syncedTeams);
       localStorageService.updateLastSync();
-      
-      // Update current team if it was deleted
-      const currentTeam = get().currentTeam;
-      if (currentTeam && !syncedTeams.find(t => t._id === currentTeam._id)) {
-        set({ currentTeam: syncedTeams[0] || null });
-        localStorageService.saveCurrentTeam(syncedTeams[0] || null);
-      }
       
       return { success: true, teams: syncedTeams, fromCache: false };
     } catch (err) {

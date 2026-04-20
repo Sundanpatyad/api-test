@@ -78,7 +78,10 @@ export default function SplashScreen({ onComplete }) {
         </div>
 
         {/* Version Footer */}
-        <p className="text-white/10 text-[10px] font-mono absolute -bottom-24">VER 1.2.0 • STABLE</p>
+        <div className="flex flex-col items-center gap-1 absolute -bottom-24">
+          <p className="text-white/10 text-[10px] font-mono tracking-wider">VER 1.2.0 • STABLE</p>
+          <p className="text-white/20 text-[9px] font-bold uppercase tracking-[0.2em] mb-4">By Sundan Sharma</p>
+        </div>
       </div>
     </div>
   );

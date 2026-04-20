@@ -27,6 +27,8 @@ export async function PUT(request, { params }) {
     
     // Never allow the frontend to override or change creatorId
     delete body.creatorId;
+    
+    console.log(`[API PUT] Updating request: ${params.id} | Protocol: ${body.protocol || 'N/A'}`);
 
     const updated = await Request.findByIdAndUpdate(params.id, body, { new: true, runValidators: true })
       .populate('creatorId', 'name email avatar');

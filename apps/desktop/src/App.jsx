@@ -193,7 +193,9 @@ export default function App() {
     const offRequestDeleted = onRequestDeleted(({ requestId }) => {
       // Request is removed from collection store
     });
-    const offRequestCreated = onRequestCreated(({ request }) => {
+    const offRequestCreated = onRequestCreated(({ request, userId }) => {
+      // Don't add if we are the creator (already handled locally)
+      if (userId === user._id || userId === user.id) return;
       addRequest(request);
     });
 

@@ -28,6 +28,13 @@ const RequestSchema = new mongoose.Schema(
       default: 'GET',
     },
     url: { type: String, default: '' },
+    protocol: {
+      type: String,
+      enum: ['http', 'ws', 'socketio'],
+      default: 'http',
+      index: true,
+    },
+    sioEvent: { type: String, default: 'message' },
     headers: [HeaderSchema],
     params: [ParamSchema],
     body: {
@@ -84,4 +91,9 @@ const RequestSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-export default mongoose.models.Request || mongoose.model('Request', RequestSchema);
+if (mongoose.models.Request) {
+  delete mongoose.models.Request;
+}
+
+const Request = mongoose.model('Request', RequestSchema);
+export default Request;
