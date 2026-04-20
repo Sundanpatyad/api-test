@@ -33,6 +33,7 @@ export default function LayoutV2({
     toggleOrientation,
     activeV2Nav,
     theme,
+    setContextMenu,
   } = useUIStore();
 
   const [rightPanelTab, setRightPanelTab] = useState('Response');
@@ -40,7 +41,7 @@ export default function LayoutV2({
   const { teams, currentTeam } = useTeamStore();
   const { projects, currentProject } = useProjectStore();
   const { currentCollection } = useCollectionStore();
-  const { currentRequest } = useRequestStore();
+  const { currentRequest, openTabs, activeTabId, setActiveTabId, closeTab, closeAllTabs, closeOtherTabs, closeTabsToLeft, closeTabsToRight } = useRequestStore();
 
   // Check if user needs onboarding (no teams or projects)
   const needsOnboarding = teams.length === 0 || projects.length === 0 || !currentProject;
@@ -106,32 +107,111 @@ export default function LayoutV2({
              />
           ) : (
              <>
-                {/* Breadcrumb bar */}
-                <div className="v2-breadcrumb">
-                  <div className="v2-breadcrumb-left">
-                    <svg className="v2-breadcrumb-bolt" width="13" height="13" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M13 3L4 14h7v7l9-11h-7z" />
-                    </svg>
-                    <span className="v2-breadcrumb-seg v2-breadcrumb-static">
-                      {activeV2Nav === 'dashboard' ? 'Dashboard' : 'API Endpoints'}
-                    </span>
-                    {activeV2Nav !== 'dashboard' && currentCollection && (
-                      <>
-                        <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ color: 'var(--text-muted)', flexShrink: 0 }}>
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                        <span className="v2-breadcrumb-seg">{currentCollection.name}</span>
-                      </>
-                    )}
-                    {currentRequest?.name && (
-                      <>
-                        <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ color: 'var(--text-muted)', flexShrink: 0 }}>
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                        <span className="v2-breadcrumb-seg v2-breadcrumb-active">{currentRequest.name}</span>
-                      </>
-                    )}
-                  </div>
+                {/* Tab Bar Map */}
+                <div className="flex bg-[color:var(--surface-1)] border-b border-[color:var(--surface-3)] overflow-x-auto scrollbar-hide h-[40px] shrink-0">
+                  {openTabs?.length > 0 ? (
+                    openTabs.map((tab) => {
+                      const isActive = activeTabId === tab.id;
+                      
+                      // Method styling
+                      let methodColor = 'text-[color:var(--text-muted)]';
+                      let methodText = tab.request.protocol === 'ws' ? 'WS' : tab.request.protocol === 'socketio' ? 'SIO' : tab.request.method;
+                      if (tab.request.protocol === 'http') {
+                        if (methodText === 'GET') methodColor = 'text-green-500';
+                        else if (methodText === 'POST') methodColor = 'text-blue-500';
+                        else if (methodText === 'PUT') methodColor = 'text-yellow-500';
+                        else if (methodText === 'DELETE') methodColor = 'text-red-500';
+                        else if (methodText === 'PATCH') methodColor = 'text-gray-400';
+                      }
+
+                      return (
+                        <div
+                          key={tab.id}
+                          onContextMenu={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setContextMenu({
+                              x: e.clientX,
+                              y: e.clientY,
+                              items: [
+                                {
+                                  id: 'close',
+                                  label: 'Close Tab',
+                                  onClick: () => closeTab(tab.id)
+                                },
+                                {
+                                  id: 'close-others',
+                                  label: 'Close Other Tabs',
+                                  onClick: () => closeOtherTabs(tab.id)
+                                },
+                                {
+                                  id: 'close-right',
+                                  label: 'Close Tabs to Right',
+                                  onClick: () => closeTabsToRight(tab.id)
+                                },
+                                {
+                                  id: 'close-left',
+                                  label: 'Close Tabs to Left',
+                                  onClick: () => closeTabsToLeft(tab.id)
+                                },
+                                { id: 'divider1', divider: true },
+                                {
+                                  id: 'close-all',
+                                  label: 'Close All Tabs',
+                                  danger: true,
+                                  onClick: () => closeAllTabs()
+                                }
+                              ]
+                            });
+                          }}
+                          onClick={(e) => {
+                            if (e.button === 1) { // Middle click to close
+                              e.preventDefault();
+                              closeTab(tab.id);
+                            } else {
+                              setActiveTabId(tab.id);
+                            }
+                          }}
+                          className={`group flex items-center gap-2 h-full min-w-[120px] max-w-[200px] px-3 border-r border-[color:var(--surface-3)] cursor-pointer select-none transition-all ${
+                            isActive 
+                              ? 'bg-[color:var(--surface-2)] text-[color:var(--text-primary)] relative after:absolute after:top-0 after:left-0 after:right-0 after:h-[2px] after:bg-[color:var(--accent)]' 
+                              : 'text-[color:var(--text-secondary)] hover:bg-[color:var(--surface-2)] opacity-80'
+                          }`}
+                        >
+                          <span className={`text-[10px] font-bold tracking-wider ${methodColor} shrink-0`}>
+                            {methodText}
+                          </span>
+                          <span className="text-xs truncate flex-1 leading-none mr-2">
+                            {tab.request.name || 'Untitled'}
+                          </span>
+                          
+                          {/* Dot / Close Icon Container */}
+                          <div className="w-[14px] h-[14px] flex items-center justify-center shrink-0">
+                            {tab.isDirty && (
+                              <div className={`w-[6px] h-[6px] rounded-full bg-[color:var(--accent)] ${isActive ? 'group-hover:hidden' : ''}`} />
+                            )}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                closeTab(tab.id);
+                              }}
+                              className={`w-[14px] h-[14px] rounded hover:bg-[color:var(--surface-3)] flex items-center justify-center text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)] transition-colors ${
+                                tab.isDirty ? 'hidden group-hover:flex' : 'opacity-0 group-hover:opacity-100'
+                              } ${isActive && !tab.isDirty ? 'opacity-100' : ''}`}
+                            >
+                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="flex items-center h-full px-4 text-xs text-[color:var(--text-muted)] font-medium italic">
+                      No APIs open
+                    </div>
+                  )}
                 </div>
 
                  {/* ── VERTICAL SPLIT (side-by-side) ── */}
