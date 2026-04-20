@@ -1,37 +1,54 @@
 /**
  * Format response body with pretty-printing if JSON
+ * Handles cross-platform line endings (Windows CRLF, Unix LF, Unicode BOM)
  */
 export function formatBody(body, contentType = '') {
   if (!body) return '';
+  
+  // Normalize the body: handle Windows CRLF, remove BOM, trim
+  let normalizedBody = body;
+  if (typeof body === 'string') {
+    // Remove Unicode BOM (Byte Order Mark) if present
+    normalizedBody = body.replace(/^\uFEFF/, '');
+    // Normalize Windows CRLF to LF for consistent processing
+    normalizedBody = normalizedBody.replace(/\r\n/g, '\n');
+    normalizedBody = normalizedBody.replace(/\r/g, '\n');
+  }
 
-  if (contentType.includes('application/json') || isJson(body)) {
+  if (contentType.includes('application/json') || isJson(normalizedBody)) {
     try {
       // standard single-object JSON parse
-      return JSON.stringify(JSON.parse(body), null, 2);
+      return JSON.stringify(JSON.parse(normalizedBody), null, 2);
     } catch {
       // Fallback: it might be NDJSON (Newline Delimited JSON)
       try {
-        const lines = body.split('\n').filter(line => line.trim() !== '');
+        const lines = normalizedBody.split('\n').filter(line => line.trim() !== '');
         if (lines.length > 1) {
           const formattedLines = lines.map(line => {
-            return JSON.stringify(JSON.parse(line), null, 2);
+            try {
+              return JSON.stringify(JSON.parse(line), null, 2);
+            } catch {
+              // If individual line isn't valid JSON, return as-is
+              return line;
+            }
           });
-          return formattedLines.join('\n'); // join the cleanly formatted blocks
+          return formattedLines.join('\n');
         }
       } catch (err) {
-        // If it's truly broken JSON, return the raw unformatted string
-        return body;
+        // If it's truly broken JSON, return the normalized unformatted string
+        return normalizedBody;
       }
     }
   }
-  return body;
+  return normalizedBody;
 }
 
 export function isJson(str) {
   if (!str || typeof str !== 'string') return false;
-  const trimmed = str.trim();
-  return (trimmed.startsWith('{') && trimmed.endsWith('}')) ||
-         (trimmed.startsWith('[') && trimmed.endsWith(']'));
+  // Remove BOM and normalize whitespace for detection
+  const cleaned = str.replace(/^\uFEFF/, '').trim();
+  return (cleaned.startsWith('{') && cleaned.endsWith('}')) ||
+         (cleaned.startsWith('[') && cleaned.endsWith(']'));
 }
 
 /**
