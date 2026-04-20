@@ -1,314 +1,240 @@
-import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { useUIStore } from '@/store/uiStore';
-import { ChevronRight, ChevronDown, Copy, Check, FileText } from 'lucide-react';
+/**
+ * PostmanJsonViewer.jsx — High-performance JSON viewer
+ *
+ * Architecture decisions:
+ *
+ *   1. useJsonWorker  → JSON.parse runs in a Web Worker (off main thread).
+ *      If window.__TAURI__ is present, tries the native Rust `parse_json`
+ *      command first (serde_json), falls back to worker.
+ *
+ *   2. Lazy buildLines → Only EXPANDED subtrees are traversed.
+ *      Default: every object/array starts COLLAPSED.
+ *      Initial render cost = O(top-level keys), not O(all nodes).
+ *
+ *   3. useVirtualList → ~40 DOM nodes in view at any time regardless of
+ *      total line count (handles 100k+ lines smoothly).
+ *
+ *   4. Search → debounced 200ms, O(n) scan once, O(1) hit lookup via Set,
+ *      prev/next via sorted hitIndices[].
+ *
+ *   5. ≥ 5MB → default Raw; Pretty requires explicit opt-in click.
+ */
+
+import {
+  useState, useCallback, useMemo, useRef, useEffect, useLayoutEffect, memo,
+} from 'react';
+import { useUIStore }     from '@/store/uiStore';
+import { useJsonWorker }  from './hooks/useJsonWorker';
+import { useVirtualList } from './hooks/useVirtualList';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const VIRTUAL_THRESHOLD = 500;       // lines before switching to virtual list
-const OVERSCAN = 8;                  // extra rows above/below viewport
-const ROW_HEIGHT = 22;               // px per line (must be fixed for virtual list)
-const HUGE_JSON_BYTES  = 5_000_000;  // 5 MB → force raw view for performance
+const ROW_H              = 22;         // px — every row is exactly this height
+const OVERSCAN           = 8;          // extra rows rendered above/below viewport
+const HUGE               = 5_000_000; // 5 MB threshold
+const SEARCH_DEBOUNCE_MS = 200;
 
-// ─── Utility: escape a string value for JSON display ─────────────────────────
-function escapeStr(s) {
+// ─── Colour palettes ──────────────────────────────────────────────────────────
+const LIGHT = { key: '#185FA5', str: '#639922', num: '#BA7517', bool: '#534AB7', null: '#534AB7', bkt: '#3B6D11', pun: '#555', dim: '#999' };
+const DARK  = { key: '#85B7EB', str: '#97C459', num: '#EF9F27', bool: '#AFA9EC', null: '#AFA9EC', bkt: '#5DCAA5', pun: '#ccc',  dim: '#6e7681' };
+
+// ─── Utilities ────────────────────────────────────────────────────────────────
+function esc(s) {
   return s
-    .replace(/\\/g, '\\\\')
-    .replace(/"/g, '\\"')
-    .replace(/\n/g, '\\n')
-    .replace(/\r/g, '\\r')
-    .replace(/\t/g, '\\t');
+    .replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+    .replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t');
 }
 
-// ─── Core formatter ───────────────────────────────────────────────────────────
-function buildLines(value, path, depth, collapsedPaths, addTrailingComma) {
-  if (value === null) {
-    const text = 'null' + (addTrailingComma ? ',' : '');
-    return [{
-      depth, path, isCollapsible: false, isCollapsed: false,
-      rawContent: text,
-      parts: [
-        { type: 'null', text: 'null' },
-        ...(addTrailingComma ? [{ type: 'punctuation', text: ',' }] : [])
-      ]
-    }];
+function formatSize(n) {
+  if (n < 1024)      return `${n}B`;
+  if (n < 1_048_576) return `${(n / 1024).toFixed(1)}KB`;
+  return `${(n / 1_048_576).toFixed(2)}MB`;
+}
+
+/** Cross-platform clipboard — falls back to execCommand for Tauri/WebView. */
+function copyText(text) {
+  return navigator.clipboard.writeText(text).catch(() => {
+    const ta = Object.assign(document.createElement('textarea'), {
+      value: text,
+      style: 'position:fixed;opacity:0',
+    });
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); } catch (_) {}
+    document.body.removeChild(ta);
+  });
+}
+
+// ─── Lazy line builder ────────────────────────────────────────────────────────
+/**
+ * buildLines — flattens a JSON subtree into display rows.
+ *
+ * CRITICAL INVARIANT: if a path is NOT in `expandedPaths`, this function
+ * emits exactly 1 summary row and DOES NOT recurse into children.
+ * That means on first load (expandedPaths = empty Set) the entire tree is
+ * treated as collapsed → cost is O(Object.keys(root)).
+ */
+function buildLines(v, path, depth, expandedPaths, trail, keyLabel = null) {
+  const kParts  = keyLabel ? [{ t: 'key', s: keyLabel }, { t: 'pun', s: ': ' }] : [];
+  const tParts  = trail   ? [{ t: 'pun', s: ',' }]                               : [];
+  const rawKey  = keyLabel ? `${keyLabel}: ` : '';
+  const trailCh = trail ? ',' : '';
+
+  // Primitives ─────────────────────────────────────────────────────────────────
+  if (v === null)        return [{ depth, path, canExpand: false, isOpen: false, raw: `${rawKey}null${trailCh}`,       parts: [...kParts, { t: 'null', s: 'null'       }, ...tParts] }];
+  if (v === true || v === false) { const s = String(v); return [{ depth, path, canExpand: false, isOpen: false, raw: `${rawKey}${s}${trailCh}`, parts: [...kParts, { t: 'bool', s }, ...tParts] }]; }
+  if (typeof v === 'number')     { const s = String(v); return [{ depth, path, canExpand: false, isOpen: false, raw: `${rawKey}${s}${trailCh}`, parts: [...kParts, { t: 'num',  s }, ...tParts] }]; }
+  if (typeof v === 'string') {
+    const s = `"${esc(v)}"`;
+    return [{ depth, path, canExpand: false, isOpen: false, raw: `${rawKey}${s}${trailCh}`, parts: [...kParts, { t: 'str', s }, ...tParts] }];
   }
 
-  if (typeof value === 'boolean') {
-    const text = String(value) + (addTrailingComma ? ',' : '');
-    return [{
-      depth, path, isCollapsible: false, isCollapsed: false,
-      rawContent: text,
-      parts: [
-        { type: 'boolean', text: String(value) },
-        ...(addTrailingComma ? [{ type: 'punctuation', text: ',' }] : [])
-      ]
-    }];
-  }
+  // Array ───────────────────────────────────────────────────────────────────────
+  if (Array.isArray(v)) {
+    if (!v.length) return [{ depth, path, canExpand: false, isOpen: false, raw: `${rawKey}[]${trailCh}`, parts: [...kParts, { t: 'bkt', s: '[]' }, ...tParts] }];
 
-  if (typeof value === 'number') {
-    const text = String(value) + (addTrailingComma ? ',' : '');
-    return [{
-      depth, path, isCollapsible: false, isCollapsed: false,
-      rawContent: text,
-      parts: [
-        { type: 'number', text: String(value) },
-        ...(addTrailingComma ? [{ type: 'punctuation', text: ',' }] : [])
-      ]
-    }];
-  }
-
-  if (typeof value === 'string') {
-    const inner = escapeStr(value);
-    const display = `"${inner}"` + (addTrailingComma ? ',' : '');
-    return [{
-      depth, path, isCollapsible: false, isCollapsed: false,
-      rawContent: display,
-      parts: [
-        { type: 'string', text: `"${inner}"` },
-        ...(addTrailingComma ? [{ type: 'punctuation', text: ',' }] : [])
-      ]
-    }];
-  }
-
-  if (Array.isArray(value)) {
-    const isCollapsed = collapsedPaths.has(path);
-    if (value.length === 0) {
-      const text = '[]' + (addTrailingComma ? ',' : '');
-      return [{
-        depth, path, isCollapsible: false, isCollapsed: false,
-        rawContent: text,
-        parts: [
-          { type: 'bracket', text: '[]' },
-          ...(addTrailingComma ? [{ type: 'punctuation', text: ',' }] : [])
-        ]
-      }];
+    if (!expandedPaths.has(path)) {
+      // Collapsed — single summary line, zero child traversal
+      const label = `…${v.length} item${v.length !== 1 ? 's' : ''}`;
+      return [{ depth, path, canExpand: true, isOpen: false, raw: `${rawKey}[${label}]${trailCh}`, parts: [...kParts, { t: 'bkt', s: '[' }, { t: 'dim', s: label }, { t: 'bkt', s: ']' }, ...tParts] }];
     }
 
-    if (isCollapsed) {
-      const summary = `[…${value.length} item${value.length !== 1 ? 's' : ''}]` + (addTrailingComma ? ',' : '');
-      return [{
-        depth, path, isCollapsible: true, isCollapsed: true,
-        rawContent: summary,
-        parts: [
-          { type: 'bracket', text: '[' },
-          { type: 'dim', text: `…${value.length} item${value.length !== 1 ? 's' : ''}` },
-          { type: 'bracket', text: ']' },
-          ...(addTrailingComma ? [{ type: 'punctuation', text: ',' }] : [])
-        ]
-      }];
-    }
-
-    const lines = [];
-    lines.push({
-      depth, path, isCollapsible: true, isCollapsed: false,
-      rawContent: '[',
-      parts: [{ type: 'bracket', text: '[' }]
-    });
-
-    value.forEach((item, i) => {
-      const itemPath = `${path}[${i}]`;
-      const isLast   = i === value.length - 1;
-      lines.push(...buildLines(item, itemPath, depth + 1, collapsedPaths, !isLast));
-    });
-
-    const closing = ']' + (addTrailingComma ? ',' : '');
-    lines.push({
-      depth, path, isCollapsible: true, isCollapsed: false,
-      rawContent: closing,
-      parts: [
-        { type: 'bracket', text: ']' },
-        ...(addTrailingComma ? [{ type: 'punctuation', text: ',' }] : [])
-      ]
-    });
-    return lines;
+    const ls = [{ depth, path, canExpand: true, isOpen: true, raw: `${rawKey}[`, parts: [...kParts, { t: 'bkt', s: '[' }] }];
+    for (let i = 0; i < v.length; i++) ls.push(...buildLines(v[i], `${path}[${i}]`, depth + 1, expandedPaths, i < v.length - 1));
+    ls.push({ depth, path, canExpand: true, isOpen: false, raw: `]${trailCh}`, parts: [{ t: 'bkt', s: ']' }, ...tParts] });
+    return ls;
   }
 
-  if (typeof value === 'object') {
-    const isCollapsed = collapsedPaths.has(path);
-    const keys = Object.keys(value);
+  // Object ──────────────────────────────────────────────────────────────────────
+  if (typeof v === 'object') {
+    const keys = Object.keys(v);
+    if (!keys.length) return [{ depth, path, canExpand: false, isOpen: false, raw: `${rawKey}{}${trailCh}`, parts: [...kParts, { t: 'bkt', s: '{}' }, ...tParts] }];
 
-    if (keys.length === 0) {
-      const text = '{}' + (addTrailingComma ? ',' : '');
-      return [{
-        depth, path, isCollapsible: false, isCollapsed: false,
-        rawContent: text,
-        parts: [
-          { type: 'bracket', text: '{}' },
-          ...(addTrailingComma ? [{ type: 'punctuation', text: ',' }] : [])
-        ]
-      }];
-    }
-
-    if (isCollapsed) {
+    if (!expandedPaths.has(path)) {
+      // Collapsed — preview up to 3 key names
       const preview = keys.slice(0, 3).join(', ') + (keys.length > 3 ? ', …' : '');
-      const summary = `{${preview}}` + (addTrailingComma ? ',' : '');
-      return [{
-        depth, path, isCollapsible: true, isCollapsed: true,
-        rawContent: summary,
-        parts: [
-          { type: 'bracket', text: '{' },
-          { type: 'dim', text: preview },
-          { type: 'bracket', text: '}' },
-          ...(addTrailingComma ? [{ type: 'punctuation', text: ',' }] : [])
-        ]
-      }];
+      return [{ depth, path, canExpand: true, isOpen: false, raw: `${rawKey}{${preview}}${trailCh}`, parts: [...kParts, { t: 'bkt', s: '{' }, { t: 'dim', s: preview }, { t: 'bkt', s: '}' }, ...tParts] }];
     }
 
-    const lines = [];
-    lines.push({
-      depth, path, isCollapsible: true, isCollapsed: false,
-      rawContent: '{',
-      parts: [{ type: 'bracket', text: '{' }]
-    });
-
-    keys.forEach((key, i) => {
-      const isLast    = i === keys.length - 1;
-      const keyPath   = `${path}.${key}`;
-      const keyLabel  = `"${escapeStr(key)}"`;
-      const childVal  = value[key];
-
-      const childLines = buildLines(childVal, keyPath, depth + 1, collapsedPaths, !isLast);
-      const first = childLines[0];
-      lines.push({
-        ...first,
-        depth: depth + 1,
-        path: keyPath,
-        rawContent: `${keyLabel}: ${first.rawContent}`,
-        parts: [
-          { type: 'key',         text: keyLabel },
-          { type: 'punctuation', text: ': ' },
-          ...first.parts
-        ]
-      });
-
-      for (let j = 1; j < childLines.length; j++) {
-        lines.push(childLines[j]);
-      }
-    });
-
-    const closing = '}' + (addTrailingComma ? ',' : '');
-    lines.push({
-      depth, path, isCollapsible: true, isCollapsed: false,
-      rawContent: closing,
-      parts: [
-        { type: 'bracket', text: '}' },
-        ...(addTrailingComma ? [{ type: 'punctuation', text: ',' }] : [])
-      ]
-    });
-    return lines;
+    const ls = [{ depth, path, canExpand: true, isOpen: true, raw: `${rawKey}{`, parts: [...kParts, { t: 'bkt', s: '{' }] }];
+    for (let i = 0; i < keys.length; i++) {
+      const k = keys[i];
+      ls.push(...buildLines(v[k], `${path}.${k}`, depth + 1, expandedPaths, i < keys.length - 1, `"${esc(k)}"`));
+    }
+    ls.push({ depth, path, canExpand: true, isOpen: false, raw: `}${trailCh}`, parts: [{ t: 'bkt', s: '}' }, ...tParts] });
+    return ls;
   }
+
   return [];
 }
 
-function collectAllPaths(value, path, out = new Set()) {
-  if (value === null || typeof value !== 'object') return out;
-  if (Array.isArray(value)) {
-    if (value.length > 0) {
-      out.add(path);
-      value.forEach((item, i) => collectAllPaths(item, `${path}[${i}]`, out));
-    }
+/**
+ * collectAllExpandable — full DFS to find every path that can be expanded.
+ * ONLY called when user clicks "Expand All"; never runs at initial load.
+ */
+function collectAllExpandable(v, path, out = new Set()) {
+  if (v === null || typeof v !== 'object') return out;
+  if (Array.isArray(v)) {
+    if (v.length) { out.add(path); v.forEach((x, i) => collectAllExpandable(x, `${path}[${i}]`, out)); }
   } else {
-    const keys = Object.keys(value);
-    if (keys.length > 0) {
-      out.add(path);
-      keys.forEach(k => collectAllPaths(value[k], `${path}.${k}`, out));
-    }
+    const ks = Object.keys(v);
+    if (ks.length) { out.add(path); ks.forEach(k => collectAllExpandable(v[k], `${path}.${k}`, out)); }
   }
   return out;
 }
 
-// ─── Componentry ──────────────────────────────────────────────────────────────
-async function copyToClipboard(text) {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch (_) {
-    return false;
-  }
-}
+// ─── Memoised row component ───────────────────────────────────────────────────
+const JsonRow = memo(function JsonRow({ line, index, colors, isHit, isCurrent, onToggle, onCopy, copiedIdx }) {
+  const [hov, setHov] = useState(false);
+  const copied = copiedIdx === index;
 
-function JsonRow({ index, line, isDark, isCopied, onToggle, onCopy }) {
-  const [hovered, setHovered] = useState(false);
-  const C = {
-    lineNum:    isDark ? '#6e7681' : '#8c8c8c',
-    lineNumBg:  isDark ? '#1e1e1e' : '#f5f5f5',
-    border:     isDark ? '#333'    : '#e0e0e0',
-    hover:      isDark ? '#2a2d2e' : '#f0f0f0',
-    key:        isDark ? '#9cdcfe' : '#0451a5',
-    string:     isDark ? '#ce9178' : '#a31515',
-    number:     isDark ? '#b5cea8' : '#098658',
-    boolean:    isDark ? '#569cd6' : '#0000ff',
-    null:       isDark ? '#569cd6' : '#0000ff',
-    punctuation:isDark ? '#d4d4d4' : '#333333',
-    bracket:    isDark ? '#ffd700' : '#795e26',
-    dim:        isDark ? '#6e7681' : '#888888',
-  };
+  let bg = 'transparent';
+  if (isCurrent) bg = 'rgba(250,199,117,0.35)';
+  else if (isHit) bg = 'rgba(250,238,218,0.20)';
+  else if (hov)   bg = 'rgba(128,128,128,0.10)';
 
   return (
     <div
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
       style={{
-        display: 'flex',
-        alignItems: 'center',
-        height: ROW_HEIGHT,
-        fontFamily: 'ui-monospace, monospace',
-        fontSize: 12,
-        backgroundColor: hovered ? C.hover : 'transparent',
+        display: 'flex', alignItems: 'center', height: ROW_H,
+        fontSize: 11.5, fontFamily: 'var(--font-mono, ui-monospace, monospace)',
+        backgroundColor: bg, paddingRight: 4,
       }}
     >
+      {/* Gutter: line number + chevron */}
       <div
-        onClick={onToggle}
+        onClick={line.canExpand ? onToggle : undefined}
         style={{
-          width: 52, paddingRight: 8, textAlign: 'right', color: C.lineNum,
-          backgroundColor: C.lineNumBg, borderRight: `1px solid ${C.border}`,
-          height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
-          cursor: line.isCollapsible ? 'pointer' : 'default',
+          width: 52, minWidth: 52, textAlign: 'right', paddingRight: 10,
+          color: 'var(--color-text-tertiary, #aaa)',
+          borderRight: '0.5px solid var(--color-border-tertiary, #e0e0e0)',
+          fontSize: 10.5, cursor: line.canExpand ? 'pointer' : 'default',
+          display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
+          gap: 2, height: '100%', userSelect: 'none',
         }}
       >
-        {line.isCollapsible && (
-          line.isCollapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />
+        {line.canExpand && (
+          <span style={{
+            width: 10, display: 'inline-flex', alignItems: 'center',
+            justifyContent: 'center', flexShrink: 0, fontSize: 9,
+            transform: line.isOpen ? 'none' : 'rotate(-90deg)',
+            transition: 'transform 0.12s ease',
+          }}>⌄</span>
         )}
-        <span style={{ marginLeft: 4 }}>{index + 1}</span>
+        <span>{index + 1}</span>
       </div>
-      <div style={{ paddingLeft: 8 + line.depth * 16, flex: 1, whiteSpace: 'pre', overflow: 'hidden' }}>
+
+      {/* Content */}
+      <div style={{
+        paddingLeft: 6 + line.depth * 14, flex: 1,
+        whiteSpace: 'pre', overflow: 'hidden',
+        textOverflow: 'ellipsis', lineHeight: `${ROW_H}px`,
+      }}>
         {line.parts.map((p, i) => (
-          <span key={i} style={{ color: C[p.type] ?? C.punctuation }}>{p.text}</span>
+          <span key={i} style={{ color: colors[p.t] ?? colors.pun }}>{p.s}</span>
         ))}
       </div>
-      <div style={{ width: 32, opacity: hovered ? 1 : 0 }}>
-        <button onClick={onCopy} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.lineNum }}>
-          {isCopied ? <Check size={12} color="#4caf50" /> : <Copy size={12} />}
-        </button>
-      </div>
+
+      {/* Copy-line button */}
+      <button
+        onClick={e => { e.stopPropagation(); onCopy(line.raw, index); }}
+        title="Copy line"
+        style={{
+          width: 24, height: ROW_H, flexShrink: 0,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          opacity: hov ? 1 : 0, background: 'none', border: 'none',
+          cursor: 'pointer', fontSize: 12,
+          transition: 'opacity 0.1s',
+          color: copied ? '#4caf50' : 'var(--color-text-tertiary, #aaa)',
+        }}
+      >
+        {copied ? '✓' : '⎘'}
+      </button>
     </div>
   );
-}
+});
 
-function VirtualList({ lines, isDark, collapsedPaths, copiedLine, onToggle, onCopy }) {
-  const outerRef = useRef(null);
-  const [scroll, setScroll] = useState(0);
-  const [height, setHeight] = useState(500);
-
-  useEffect(() => {
-    if (!outerRef.current) return;
-    const ro = new ResizeObserver(entries => setHeight(entries[0].contentRect.height));
-    ro.observe(outerRef.current);
-    return () => ro.disconnect();
-  }, []);
-
-  const start = Math.max(0, Math.floor(scroll / ROW_HEIGHT) - OVERSCAN);
-  const end = Math.min(lines.length - 1, Math.ceil((scroll + height) / ROW_HEIGHT) + OVERSCAN);
+// ─── Virtualised list ─────────────────────────────────────────────────────────
+function VirtualJsonList({ lines, colors, hitSet, hitIndices, searchIdx, onToggle, onCopy, copiedIdx }) {
+  const { containerRef, startIdx, endIdx, totalHeight } = useVirtualList({
+    count: lines.length, itemHeight: ROW_H, overscan: OVERSCAN,
+  });
 
   return (
-    <div ref={outerRef} onScroll={e => setScroll(e.target.scrollTop)} style={{ height: '100%', overflow: 'auto' }}>
-      <div style={{ height: lines.length * ROW_HEIGHT, position: 'relative' }}>
-        {lines.slice(start, end + 1).map((line, i) => {
-          const idx = start + i;
+    <div ref={containerRef} style={{ height: '100%', overflow: 'auto', position: 'relative' }}>
+      <div style={{ height: totalHeight, position: 'relative' }}>
+        {lines.slice(startIdx, endIdx + 1).map((ln, offset) => {
+          const idx       = startIdx + offset;
+          const isHit     = hitSet.has(idx);
+          const isCurrent = isHit && hitIndices[searchIdx] === idx;
           return (
-            <div key={idx} style={{ position: 'absolute', top: idx * ROW_HEIGHT, left: 0, right: 0, height: ROW_HEIGHT }}>
+            <div key={idx} style={{ position: 'absolute', top: idx * ROW_H, left: 0, right: 0, height: ROW_H }}>
               <JsonRow
-                index={idx} line={line} isDark={isDark} isCopied={copiedLine === idx}
-                onToggle={() => onToggle(line.path)} onCopy={() => onCopy(line.rawContent, idx)}
+                line={ln} index={idx} colors={colors}
+                isHit={isHit} isCurrent={isCurrent}
+                onToggle={() => onToggle(ln.path)}
+                onCopy={onCopy} copiedIdx={copiedIdx}
               />
             </div>
           );
@@ -318,94 +244,371 @@ function VirtualList({ lines, isDark, collapsedPaths, copiedLine, onToggle, onCo
   );
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
+// ─── Toolbar button style ─────────────────────────────────────────────────────
+const TBTN = {
+  fontSize: 11, padding: '3px 8px',
+  borderRadius: 'var(--border-radius-md, 4px)',
+  border: '0.5px solid var(--color-border-secondary, #ccc)',
+  background: 'transparent', color: 'var(--color-text-secondary, #666)',
+  cursor: 'pointer', display: 'flex', alignItems: 'center',
+  gap: 4, whiteSpace: 'nowrap', fontFamily: 'inherit',
+};
+
+// ─── Main component ───────────────────────────────────────────────────────────
 export default function PostmanJsonViewer({ value, className = '' }) {
   const { theme } = useUIStore();
-  const isDark = theme === 'dark';
+  const isDark    = theme === 'dark';
+  const colors    = isDark ? DARK : LIGHT;
 
-  const [collapsedPaths, setCollapsedPaths] = useState(new Set());
-  const [copiedLine, setCopiedLine] = useState(null);
-  const [showRaw, setShowRaw] = useState(false);
+  const activeRaw = value ?? '';
+  const isHuge    = activeRaw.length > HUGE;
 
-  // Reset state on value change
-  useEffect(() => {
-    setCollapsedPaths(new Set());
-    setShowRaw(value?.length > HUGE_JSON_BYTES);
-  }, [value]);
+  // ── Paste mode lets user drop in arbitrary JSON ─────────────────────────────
+  const [pasteText, setPasteText] = useState('');
+  const [pasteOverride, setPasteOverride] = useState(''); // set after "parse ↗"
 
-  const { parsed, error } = useMemo(() => {
-    if (!value) return { parsed: null, error: null };
-    try {
-      return { parsed: JSON.parse(value), error: null };
-    } catch (e) {
-      return { parsed: null, error: e.message };
-    }
-  }, [value]);
+  // ── For huge files: user can opt into Pretty after acknowledging the cost ───
+  const [forceParseHuge, setForceParseHuge] = useState(false);
 
-  const lines = useMemo(() => {
-    if (!parsed) return [];
-    return buildLines(parsed, 'root', 0, collapsedPaths, false);
-  }, [parsed, collapsedPaths]);
+  // Single source of truth for what the worker parses
+  const displayRaw  = pasteOverride || activeRaw;
+  const shouldParse = !!pasteOverride || !isHuge || forceParseHuge;
+  const workerRaw   = shouldParse ? displayRaw : '';
 
-  const handleCopy = useCallback(async (text, idx) => {
-    if (await copyToClipboard(text)) {
-      setCopiedLine(idx);
-      setTimeout(() => setCopiedLine(null), 1500);
-    }
+  // ── ONE worker call — no duplicate instances ────────────────────────────────
+  const { status, parsed, error, parseMs } = useJsonWorker(workerRaw);
+
+  // ── Tabs: 'pretty' | 'raw' | 'paste' ───────────────────────────────────────
+  const [tab, setTab] = useState(isHuge ? 'raw' : 'pretty');
+
+  // ── Expand/collapse: empty Set = everything collapsed (fast initial render) ─
+  const [expandedPaths, setExpanded] = useState(new Set());
+
+  // ── Copy feedback ───────────────────────────────────────────────────────────
+  const [copiedIdx, setCopiedIdx] = useState(null);
+
+  // ── Search ──────────────────────────────────────────────────────────────────
+  const [searchRaw, setSearchRaw] = useState('');  // controlled input (immediate)
+  const [searchQ,   setSearchQ]   = useState('');  // debounced value used for matching
+  const [searchIdx, setSearchIdx] = useState(0);
+  const debounceRef    = useRef(null);
+  const searchInputRef = useRef(null);
+  const hitScrollRef   = useRef(null); // points at the virtual list container
+
+  const handleSearchInput = useCallback(e => {
+    const v = e.target.value;
+    setSearchRaw(v);
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setSearchQ(v);
+      setSearchIdx(0);
+    }, SEARCH_DEBOUNCE_MS);
   }, []);
 
-  if (error || showRaw) {
+  // ── Reset all state when parent passes a new response ──────────────────────
+  useEffect(() => {
+    setPasteOverride('');
+    setPasteText('');
+    setForceParseHuge(false);
+    setExpanded(new Set());
+    setTab(activeRaw.length > HUGE ? 'raw' : 'pretty');
+    setSearchRaw('');
+    setSearchQ('');
+    setSearchIdx(0);
+    setCopiedIdx(null);
+  }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Line building — cheap because only expanded subtrees are walked ────────
+  const lines = useMemo(() => {
+    if (!parsed) return [];
+    return buildLines(parsed, 'root', 0, expandedPaths, false);
+  }, [parsed, expandedPaths]);
+
+  // ── Search hits — O(n) scan, then O(1) lookup ──────────────────────────────
+  const { hitSet, hitIndices } = useMemo(() => {
+    const q = searchQ.trim().toLowerCase();
+    if (!q || !lines.length) return { hitSet: new Set(), hitIndices: [] };
+    const indices = [];
+    const s       = new Set();
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].raw.toLowerCase().includes(q)) { s.add(i); indices.push(i); }
+    }
+    return { hitSet: s, hitIndices: indices };
+  }, [searchQ, lines]);
+
+  const clampedIdx = hitIndices.length ? Math.min(searchIdx, hitIndices.length - 1) : 0;
+
+  // Auto-scroll to current search hit
+  useLayoutEffect(() => {
+    if (!hitIndices.length) return;
+    const el = hitScrollRef.current;
+    if (el) el.scrollTop = Math.max(0, (hitIndices[clampedIdx] - 5) * ROW_H);
+  }, [clampedIdx, hitIndices]);
+
+  // ── Handlers ────────────────────────────────────────────────────────────────
+  const handleToggle = useCallback(path => {
+    setExpanded(prev => { const n = new Set(prev); n.has(path) ? n.delete(path) : n.add(path); return n; });
+  }, []);
+
+  const handleExpandAll   = useCallback(() => { if (parsed) setExpanded(collectAllExpandable(parsed, 'root')); }, [parsed]);
+  const handleCollapseAll = useCallback(() => setExpanded(new Set()), []);
+
+  const handleCopy = useCallback((text, idx) => {
+    copyText(text).then(() => { setCopiedIdx(idx); setTimeout(() => setCopiedIdx(null), 1200); });
+  }, []);
+
+  const handleCopyAll = useCallback(() => {
+    copyText(displayRaw).then(() => { setCopiedIdx(-1); setTimeout(() => setCopiedIdx(null), 1200); });
+  }, [displayRaw]);
+
+  const navigateSearch = useCallback(delta => {
+    setSearchIdx(prev => hitIndices.length ? ((prev + delta) + hitIndices.length) % hitIndices.length : 0);
+  }, [hitIndices.length]);
+
+  const handleParsePaste = () => {
+    if (!pasteText.trim()) return;
+    setPasteOverride(pasteText);
+    setExpanded(new Set());
+    setSearchRaw(''); setSearchQ(''); setSearchIdx(0);
+    setTab('pretty');
+  };
+
+  const sizeLabel = displayRaw ? formatSize(new Blob([displayRaw]).size) : '';
+
+  // ── Empty ────────────────────────────────────────────────────────────────────
+  if (!activeRaw && !pasteOverride) {
     return (
-      <div className={`flex flex-col h-full bg-[var(--surface-1)] ${className}`}>
-        <div className="flex items-center justify-between p-2 border-b border-[var(--border-1)] bg-[var(--surface-2)]">
-          <span className="text-xs text-surface-400">{error ? 'Parse Error' : 'Raw View'}</span>
-          <div className="flex gap-2">
-            {!error && <button onClick={() => setShowRaw(false)} className="text-xs px-2 py-1 bg-[var(--surface-3)] rounded">Tree View</button>}
-            <button onClick={() => handleCopy(value, -1)} className="text-xs px-2 py-1 bg-[var(--surface-3)] rounded flex items-center gap-1">
-              {copiedLine === -1 ? <Check size={12} /> : <Copy size={12} />} Copy
-            </button>
-          </div>
+      <div className={className} style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-tertiary, #aaa)', fontSize: 13 }}>
+        No response body
+      </div>
+    );
+  }
+
+  // ── Parsing spinner ───────────────────────────────────────────────────────────
+  if (status === 'parsing' && tab === 'pretty') {
+    return (
+      <div className={className} style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, color: 'var(--color-text-tertiary, #aaa)' }}>
+        <div style={{ position: 'relative', width: 30, height: 30 }}>
+          <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '2px solid var(--color-border-secondary, #e0e0e0)' }}/>
+          <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '2px solid transparent', borderTopColor: isDark ? '#85B7EB' : '#185FA5', animation: 'pjv-spin 0.7s linear infinite' }}/>
         </div>
-        <div className="flex-1 p-4 overflow-auto font-mono text-xs whitespace-pre-wrap select-text">
-          {error ? <div className="text-red-500">{error}</div> : value}
+        <span style={{ fontSize: 12 }}>Parsing JSON…</span>
+        <style>{`@keyframes pjv-spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
+
+  // ── Parse error ───────────────────────────────────────────────────────────────
+  if (status === 'error' && tab === 'pretty' && !isHuge) {
+    return (
+      <div className={className} style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderBottom: '0.5px solid var(--color-border-tertiary, #e0e0e0)', background: 'var(--color-background-secondary, #f9f9f9)', flexShrink: 0 }}>
+          <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 4, background: '#FCEBEB', color: '#A32D2D' }}>parse error</span>
+          <button onClick={handleCopyAll} style={TBTN}>⎘ copy raw</button>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, flex: 1, color: '#A32D2D', fontSize: 13 }}>
+          <div style={{ fontSize: 22 }}>⚠</div>
+          <div>{error}</div>
+          <div style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: 11, color: 'var(--color-text-secondary)', maxWidth: '80%', wordBreak: 'break-all', textAlign: 'center' }}>
+            {activeRaw.slice(0, 300)}{activeRaw.length > 300 ? '…' : ''}
+          </div>
         </div>
       </div>
     );
   }
 
-  if (!value) return <div className="h-full flex items-center justify-center text-surface-400">No response body</div>;
-
+  // ─── Normal render ────────────────────────────────────────────────────────────
   return (
-    <div className={`flex flex-col h-full overflow-hidden bg-[var(--surface-1)] ${className}`}>
-      <div className="flex items-center justify-between p-2 border-b border-[var(--border-1)] bg-[var(--surface-2)]">
-        <div className="flex gap-4 items-center">
-          <span className="text-xs text-surface-400">{lines.length.toLocaleString()} lines</span>
-          <button onClick={() => setCollapsedPaths(new Set())} className="text-[10px] hover:underline">Expand All</button>
-          <button onClick={() => setCollapsedPaths(collectAllPaths(parsed, 'root'))} className="text-[10px] hover:underline">Collapse All</button>
+    <div
+      className={className}
+      style={{
+        display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden',
+        background: 'var(--color-background-primary)',
+        border: '0.5px solid var(--color-border-tertiary, #e0e0e0)',
+        borderRadius: 'var(--border-radius-lg, 6px)',
+      }}
+    >
+      {/* ── Toolbar ─────────────────────────────────────────────────────────── */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '8px 12px', borderBottom: '0.5px solid var(--color-border-tertiary, #e0e0e0)',
+        background: 'var(--color-background-secondary)', flexShrink: 0, gap: 8, flexWrap: 'wrap',
+      }}>
+        {/* Left: status badges */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          {isHuge && !forceParseHuge && (
+            <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 4, background: '#FFF3CD', color: '#856404', fontWeight: 600 }}>
+              ⚠ Large file
+            </span>
+          )}
+          {status === 'done' && !isHuge && (
+            <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 4, background: '#EAF3DE', color: '#3B6D11' }}>
+              valid JSON
+            </span>
+          )}
+          {sizeLabel && (
+            <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 4, background: 'var(--color-background-tertiary)', color: 'var(--color-text-secondary)' }}>
+              {sizeLabel}
+            </span>
+          )}
+          {status === 'done' && tab === 'pretty' && (
+            <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 4, background: 'var(--color-background-tertiary)', color: 'var(--color-text-secondary)' }}>
+              {lines.length.toLocaleString()} lines
+            </span>
+          )}
+          {parseMs > 0 && status === 'done' && (
+            <span title={window.__TAURI__ ? 'Parsed via Rust serde_json' : 'Parsed via Web Worker'} style={{ fontSize: 11, padding: '2px 8px', borderRadius: 4, background: 'var(--color-background-tertiary)', color: 'var(--color-text-secondary)' }}>
+              ⚡ {Math.round(parseMs) || '<1'}ms
+            </span>
+          )}
         </div>
-        <div className="flex gap-2">
-          <button onClick={() => setShowRaw(true)} className="text-xs px-2 py-1 bg-[var(--surface-3)] rounded flex items-center gap-1"><FileText size={12} /> Raw</button>
-          <button onClick={() => handleCopy(value, -1)} className="text-xs px-2 py-1 bg-[var(--surface-3)] rounded flex items-center gap-1">
-            {copiedLine === -1 ? <Check size={12} /> : <Copy size={12} />} Copy
+
+        {/* Right: controls */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          {/* Search box — only in pretty mode with valid data */}
+          {tab === 'pretty' && status === 'done' && (
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <span style={{ position: 'absolute', left: 7, color: 'var(--color-text-tertiary)', pointerEvents: 'none', fontSize: 12 }}>⌕</span>
+              <input
+                ref={searchInputRef}
+                value={searchRaw}
+                onChange={handleSearchInput}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') navigateSearch(e.shiftKey ? -1 : 1);
+                  if (e.key === 'Escape') { setSearchRaw(''); setSearchQ(''); }
+                }}
+                placeholder="search keys/values…"
+                style={{
+                  fontSize: 11, padding: '3px 56px 3px 24px', borderRadius: 4,
+                  border: '0.5px solid var(--color-border-secondary, #ccc)',
+                  background: 'var(--color-background-primary)',
+                  color: 'var(--color-text-primary)', fontFamily: 'inherit',
+                  width: 160, outline: 'none',
+                }}
+              />
+              {searchRaw && (
+                <>
+                  <span style={{ position: 'absolute', right: 38, fontSize: 10, color: 'var(--color-text-tertiary)', pointerEvents: 'none' }}>
+                    {hitIndices.length ? `${clampedIdx + 1}/${hitIndices.length}` : '0/0'}
+                  </span>
+                  <button onClick={() => navigateSearch(-1)} style={{ position: 'absolute', right: 20, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', fontSize: 12, padding: '0 2px' }} title="Previous (Shift+Enter)">‹</button>
+                  <button onClick={() => navigateSearch(1)}  style={{ position: 'absolute', right: 4,  background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', fontSize: 12, padding: '0 2px' }} title="Next (Enter)">›</button>
+                </>
+              )}
+            </div>
+          )}
+
+          {tab === 'pretty' && status === 'done' && (
+            <>
+              <button style={TBTN} onClick={handleExpandAll}>↕ expand all</button>
+              <button style={TBTN} onClick={handleCollapseAll}>↔ collapse</button>
+            </>
+          )}
+
+          {/* Pretty ↔ Raw toggle */}
+          <button
+            style={TBTN}
+            onClick={() => {
+              if (tab === 'pretty') {
+                setTab('raw');
+              } else {
+                setTab('pretty');
+                // Huge file: trigger parse when user opts into Pretty
+                if (isHuge && !forceParseHuge && !pasteOverride) setForceParseHuge(true);
+              }
+            }}
+          >
+            ⊞ {tab === 'pretty' ? 'raw' : 'pretty'}
+          </button>
+
+          <button style={TBTN} onClick={handleCopyAll}>
+            {copiedIdx === -1 ? '✓ copied' : '⎘ copy'}
           </button>
         </div>
       </div>
-      <div className="flex-1 overflow-hidden select-text">
-        {lines.length > VIRTUAL_THRESHOLD ? (
-          <VirtualList lines={lines} isDark={isDark} collapsedPaths={collapsedPaths} copiedLine={copiedLine} onToggle={p => setCollapsedPaths(prev => {
-            const n = new Set(prev);
-            n.has(p) ? n.delete(p) : n.add(p);
-            return n;
-          })} onCopy={handleCopy} />
-        ) : (
-          <div className="h-full overflow-auto">
-            {lines.map((l, i) => (
-              <JsonRow key={i} index={i} line={l} isDark={isDark} isCopied={copiedLine === i} onToggle={() => setCollapsedPaths(prev => {
-                const n = new Set(prev);
-                n.has(l.path) ? n.delete(l.path) : n.add(l.path);
-                return n;
-              })} onCopy={() => handleCopy(l.rawContent, i)} />
-            ))}
+
+      {/* ── Tab strip ─────────────────────────────────────────────────────────── */}
+      <div style={{
+        display: 'flex', borderBottom: '0.5px solid var(--color-border-tertiary, #e0e0e0)',
+        background: 'var(--color-background-secondary)', flexShrink: 0,
+      }}>
+        {['pretty', 'raw', 'paste'].map(t => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            style={{
+              fontSize: 11, padding: '5px 14px', cursor: 'pointer',
+              color: tab === t ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
+              background: 'none', border: 'none',
+              borderBottom: tab === t ? '2px solid currentColor' : '2px solid transparent',
+              fontFamily: 'inherit',
+            }}
+          >
+            {t}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Body ─────────────────────────────────────────────────────────────── */}
+      <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
+
+        {/* ── Pretty ──────────────────────────────────────────────────────────── */}
+        {tab === 'pretty' && (
+          status !== 'done' ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--color-text-secondary)', fontSize: 13 }}>
+              {status === 'parsing' ? 'Parsing…' : 'No data'}
+            </div>
+          ) : lines.length === 0 ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--color-text-secondary)', fontSize: 13 }}>
+              empty JSON
+            </div>
+          ) : (
+            // Pass hitScrollRef so search hits can scroll the container
+            <div style={{ height: '100%' }} ref={hitScrollRef}>
+              <VirtualJsonList
+                lines={lines} colors={colors}
+                hitSet={hitSet} hitIndices={hitIndices} searchIdx={clampedIdx}
+                onToggle={handleToggle} onCopy={handleCopy} copiedIdx={copiedIdx}
+              />
+            </div>
+          )
+        )}
+
+        {/* ── Raw ─────────────────────────────────────────────────────────────── */}
+        {tab === 'raw' && (
+          <div style={{
+            height: '100%', overflow: 'auto', padding: 12,
+            fontSize: 11.5, lineHeight: 1.6,
+            whiteSpace: 'pre-wrap', wordBreak: 'break-all',
+            color: 'var(--color-text-primary)',
+            fontFamily: 'var(--font-mono, monospace)',
+          }}>
+            {displayRaw}
+          </div>
+        )}
+
+        {/* ── Paste ───────────────────────────────────────────────────────────── */}
+        {tab === 'paste' && (
+          <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>
+              Paste JSON below and press parse
+            </div>
+            <textarea
+              value={pasteText}
+              onChange={e => setPasteText(e.target.value)}
+              placeholder='{"key": "value"}'
+              style={{
+                width: '100%', height: 120, resize: 'vertical', fontSize: 11,
+                fontFamily: 'var(--font-mono, monospace)',
+                border: '0.5px solid var(--color-border-secondary, #ccc)',
+                borderRadius: 4, padding: 8,
+                background: 'var(--color-background-primary)',
+                color: 'var(--color-text-primary)', outline: 'none',
+              }}
+            />
+            <button onClick={handleParsePaste} style={{ ...TBTN, width: 'fit-content' }}>
+              parse ↗
+            </button>
           </div>
         )}
       </div>

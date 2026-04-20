@@ -8,6 +8,7 @@ mod security;
 
 use commands::http::execute_request;
 use commands::files::{save_local_file, read_local_file, list_local_files};
+use commands::json::parse_json;
 
 use std::sync::Mutex;
 use std::collections::HashMap;
@@ -41,6 +42,7 @@ fn main() {
             save_local_file,
             read_local_file,
             list_local_files,
+            parse_json,
         ])
         .run(tauri::generate_context!())
         .expect("error while running PayloadX API Studio");

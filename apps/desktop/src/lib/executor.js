@@ -115,6 +115,7 @@ async function executeFetchFallback(payload) {
       signal: controller.signal,
     });
 
+    clearTimeout(timer);
     const elapsed = Math.round(performance.now() - start);
     const bodyText = await response.text();
 
