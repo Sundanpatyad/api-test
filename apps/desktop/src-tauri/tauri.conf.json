@@ -48,7 +48,7 @@
       "shortDescription": "PayloadX - Premium API Studio",
       "longDescription": "PayloadX API Studio is a powerful, cross-platform API testing tool with real-time team collaboration.",
       "deb": {
-        "depends": []
+        "depends": ["libgtk-3-0", "libwebkit2gtk-4.0-37 | libwebkit2gtk-4.1-0", "libappindicator3-1"]
       },
       "macOS": {
         "signingIdentity": "Developer ID Application",
