@@ -71,6 +71,7 @@ export default function JsonTreeViewer({
 
     return (
       <JsonTreeRow
+        index={index}
         row={row}
         style={style}
         onToggle={togglePath}

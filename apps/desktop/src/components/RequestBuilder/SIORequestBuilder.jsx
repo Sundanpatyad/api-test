@@ -248,7 +248,6 @@ export default function SIORequestBuilder() {
                   onChange={(e) => updateField('body', { ...currentRequest.body, raw: e.target.value })}
                   disabled={!isConnected}
                 />
-       />
                 <div className="py-3">
                    <button 
                      disabled={!isConnected}

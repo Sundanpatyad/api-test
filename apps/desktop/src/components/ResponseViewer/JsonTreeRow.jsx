@@ -4,10 +4,11 @@ import { ChevronRight, ChevronDown, Copy, Check } from 'lucide-react';
 
 /**
  * Individual JSON tree row component
- * Renders a single line with syntax highlighting and copy functionality
+ * Postman-style JSON tree viewer with line numbers
  */
 export default function JsonTreeRow({ 
   row, 
+  index,
   style, 
   onToggle,
   isDark
@@ -16,17 +17,18 @@ export default function JsonTreeRow({
   const { theme } = useUIStore();
   const isDarkTheme = isDark !== undefined ? isDark : theme === 'dark';
 
-  // Color scheme
+  // Postman-style color scheme
   const colors = {
-    key: isDarkTheme ? '#9cdcfe' : '#0451a5',
-    string: isDarkTheme ? '#ce9178' : '#a31515',
-    number: isDarkTheme ? '#b5cea8' : '#098658',
-    boolean: isDarkTheme ? '#569cd6' : '#0000ff',
-    null: isDarkTheme ? '#569cd6' : '#0000ff',
-    punctuation: isDarkTheme ? '#d4d4d4' : '#000000',
+    key: isDarkTheme ? '#9cdcfe' : '#0451a5',           // Light blue
+    string: isDarkTheme ? '#ce9178' : '#a31515',        // Orange/salmon
+    number: isDarkTheme ? '#b5cea8' : '#098658',        // Green
+    boolean: isDarkTheme ? '#569cd6' : '#0000ff',       // Blue
+    null: isDarkTheme ? '#569cd6' : '#0000ff',          // Blue
+    punctuation: isDarkTheme ? '#d4d4d4' : '#000000',   // Gray/white
     default: isDarkTheme ? '#d4d4d4' : '#000000',
-    bracket: isDarkTheme ? '#ffd700' : '#0000ff',
-    dim: isDarkTheme ? '#6e7681' : '#757575'
+    bracket: isDarkTheme ? '#d4d4d4' : '#000000',       // Gray brackets
+    dim: isDarkTheme ? '#6e7681' : '#757575',
+    lineNumber: isDarkTheme ? '#6e7681' : '#999999'     // Muted line numbers
   };
 
   const handleCopy = async (value) => {
@@ -39,23 +41,26 @@ export default function JsonTreeRow({
     }
   };
 
-  const indent = row.depth * 20;
+  const indent = row.depth * 16; // 16px per depth level (Postman style)
 
   // Render toggle button for objects/arrays
   const renderToggle = () => {
     if (row.type !== 'object' && row.type !== 'array') {
-      return <span className="w-4 inline-block" />;
+      return <span className="w-4 inline-block flex-shrink-0" />;
     }
 
     const isExpandable = !row.isEmpty;
     if (!isExpandable) {
-      return <span className="w-4 inline-block" />;
+      return <span className="w-4 inline-block flex-shrink-0" />;
     }
 
     return (
       <button
-        onClick={() => onToggle(row.path)}
-        className="w-4 h-4 inline-flex items-center justify-center rounded hover:bg-surface-700 transition-colors"
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggle(row.path);
+        }}
+        className="w-4 h-4 inline-flex items-center justify-center flex-shrink-0 hover:bg-surface-700/50 rounded transition-colors"
         style={{ color: colors.dim }}
       >
         {row.isExpanded ? (
@@ -94,17 +99,17 @@ export default function JsonTreeRow({
       <>
         {key !== undefined && (
           <>
-            <span style={{ color: colors.key }}>{formatKey(key)}</span>
+            <span className="json-key" style={{ color: colors.key }}>{formatKey(key)}</span>
             <span style={{ color: colors.punctuation }}>: </span>
           </>
         )}
         <span style={{ color: colors.bracket }}>{'{'}</span>
         {!isExpanded && !isEmpty && (
-          <span style={{ color: colors.dim }}>
+          <span style={{ color: colors.dim, marginLeft: '4px' }}>
             {keyCount} {keyCount === 1 ? 'item' : 'items'}
           </span>
         )}
-        {!isExpanded && <span style={{ color: colors.bracket }}>{'}'}</span>}
+        {!isExpanded && <span style={{ color: colors.bracket, marginLeft: !isEmpty ? '4px' : 0 }}>{'}'}</span>}
         {isExpanded && !isEmpty && (
           <span style={{ color: colors.bracket }}>{'}'}</span>
         )}
@@ -120,17 +125,17 @@ export default function JsonTreeRow({
       <>
         {key !== undefined && (
           <>
-            <span style={{ color: colors.key }}>{formatKey(key)}</span>
+            <span className="json-key" style={{ color: colors.key }}>{formatKey(key)}</span>
             <span style={{ color: colors.punctuation }}>: </span>
           </>
         )}
         <span style={{ color: colors.bracket }}>{'['}</span>
         {!isExpanded && !isEmpty && (
-          <span style={{ color: colors.dim }}>
+          <span style={{ color: colors.dim, marginLeft: '4px' }}>
             {length} {length === 1 ? 'item' : 'items'}
           </span>
         )}
-        {!isExpanded && <span style={{ color: colors.bracket }}>{']'}</span>}
+        {!isExpanded && <span style={{ color: colors.bracket, marginLeft: !isEmpty ? '4px' : 0 }}>{']'}</span>}
         {isExpanded && !isEmpty && (
           <span style={{ color: colors.bracket }}>{']'}</span>
         )}
@@ -146,7 +151,7 @@ export default function JsonTreeRow({
       <>
         {key !== undefined && (
           <>
-            <span style={{ color: colors.key }}>{formatKey(key)}</span>
+            <span className="json-key" style={{ color: colors.key }}>{formatKey(key)}</span>
             <span style={{ color: colors.punctuation }}>: </span>
           </>
         )}
@@ -161,15 +166,33 @@ export default function JsonTreeRow({
 
   return (
     <div
-      className="group flex items-center font-mono text-xs hover:bg-surface-800/50 transition-colors cursor-pointer"
+      className="group flex items-center font-mono text-xs hover:bg-surface-800/50 transition-colors"
       style={{ 
         ...style, 
-        paddingLeft: 8 + indent,
-        fontFamily: 'JetBrains Mono, Fira Code, monospace'
+        fontFamily: 'JetBrains Mono, Fira Code, monospace',
+        display: 'flex'
       }}
     >
-      {renderToggle()}
-      <span className="flex-1">{renderContent()}</span>
+      {/* Line number */}
+      <div 
+        className="flex-shrink-0 text-right pr-3 select-none"
+        style={{ 
+          width: '40px', 
+          color: colors.lineNumber,
+          borderRight: `1px solid ${isDarkTheme ? '#333' : '#e0e0e0'}`,
+          marginRight: '8px'
+        }}
+      >
+        {index + 1}
+      </div>
+      
+      {/* Toggle button */}
+      <div style={{ paddingLeft: indent }}>
+        {renderToggle()}
+      </div>
+      
+      {/* Content */}
+      <span className="flex-1 ml-1">{renderContent()}</span>
       
       {/* Copy button - shows on hover */}
       {valueToCopy !== null && (
@@ -178,7 +201,7 @@ export default function JsonTreeRow({
             e.stopPropagation();
             handleCopy(valueToCopy);
           }}
-          className="opacity-0 group-hover:opacity-100 ml-2 p-1 rounded hover:bg-surface-700 transition-all"
+          className="opacity-0 group-hover:opacity-100 ml-2 p-1 rounded hover:bg-surface-700 transition-all flex-shrink-0"
           title="Copy value"
         >
           {copied ? (

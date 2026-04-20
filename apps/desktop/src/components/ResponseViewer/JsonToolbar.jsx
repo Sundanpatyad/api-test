@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, ExpandAll, CollapseAll, Copy, Check, ChevronDown } from 'lucide-react';
+import { Search, Copy, Check, ChevronDown } from 'lucide-react';
 
 /**
  * Toolbar for JSON tree viewer
@@ -69,7 +69,7 @@ export default function JsonToolbar({
         className="flex items-center gap-1 px-2 py-1 text-[11px] text-tx-secondary hover:text-tx-primary bg-surface-700 hover:bg-surface-600 rounded transition-colors"
         title="Expand all"
       >
-        <ExpandAll className="w-3 h-3" />
+        <ExpandIcon className="w-3 h-3" />
         Expand
       </button>
 
@@ -78,7 +78,7 @@ export default function JsonToolbar({
         className="flex items-center gap-1 px-2 py-1 text-[11px] text-tx-secondary hover:text-tx-primary bg-surface-700 hover:bg-surface-600 rounded transition-colors"
         title="Collapse all"
       >
-        <CollapseAll className="w-3 h-3" />
+        <CollapseIcon className="w-3 h-3" />
         Collapse
       </button>
 
