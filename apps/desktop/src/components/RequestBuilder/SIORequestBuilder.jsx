@@ -28,9 +28,9 @@ export default function SIORequestBuilder() {
   const { currentRequest, updateField, saveRequest, noActiveRequest } = useRequestStore();
   const { resolveVariables } = useEnvironmentStore();
   const { connect, disconnect, emit, clearLogs, connectionStatus, logs } = useSIOStore();
+  const eventName = currentRequest.sioEvent || 'message';
+  const message = currentRequest.body?.raw || '';
 
-  const [eventName, setEventName] = useState('message');
-  const [message, setMessage] = useState('');
   const [isEditingName, setIsEditingName] = useState(false);
   const [showProtocolDropdown, setShowProtocolDropdown] = useState(false);
   const [activeTab, setActiveTab] = useState('query');
@@ -127,7 +127,7 @@ export default function SIORequestBuilder() {
   };
 
   const TABS = [
-    { id: 'query', label: 'Query' },
+    { id: 'query', label: 'Query Params' },
     { id: 'headers', label: 'Headers' },
     { id: 'auth', label: 'Auth' },
   ];
@@ -144,94 +144,78 @@ export default function SIORequestBuilder() {
 
   return (
     <div className="ws-builder" onKeyDown={handleKeyDown}>
-      {/* Header */}
-      <div className="ws-header">
-        <div className="ws-header-left gap-3">
-          <div className="relative">
-             <button
-                onClick={() => setShowProtocolDropdown(!showProtocolDropdown)}
-                className="flex items-center gap-1.5 px-2 py-1 text-[10px] font-bold bg-[color:var(--surface-2)] border border-[color:var(--border-1)] rounded-md hover:border-[color:var(--accent)] transition-all text-[color:var(--text-primary)]"
-              >
-                SOCKET.IO
-                <svg className={`w-3 h-3 opacity-60 transition-transform ${showProtocolDropdown ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-              {showProtocolDropdown && (
-                <div className="absolute top-full left-0 mt-1 bg-[color:var(--surface-1)] border border-[color:var(--border-1)] rounded-lg shadow-glass z-[100] py-1 min-w-[140px] animate-in">
-                  {PROTOCOLS.map((p) => (
-                    <button
-                      key={p.id}
-                      onClick={() => { updateField('protocol', p.id); setShowProtocolDropdown(false); }}
-                      className={`flex items-center justify-between w-full px-3 py-1.5 text-[11px] font-medium hover:bg-surface-700 transition-colors ${currentRequest.protocol === p.id ? 'text-[color:var(--accent)] bg-surface-800' : 'text-[color:var(--text-muted)]'}`}
-                    >
-                      <span>{p.label}</span>
-                      <span className="text-[10px]">{p.icon}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-          </div>
-
-          {isEditingName ? (
-            <input
-              autoFocus
-              className="ws-name-input"
-              value={currentRequest.name}
-              onChange={(e) => updateField('name', e.target.value)}
-              onBlur={() => setIsEditingName(false)}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') setIsEditingName(false); }}
-            />
-          ) : (
-            <span className="ws-name" onClick={() => setIsEditingName(true)}>
-              {currentRequest.name || 'Untitled Socket.IO'}
-            </span>
-          )}
-          <span className="ws-status-badge" style={{ color: statusConfig.color, background: statusConfig.bg }}>
-            <span className={`ws-status-dot ${isConnected ? 'ws-status-dot--active' : ''}`} style={{ background: statusConfig.color }} />
-            {statusConfig.label}
-          </span>
-        </div>
-        <div className="ws-header-right">
-             <button title="Save" onClick={() => saveRequest()} className="ws-icon-btn">
-                <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" strokeWidth={2}/></svg>
-             </button>
-        </div>
-      </div>
 
       {/* URL Bar */}
       <div className="ws-url-bar px-3 py-2 bg-[color:var(--surface-1)] border-b border-[color:var(--border-1)] flex items-center gap-2">
-         <span className="text-[10px] font-bold text-[#f0883e]">SIO</span>
-         <input
-           className="flex-1 bg-transparent border-none outline-none text-[12px] text-[color:var(--text-primary)]"
-           placeholder="http://localhost:3000"
-           value={currentRequest.url}
-           onChange={(e) => updateField('url', e.target.value)}
-         />
+         <div className="flex items-center gap-1.5 flex-1 p-1">
+            <span className="text-[10px] font-bold text-[#f0883e] bg-[#f0883e]/10 px-1.5 py-0.5 rounded">SIO</span>
+            <input
+              className="flex-1 bg-transparent border-none outline-none text-[12px] text-[color:var(--text-primary)]"
+              placeholder="http://localhost:3000"
+              value={currentRequest.url}
+              onChange={(e) => updateField('url', e.target.value)}
+              disabled={isConnected || isConnecting}
+            />
+         </div>
+         
+         {/* Status Indicator */}
+         {(isConnected || isConnecting || status === 'error') && (
+           <div className="flex items-center gap-2 px-2 py-1 rounded-full bg-[color:var(--surface-2)] border border-[color:var(--border-1)] mr-1">
+              <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-[#3fb950] shadow-[0_0_8px_rgba(63,185,80,0.5)] animate-pulse' : isConnecting ? 'bg-[#f0883e] animate-pulse' : 'bg-[#f85149]'}`} />
+              <span className="text-[10px] font-bold uppercase tracking-wider opacity-80" style={{ color: statusConfig.color }}>
+                {statusConfig.label}
+              </span>
+           </div>
+         )}
+
          <button 
-           className={`${isConnected || isConnecting ? 'bg-surface-3' : 'bg-[color:var(--accent)]'} text-white text-[11px] font-bold px-4 py-1.5 rounded-md transition-all`}
+           className={`${isConnected || isConnecting ? 'bg-surface-3 hover:bg-surface-4' : 'bg-[color:var(--accent)] hover:brightness-110'} text-white text-[11px] font-bold px-4 py-1.5 rounded-md transition-all flex items-center gap-1.5`}
            onClick={isConnected || isConnecting ? handleDisconnect : handleConnect}
          >
-           {isConnected || isConnecting ? 'Disconnect' : 'Connect'}
+           {isConnected || isConnecting ? (
+             <><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg> Disconnect</>
+           ) : (
+             <><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg> Connect</>
+           )}
          </button>
       </div>
 
       <div className="ws-main flex-1 flex flex-col overflow-hidden">
-        {/* Tabs Section (Handshake Config) */}
+        {/* Connection Tabs */}
+        <div className="border-b border-[color:var(--border-1)] bg-[color:var(--surface-1)]">
+           <div className="flex px-3">
+              <button 
+                onClick={() => setActiveTab('query')}
+                className={`px-4 py-2 text-[11px] font-medium border-b-2 transition-all ${['query', 'headers', 'auth'].includes(activeTab) ? 'border-[color:var(--accent)] text-[color:var(--text-primary)]' : 'border-transparent text-[color:var(--text-muted)] hover:text-[color:var(--text-secondary)]'}`}
+              >
+                Handshake
+              </button>
+              {isConnected && (
+                <button 
+                  className="px-4 py-2 text-[11px] font-medium border-b-2 border-transparent text-[#3fb950] flex items-center gap-1.5"
+                >
+                  <div className="w-1.5 h-1.5 bg-[#3fb950] rounded-full animate-pulse" />
+                  Active Session
+                </button>
+              )}
+           </div>
+        </div>
+
+        {/* Handshake Config (Query, Headers, Auth) */}
         {!isConnected && !isConnecting && (
           <div className="border-b border-[color:var(--border-1)]">
-             <div className="flex px-3 pt-1">
+             <div className="flex px-3 pt-1 bg-[color:var(--surface-2)]">
                 {TABS.map(tab => (
                   <button 
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`px-4 py-2 text-[11px] font-medium border-b-2 transition-all ${activeTab === tab.id ? 'border-[color:var(--accent)] text-[color:var(--text-primary)]' : 'border-transparent text-[color:var(--text-muted)] hover:text-[color:var(--text-secondary)]'}`}
+                    className={`px-3 py-1.5 text-[10px] font-medium border-b-2 transition-all ${activeTab === tab.id ? 'border-[color:var(--accent)] text-[color:var(--text-primary)]' : 'border-transparent text-[color:var(--text-muted)] hover:text-tx-secondary'}`}
                   >
                     {tab.label}
                   </button>
                 ))}
              </div>
-             <div className="max-h-[220px] overflow-y-auto bg-[color:var(--surface-2)]">
+             <div className="max-h-[180px] overflow-y-auto bg-[color:var(--surface-2)]">
                 {activeTab === 'query' && <ParamsTab />}
                 {activeTab === 'headers' && <HeadersTab />}
                 {activeTab === 'auth' && <AuthTab />}
@@ -248,22 +232,23 @@ export default function SIORequestBuilder() {
                   className="w-full bg-[color:var(--surface-2)] border border-[color:var(--border-1)] rounded px-2 py-1.5 text-[12px] text-[color:var(--text-primary)] outline-none focus:border-[color:var(--accent)]"
                   placeholder="event name (e.g. chat)"
                   value={eventName}
-                  onChange={(e) => setEventName(e.target.value)}
+                  onChange={(e) => updateField('sioEvent', e.target.value)}
                   disabled={!isConnected}
                 />
              </div>
              <div className="flex-1 px-3 flex flex-col">
                 <div className="flex justify-between items-center mb-2">
-                  <div className="text-[10px] font-bold text-[color:var(--text-muted)] uppercase">Arguments</div>
-                  <span className="text-[9px] text-[color:var(--text-muted)] opacity-60">Use JSON array for multiple args</span>
+                   <div className="text-[10px] font-bold text-[color:var(--text-muted)] uppercase">Arguments</div>
+                   <span className="text-[9px] text-[color:var(--text-muted)] opacity-60">Use JSON array for multiple args</span>
                 </div>
                 <textarea 
                   className="flex-1 w-full bg-[color:var(--surface-2)] border border-[color:var(--border-1)] rounded p-2 text-[12px] font-mono text-[color:var(--text-primary)] outline-none focus:border-[color:var(--accent)] resize-none"
                   placeholder='["hello", 42]'
                   value={message}
-                  onChange={(e) => setMessage(e.target.value)}
+                  onChange={(e) => updateField('body', { ...currentRequest.body, raw: e.target.value })}
                   disabled={!isConnected}
                 />
+       />
                 <div className="py-3">
                    <button 
                      disabled={!isConnected}

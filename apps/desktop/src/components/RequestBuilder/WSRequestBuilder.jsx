@@ -31,7 +31,7 @@ export default function WSRequestBuilder() {
   const { resolveVariables } = useEnvironmentStore();
   const { connect, disconnect, sendMessage, clearLogs, getStatus, getLogs, connectionStatus, logs } = useWSStore();
 
-  const [message, setMessage] = useState('');
+  const message = currentRequest.body?.raw || '';
   const [isEditingName, setIsEditingName] = useState(false);
   const [showProtocolDropdown, setShowProtocolDropdown] = useState(false);
   const logEndRef = useRef(null);
@@ -86,7 +86,11 @@ export default function WSRequestBuilder() {
     if (!message.trim()) return;
     const success = sendMessage(requestId, message);
     if (success) {
-      setMessage('');
+      // Clear message after sending if needed, or keep it for reuse. 
+      // Most users prefer keeping it for repeated sends in WS.
+      // But we'll follow the previous local state behavior of clearing if it was there.
+      // Since it's bound to store, clearing it will delete it from store.
+      // We'll keep it so it stays persistent.
       textareaRef.current?.focus();
     }
   }, [message, requestId, sendMessage]);
@@ -113,135 +117,63 @@ export default function WSRequestBuilder() {
   };
 
   // ── Empty State ──
-  if (noActiveRequest) {
-    return (
-      <div className="ws-empty-state">
-        <div className="ws-empty-icon">
-          <svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
-          </svg>
-        </div>
-        <h3 className="ws-empty-title">No request selected</h3>
-        <p className="ws-empty-sub">Create a new WebSocket request to get started.</p>
-        <button onClick={() => newRequest()} className="ws-empty-cta">
-          <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-          New WebSocket Request
-        </button>
-      </div>
-    );
-  }
 
   return (
     <div className="ws-builder" onKeyDown={handleKeyDown}>
-      {/* ── Header: Name + Save ── */}
-      <div className="ws-header">
-        <div className="ws-header-left gap-3">
-          {/* Protocol Dropdown */}
-          <div className="relative">
-            <button
-              onClick={() => setShowProtocolDropdown(!showProtocolDropdown)}
-              className="flex items-center gap-1.5 px-2 py-1 text-[10px] font-bold bg-[color:var(--surface-2)] border border-[color:var(--border-1)] rounded-md hover:border-[color:var(--accent)] transition-all text-[color:var(--text-primary)]"
-            >
-              {currentRequest.protocol === 'http' ? 'HTTP' : currentRequest.protocol === 'ws' ? 'RAW WS' : 'SOCKET.IO'}
-              <svg className={`w-3 h-3 opacity-60 transition-transform ${showProtocolDropdown ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-            {showProtocolDropdown && (
-              <div className="absolute top-full left-0 mt-1 bg-[color:var(--surface-1)] border border-[color:var(--border-1)] rounded-lg shadow-glass z-[100] py-1 min-w-[140px] animate-in">
-                {PROTOCOLS.map((p) => (
-                  <button
-                    key={p.id}
-                    onClick={() => { updateField('protocol', p.id); setShowProtocolDropdown(false); }}
-                    className={`flex items-center justify-between w-full px-3 py-1.5 text-[11px] font-medium hover:bg-surface-700 transition-colors ${currentRequest.protocol === p.id ? 'text-[color:var(--accent)] bg-surface-800' : 'text-[color:var(--text-muted)]'}`}
-                  >
-                    <span>{p.label}</span>
-                    <span className="text-[10px]">{p.icon}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {isEditingName ? (
-            <input
-              autoFocus
-              className="ws-name-input"
-              placeholder="Request name"
-              value={currentRequest.name}
-              onChange={(e) => updateField('name', e.target.value)}
-              onBlur={() => setIsEditingName(false)}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') setIsEditingName(false); }}
-            />
-          ) : (
-            <span className="ws-name" onClick={() => setIsEditingName(true)} title="Click to edit">
-              {currentRequest.name || 'Untitled WS Request'}
-            </span>
-          )}
-          {/* Status Badge */}
-          <span className="ws-status-badge" style={{ color: statusConfig.color, background: statusConfig.bg }}>
-            <span className={`ws-status-dot ${isConnected ? 'ws-status-dot--active' : ''}`} style={{ background: statusConfig.color }} />
-            {statusConfig.label}
-          </span>
-        </div>
-        <div className="ws-header-right">
-          <button
-            title="Save (⌘S)"
-            onClick={() => saveRequest().then((r) => {
-              if (r?.success) toast.success('Saved');
-              else if (r) toast.error(r.error || 'Save failed');
-            })}
-            className="ws-icon-btn"
-          >
-            <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-            </svg>
-          </button>
-        </div>
-      </div>
 
       {/* ── URL Bar ── */}
-      <div className="ws-url-bar">
-        <span className="ws-protocol-badge">WS</span>
-        <input
-          className="ws-url-input"
-          placeholder="wss://echo.websocket.org or {{ws_url}}/socket"
-          value={currentRequest.url}
-          onChange={(e) => updateField('url', e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !isConnected) {
-              e.preventDefault();
-              handleConnect();
-            }
-          }}
-        />
+      <div className="ws-url-bar px-3 py-2 bg-[color:var(--surface-1)] border-b border-[color:var(--border-1)] flex items-center gap-2">
+         <div className="flex items-center gap-1.5 flex-1 p-1">
+            <span className="text-[10px] font-bold text-[#38bdf8] bg-[#38bdf8]/10 px-1.5 py-0.5 rounded">WS</span>
+            <input
+              className="flex-1 bg-transparent border-none outline-none text-[12px] text-[color:var(--text-primary)]"
+              placeholder="wss://echo.websocket.org"
+              value={currentRequest.url}
+              onChange={(e) => updateField('url', e.target.value)}
+              disabled={isConnected || isConnecting}
+            />
+         </div>
+         
+         {/* Status Indicator */}
+         {(isConnected || isConnecting || status === 'error') && (
+           <div className="flex items-center gap-2 px-2 py-1 rounded-full bg-[color:var(--surface-2)] border border-[color:var(--border-1)] mr-1">
+              <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-[#3fb950] shadow-[0_0_8px_rgba(63,185,80,0.5)] animate-pulse' : isConnecting ? 'bg-[#f0883e] animate-pulse' : 'bg-[#f85149]'}`} />
+              <span className="text-[10px] font-bold uppercase tracking-wider opacity-80" style={{ color: statusConfig.color }}>
+                {statusConfig.label}
+              </span>
+           </div>
+         )}
+
         {isConnected || isConnecting ? (
-          <button className="ws-disconnect-btn" onClick={handleDisconnect} disabled={!isConnected && !isConnecting}>
-            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
+          <button className="ws-disconnect-btn flex items-center gap-1.5 !rounded-md px-4 py-1.5 text-[11px] font-bold transition-all bg-surface-3 hover:bg-surface-4" onClick={handleDisconnect} disabled={!isConnected && !isConnecting}>
+            <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
             Disconnect
           </button>
         ) : (
-          <button className="ws-connect-btn" onClick={handleConnect}>
-            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+          <button className="ws-connect-btn flex items-center gap-1.5 !rounded-md px-4 py-1.5 text-[11px] font-bold transition-all bg-[color:var(--accent)] hover:brightness-110 text-white" onClick={handleConnect}>
+            <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
             Connect
           </button>
         )}
       </div>
 
+      {isConnected && (
+        <div className="bg-[#3fb950]/5 border-b border-[#3fb950]/10 px-4 py-1 flex items-center gap-2">
+           <div className="w-1.5 h-1.5 bg-[#3fb950] rounded-full animate-pulse" />
+           <span className="text-[10px] font-medium text-[#3fb950] uppercase tracking-widest">Active WebSocket Session</span>
+        </div>
+      )}
+
       {/* ── Main Area: Split between Composer & Log ── */}
-      <div className="ws-main">
+      <div className="ws-main flex-1 flex flex-col overflow-hidden">
         {/* ── Message Composer ── */}
         <div className="ws-composer">
-          <div className="ws-composer-header">
-            <span className="ws-section-label">Message</span>
-            <span className="ws-hint">⌘ + Enter to send</span>
-          </div>
           <textarea
             ref={textareaRef}
             className="ws-message-input"
             placeholder={isConnected ? '{"action":"ping","data":"hello"}' : 'Connect first to send messages…'}
             value={message}
-            onChange={(e) => setMessage(e.target.value)}
+            onChange={(e) => updateField('body', { ...currentRequest.body, raw: e.target.value })}
             disabled={!isConnected}
           />
           <div className="ws-composer-footer">

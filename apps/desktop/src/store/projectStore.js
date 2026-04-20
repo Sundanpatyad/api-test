@@ -89,16 +89,6 @@ export const useProjectStore = create((set, get) => ({
       }
     });
     
-    // Auto-create a default project if this team ended up completely empty
-    if (mergedForThisTeam.length === 0) {
-      const tempId = uuidv4();
-      const defaultProject = { _id: tempId, name: 'Default Project', teamId, color: '#6366f1' };
-      mergedForThisTeam.push(defaultProject);
-      if (navigator.onLine) {
-        api.post('/api/project', { name: 'Default Project', teamId, color: '#6366f1' }).catch(() => {});
-      }
-    }
-    
     // Fully merged array = preserved other teams + newly synced this team
     return [...otherProjects, ...mergedForThisTeam];
   },
@@ -115,13 +105,6 @@ export const useProjectStore = create((set, get) => ({
       set({ projects: syncedProjects, isRefreshing: false });
       localStorageService.saveProjects(syncedProjects);
       localStorageService.updateLastSync();
-      
-      // Update current project if it was deleted
-      const currentProject = get().currentProject;
-      if (currentProject && !syncedProjects.find(p => p._id === currentProject._id)) {
-        set({ currentProject: syncedProjects[0] || null });
-        localStorageService.saveCurrentProject(syncedProjects[0] || null);
-      }
       
       return { success: true, projects: syncedProjects, fromCache: false };
     } catch (err) {

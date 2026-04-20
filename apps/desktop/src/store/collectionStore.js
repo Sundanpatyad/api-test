@@ -396,10 +396,12 @@ export const useCollectionStore = create((set, get) => ({
 
   addRequest: (data) => {
     set((state) => {
-      // Handle both formats: { request: requestObj } or requestObj directly
       const request = data.request || data;
+      // Prevent duplicates
+      if (state.requests.find(r => r._id === request._id)) {
+        return state;
+      }
       const updated = [...state.requests, request];
-      // Only save requests for THIS specific collection to its own storage key
       const collectionRequests = updated.filter(r => r.collectionId === request.collectionId);
       localStorageService.saveRequests(request.collectionId, collectionRequests);
       return { requests: updated };

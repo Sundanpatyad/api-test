@@ -49,21 +49,29 @@ export async function POST(request) {
   try {
     await connectDB();
     const body = await request.json();
-    const { name, method, url, collectionId, projectId, teamId } = body;
+    const { name, method, url, collectionId, projectId, teamId, protocol } = body;
 
     if (!name || !collectionId || !projectId || !teamId) {
       return NextResponse.json({ error: 'name, collectionId, projectId, teamId required' }, { status: 400 });
     }
 
+    // Default to 'http' if not provided
+    const finalProtocol = protocol || 'http';
+    console.log(`[API POST] Creating request: "${name}" | Protocol: ${finalProtocol} | Method: ${method || 'N/A'}`);
+
+    // Only default to 'GET' for HTTP requests. For WS/SIO, method is irrelevant.
+    const finalMethod = finalProtocol === 'http' ? (method || 'GET') : undefined;
+
     const req = await Request.create({
       ...body,
-      name,        // ensure required fields from validated destructure
-      method,
+      name,
+      method: finalMethod,
       url,
+      protocol: finalProtocol,
       collectionId,
       projectId,
       teamId,
-      creatorId: user.id,  // always override - must come AFTER ...body
+      creatorId: user.id,
     });
 
     // Populate creator before returning

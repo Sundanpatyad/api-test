@@ -192,6 +192,11 @@ export const useRequestStore = create(
             const { useSocketStore } = await import('@/store/socketStore');
             const { useAuthStore } = await import('@/store/authStore');
             const { useTeamStore } = await import('@/store/teamStore');
+            const { useCollectionStore } = await import('@/store/collectionStore');
+            
+            // Add to collection store so it appears in sidebar
+            useCollectionStore.getState().addRequest(data.request);
+
             useSocketStore.getState().emitRequestCreated(
               useTeamStore.getState().currentTeam?._id, 
               data.request, 
