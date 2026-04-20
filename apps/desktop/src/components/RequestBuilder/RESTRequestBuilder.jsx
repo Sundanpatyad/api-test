@@ -111,13 +111,11 @@ export default function RESTRequestBuilder() {
       }
     } finally {
       console.log('[ExecuteRequest] Finally block, isCancelled:', isCancelled);
-      // Always clear loading state, even if there was an error
-      setTimeout(() => {
-        if (!isCancelled) {
-          setIsExecuting(false);
-        }
-        useRequestStore.setState({ cancelCurrentRequest: null });
-      }, 0);
+      // Clear loading state immediately (not in setTimeout) to prevent race condition
+      if (!isCancelled) {
+        setIsExecuting(false);
+      }
+      useRequestStore.setState({ cancelCurrentRequest: null });
     }
   }, [currentRequest, activeEnvironment, executeHttpRequest, resolveVariables, setResponse, setIsExecuting, addToHistory, currentTeam, user, emitRequestUpdate]);
 
