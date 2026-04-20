@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useRequestStore } from '@/store/requestStore';
 import { useUIStore } from '@/store/uiStore';
-import { getStatusClass, formatSize, formatTime, formatBody } from '@/utils/helpers';
+import { getStatusClass, formatSize, formatTime, formatBody, isJson } from '@/utils/helpers';
+import PostmanJsonViewer from './PostmanJsonViewer';
 import JsonFormatter from './JsonFormatter';
 
 const RESPONSE_TABS = ['Pretty', 'Raw', 'Headers'];
@@ -121,10 +122,17 @@ export default function ResponseViewer() {
       {/* Body */}
       <div className="flex-1 overflow-hidden">
         {activeTab === 'Pretty' && (
-          <JsonFormatter 
-            value={prettyBody || response.body} 
-            className="h-full"
-          />
+          contentType.includes('application/json') || isJson(response.body) ? (
+            <PostmanJsonViewer 
+              value={response.body} 
+              className="h-full"
+            />
+          ) : (
+            <JsonFormatter 
+              value={prettyBody || response.body} 
+              className="h-full"
+            />
+          )
         )}
 
         {activeTab === 'Raw' && (

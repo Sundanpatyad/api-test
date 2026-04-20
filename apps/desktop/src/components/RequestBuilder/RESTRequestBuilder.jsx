@@ -44,14 +44,17 @@ export default function RESTRequestBuilder() {
       return;
     }
 
-    setIsExecuting(true);
-    setResponse(null);
+    // Always access setIsExecuting/setResponse via getState() to avoid stale closures
+    const store = useRequestStore.getState;
+
+    store().setIsExecuting(true);
+    store().setResponse(null);
     let isCancelled = false;
     useRequestStore.setState({
       cancelCurrentRequest: () => {
         isCancelled = true;
-        setIsExecuting(false);
-        setResponse({ status: 'Cancelled', statusText: '', headers: {}, body: 'Request was cancelled by user.', responseTimeMs: 0, sizeBytes: 0 });
+        store().setIsExecuting(false);
+        store().setResponse({ status: 'Cancelled', statusText: '', headers: {}, body: 'Request was cancelled by user.', responseTimeMs: 0, sizeBytes: 0 });
       }
     });
 
@@ -60,7 +63,7 @@ export default function RESTRequestBuilder() {
       const unresolvedVars = [...(resolvedUrl.matchAll(/\{\{([^}]+)\}\}/g))].map(m => m[1].trim());
       if (unresolvedVars.length > 0) {
         toast.error(`Variables not found in environment: ${unresolvedVars.join(', ')}`);
-        setIsExecuting(false);
+        store().setIsExecuting(false);
         return;
       }
 
@@ -85,14 +88,14 @@ export default function RESTRequestBuilder() {
       console.log('[ExecuteRequest] Starting request to:', resolvedUrl);
       const response = await executeHttpRequest(payload);
       console.log('[ExecuteRequest] Got response:', response?.status);
-      
+
       if (isCancelled) {
         console.log('[ExecuteRequest] Request was cancelled, ignoring response');
         return;
       }
 
-      setResponse(response);
-      addToHistory({
+      store().setResponse(response);
+      store().addToHistory({
         id: uuidv4(),
         request: { ...currentRequest, url: resolvedUrl },
         response: { ...response, body: '[Body hidden in history]' },
@@ -107,17 +110,18 @@ export default function RESTRequestBuilder() {
       const errorMsg = typeof err === 'string' ? err : (err.message || 'Request failed');
       toast.error(`Error: ${errorMsg}`);
       if (!isCancelled) {
-        setResponse({ status: 'Error', statusText: '', headers: {}, body: errorMsg, responseTimeMs: 0, sizeBytes: 0 });
+        store().setResponse({ status: 'Error', statusText: '', headers: {}, body: errorMsg, responseTimeMs: 0, sizeBytes: 0 });
       }
     } finally {
       console.log('[ExecuteRequest] Finally block, isCancelled:', isCancelled);
-      // Clear loading state immediately (not in setTimeout) to prevent race condition
+      // Use getState() to guarantee we always clear loading — avoids stale closure
       if (!isCancelled) {
-        setIsExecuting(false);
+        useRequestStore.getState().setIsExecuting(false);
       }
       useRequestStore.setState({ cancelCurrentRequest: null });
     }
-  }, [currentRequest, activeEnvironment, executeHttpRequest, resolveVariables, setResponse, setIsExecuting, addToHistory, currentTeam, user, emitRequestUpdate]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentRequest, activeEnvironment, resolveVariables, addToHistory, currentTeam, user, emitRequestUpdate]);
 
   const tabs = [
     { id: 'params', label: 'Params', count: currentRequest.params?.filter((p) => p.enabled && p.key).length },

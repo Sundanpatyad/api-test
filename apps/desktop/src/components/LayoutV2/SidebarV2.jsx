@@ -14,42 +14,29 @@ import logo from '@/assets/logo.png';
 
 const NAV_ITEMS = [
   {
-    id: 'dashboard',
-    label: 'Home',
-    icon: (
-      <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
-          d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-      </svg>
-    ),
-  },
-  {
     id: 'collections',
-    label: 'API Endpoints',
+    label: 'Collections',
     icon: (
-      <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
-          d="M13 10V3L4 14h7v7l9-11h-7z" />
+      <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
       </svg>
     ),
   },
   {
     id: 'environments',
-    label: 'Environments',
+    label: 'Env',
     icon: (
-      <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
-          d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+      <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
       </svg>
     ),
   },
   {
     id: 'docs',
-    label: 'API Docs',
+    label: 'Docs',
     icon: (
-      <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
-          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
       </svg>
     ),
   },
@@ -644,7 +631,7 @@ export default function SidebarV2({
 
   return (
     <div className="sdbv2-container" style={{ width, minWidth: width }}>
-      {/* Activity Bar (Vertical Rail) */}
+      {/* Activity Bar - Minimal VS Code style */}
       <nav className="sdbv2-activity-bar">
         <div className="sdbv2-activity-top">
           {NAV_ITEMS.map((item) => {
@@ -659,46 +646,41 @@ export default function SidebarV2({
                 className={`sdbv2-activity-item ${isActive ? 'sdbv2-activity-item--active' : ''}`}
                 title={item.label}
               >
-                <span className="sdbv2-activity-icon">{item.icon}</span>
-                {isActive && <span className="sdbv2-activity-active-bar" />}
+                {item.icon}
               </button>
             );
           })}
         </div>
 
         <div className="sdbv2-activity-bottom">
-          <div className="flex flex-col gap-2 relative">
-            <button
-              className="sdbv2-activity-item"
-              onClick={() => setShowInviteModal(true)}
-              title="Team Members"
-            >
-              <span className="sdbv2-activity-icon">
-                <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                </svg>
-              </span>
-            </button>
-            <button
-              className="sdbv2-activity-avatar"
-              onClick={() => setShowLogout(!showLogout)}
-              title={user?.email || 'Profile'}
-            >
-              {user?.email?.[0]?.toUpperCase() || 'U'}
-            </button>
+          <button
+            className="sdbv2-activity-item"
+            onClick={() => setShowInviteModal(true)}
+            title="Team"
+          >
+            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
+          </button>
+          <button
+            className="sdbv2-activity-avatar"
+            onClick={() => setShowLogout(!showLogout)}
+            title={user?.email || 'Profile'}
+          >
+            {user?.email?.[0]?.toUpperCase() || 'U'}
+          </button>
 
-            {showLogout && (
-              <div className="sdbv2-logout-menu">
-                <div className="sdbv2-logout-email">{user?.email}</div>
-                <button className="sdbv2-logout-btn" onClick={handleLogout}>
-                  <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                  </svg>
-                  Sign Out
-                </button>
-              </div>
-            )}
-          </div>
+          {showLogout && (
+            <div className="sdbv2-logout-menu">
+              <div className="sdbv2-logout-email">{user?.email}</div>
+              <button className="sdbv2-logout-btn" onClick={handleLogout}>
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                Sign Out
+              </button>
+            </div>
+          )}
         </div>
       </nav>
 
@@ -932,7 +914,7 @@ function SidebarRequest({ request, onSelect, isActive, onContextMenu }) {
     <button
       onClick={() => onSelect(request)}
       onContextMenu={onContextMenu}
-      className={`sdbv2-tree-row sdbv2-req-row ${isActive ? 'sdbv2-tree-row--active' : ''}`}
+      className={`sdbv2-tree-row sdbv2-req-row ${isActive ? 'sdbv2-tree-row--active' : ''} relative`}
     >
       <span className="sdbv2-method-badge" style={{
         color,

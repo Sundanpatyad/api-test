@@ -78,11 +78,10 @@ export const useRequestStore = create(
       history: [],
       activeTab: 'params',
       noActiveRequest: false,
+      openTabs: [],
+      activeTabId: null,
 
       setCurrentRequest: (req) => {
-        // Ensure every param and header row has a unique `id`.
-        // Rows from the backend only carry MongoDB `_id` — normalise here so
-        // ParamsTab / HeadersTab can use `p.id` as a stable React key.
         const ensureIds = (arr = []) =>
           arr.map((item) => ({
             ...item,
@@ -96,11 +95,108 @@ export const useRequestStore = create(
           headers: ensureIds(req.headers),
           url: syncUrlFromParams(req.url || '', req.params || [])
         };
-        set({ currentRequest: newReq, noActiveRequest: false });
-        localStorageService.saveCurrentRequest(newReq);
+        
+        set((state) => {
+          const existingTab = state.openTabs.find(t => t.id === newReq._id);
+          localStorageService.saveCurrentRequest(newReq);
+          
+          if (existingTab) {
+            return { currentRequest: newReq, noActiveRequest: false, activeTabId: existingTab.id };
+          }
+          
+          const newTabId = newReq._id || uuidv4();
+          const newTab = { id: newTabId, request: newReq, originalRequest: JSON.parse(JSON.stringify(newReq)), isDirty: false };
+          return {
+            currentRequest: newReq,
+            noActiveRequest: false,
+            openTabs: [...state.openTabs, newTab],
+            activeTabId: newTabId
+          };
+        });
       },
 
       setNoActiveRequest: (value) => set({ noActiveRequest: value }),
+
+      setActiveTabId: (id) => {
+        set((state) => {
+           const tab = state.openTabs.find(t => t.id === id);
+           if (!tab) return state;
+           localStorageService.saveCurrentRequest(tab.request);
+           return { activeTabId: id, currentRequest: tab.request, noActiveRequest: false };
+        });
+      },
+
+      closeTab: (id) => {
+        set((state) => {
+           const newTabs = state.openTabs.filter(t => t.id !== id);
+           const isClosingActive = state.activeTabId === id;
+           
+           if (newTabs.length === 0) {
+              return { openTabs: [], activeTabId: null, currentRequest: defaultRequest(), noActiveRequest: true };
+           }
+           
+           if (isClosingActive) {
+              const closingIndex = state.openTabs.findIndex(t => t.id === id);
+              const nextTab = newTabs[closingIndex - 1] || newTabs[0];
+              localStorageService.saveCurrentRequest(nextTab.request);
+              return { openTabs: newTabs, activeTabId: nextTab.id, currentRequest: nextTab.request, noActiveRequest: false };
+           }
+           
+           return { openTabs: newTabs };
+        });
+      },
+
+      closeAllTabs: () => {
+        set({ openTabs: [], activeTabId: null, currentRequest: defaultRequest(), noActiveRequest: true });
+      },
+
+      closeOtherTabs: (id) => {
+        set((state) => {
+          const tabToKeep = state.openTabs.find(t => t.id === id);
+          if (!tabToKeep) return state;
+          
+          localStorageService.saveCurrentRequest(tabToKeep.request);
+          return { openTabs: [tabToKeep], activeTabId: tabToKeep.id, currentRequest: tabToKeep.request, noActiveRequest: false };
+        });
+      },
+
+      closeTabsToRight: (id) => {
+        set((state) => {
+          const index = state.openTabs.findIndex(t => t.id === id);
+          if (index === -1) return state;
+          
+          const newTabs = state.openTabs.slice(0, index + 1);
+          
+          // If active tab was closed, switch to the target tab
+          const activeIndex = state.openTabs.findIndex(t => t.id === state.activeTabId);
+          if (activeIndex > index) {
+            const nextTab = newTabs[newTabs.length - 1];
+            localStorageService.saveCurrentRequest(nextTab.request);
+            return { openTabs: newTabs, activeTabId: nextTab.id, currentRequest: nextTab.request };
+          }
+          
+          return { openTabs: newTabs };
+        });
+      },
+
+      closeTabsToLeft: (id) => {
+        set((state) => {
+          const index = state.openTabs.findIndex(t => t.id === id);
+          if (index <= 0) return state;
+          
+          const newTabs = state.openTabs.slice(index);
+          
+          // If active tab was closed, switch to the target tab
+          const activeIndex = state.openTabs.findIndex(t => t.id === state.activeTabId);
+          if (activeIndex < index) {
+            const nextTab = newTabs[0];
+            localStorageService.saveCurrentRequest(nextTab.request);
+            return { openTabs: newTabs, activeTabId: nextTab.id, currentRequest: nextTab.request };
+          }
+          
+          return { openTabs: newTabs };
+        });
+      },
 
       updateField: (field, value) => {
         set((state) => {
@@ -111,33 +207,43 @@ export const useRequestStore = create(
             req.url = syncUrlFromParams(req.url, value);
           }
           
-          // Real-time sync with Sidebar (CollectionStore)
           if (field === 'name' && (req._id || req.collectionId)) {
-            // Use import inside to avoid circular dependency
             import('@/store/collectionStore').then(({ useCollectionStore }) => {
               useCollectionStore.getState().updateRequest(req);
             });
           }
           
-          return { currentRequest: req };
+          const openTabs = [...state.openTabs];
+          const tIdx = openTabs.findIndex(t => t.id === state.activeTabId);
+          if (tIdx >= 0) openTabs[tIdx] = { ...openTabs[tIdx], request: req, isDirty: true };
+          
+          return { currentRequest: req, openTabs };
         });
       },
 
       updateBody: (bodyUpdate) =>
-        set((state) => ({
-          currentRequest: {
+        set((state) => {
+          const req = {
             ...state.currentRequest,
             body: { ...state.currentRequest.body, ...bodyUpdate },
-          },
-        })),
+          };
+          const openTabs = [...state.openTabs];
+          const tIdx = openTabs.findIndex(t => t.id === state.activeTabId);
+          if (tIdx >= 0) openTabs[tIdx] = { ...openTabs[tIdx], request: req, isDirty: true };
+          return { currentRequest: req, openTabs };
+        }),
 
       updateAuth: (authUpdate) =>
-        set((state) => ({
-          currentRequest: {
+        set((state) => {
+          const req = {
             ...state.currentRequest,
             auth: { ...state.currentRequest.auth, ...authUpdate },
-          },
-        })),
+          };
+          const openTabs = [...state.openTabs];
+          const tIdx = openTabs.findIndex(t => t.id === state.activeTabId);
+          if (tIdx >= 0) openTabs[tIdx] = { ...openTabs[tIdx], request: req, isDirty: true };
+          return { currentRequest: req, openTabs };
+        }),
 
       setActiveTab: (tab) => set({ activeTab: tab }),
 
@@ -174,7 +280,14 @@ export const useRequestStore = create(
         try {
           if (req._id) {
             const { data } = await api.put(`/api/request/${req._id}`, req);
-            set({ currentRequest: data.request });
+            
+            set(state => {
+              const newTabs = [...state.openTabs];
+              const idx = newTabs.findIndex(t => t.id === state.activeTabId);
+              if (idx >= 0) newTabs[idx] = { ...newTabs[idx], request: data.request, originalRequest: JSON.parse(JSON.stringify(data.request)), isDirty: false };
+              return { currentRequest: data.request, openTabs: newTabs };
+            });
+            
             localStorageService.saveCurrentRequest(data.request);
             const { useSocketStore } = await import('@/store/socketStore');
             const { useAuthStore } = await import('@/store/authStore');
@@ -187,14 +300,20 @@ export const useRequestStore = create(
             return { success: true };
           } else if (req.collectionId) {
             const { data } = await api.post('/api/request', req);
-            set({ currentRequest: data.request });
+            
+            set(state => {
+              const newTabs = [...state.openTabs];
+              const idx = newTabs.findIndex(t => t.id === state.activeTabId);
+              if (idx >= 0) newTabs[idx] = { id: data.request._id, request: data.request, originalRequest: JSON.parse(JSON.stringify(data.request)), isDirty: false };
+              return { currentRequest: data.request, openTabs: newTabs, activeTabId: data.request._id };
+            });
+            
             localStorageService.saveCurrentRequest(data.request);
             const { useSocketStore } = await import('@/store/socketStore');
             const { useAuthStore } = await import('@/store/authStore');
             const { useTeamStore } = await import('@/store/teamStore');
             const { useCollectionStore } = await import('@/store/collectionStore');
             
-            // Add to collection store so it appears in sidebar
             useCollectionStore.getState().addRequest(data.request);
 
             useSocketStore.getState().emitRequestCreated(
