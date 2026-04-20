@@ -8,8 +8,8 @@ export const isTauri = () =>
 /**
  * Execute an HTTP request.
  *
- * - Inside Tauri  → uses Rust `reqwest` via invoke() for SSRF-safe execution
- * - In browser    → falls back to native fetch() for development/testing
+ * - Inside Tauri  → uses Rust `reqwest` via invoke()
+ * - In browser    → falls back to native fetch()
  */
 export async function executeHttpRequest(payload) {
   if (typeof navigator !== 'undefined' && !navigator.onLine) {
@@ -19,7 +19,35 @@ export async function executeHttpRequest(payload) {
   if (isTauri()) {
     // ── Tauri path (production) ────────────────────────────────────────────
     const { invoke } = await import('@tauri-apps/api/tauri');
-    return invoke('execute_request', { payload });
+
+    // Create a watchdog timeout to prevent infinite loading if the bridge hangs
+    const WATCHDOG_TIMEOUT_MS = 35000;
+    
+    const watchdog = new Promise((_, reject) => {
+      setTimeout(() => reject('Request Timeout: The native bridge failed to respond within 35s.'), WATCHDOG_TIMEOUT_MS);
+    });
+
+    try {
+      // Race the actual request against the watchdog
+      return await Promise.race([
+        invoke('execute_request', { payload }),
+        watchdog
+      ]);
+    } catch (err) {
+      // Detailed error logging for production debugging (if console is visible)
+      console.error('[Tauri Bridge Error]:', err);
+      
+      const msg = typeof err === 'string' ? err : (err.message || String(err));
+      
+      if (msg.includes('SSRF_BLOCKED')) {
+        throw 'Blocked: Internal/private IP addresses are not allowed for security.';
+      }
+      if (msg.includes('failed to fill whole buffer') || msg.includes('os error 10054')) {
+        throw 'Connection reset by peer: The server closed the connection unexpectedly.';
+      }
+
+      throw msg;
+    }
   }
 
   // ── Browser fallback (dev / testing) ──────────────────────────────────────

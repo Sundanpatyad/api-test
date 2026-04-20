@@ -119,7 +119,7 @@ pub async fn execute_request(
                         if !token.is_empty() {
                             if let Ok(val) = HeaderValue::from_str(&format!("Bearer {}", token)) {
                                 header_map.insert(
-                                    HeaderName::from_str("Authorization").unwrap(),
+                                    HeaderName::from_static("authorization"),
                                     val,
                                 );
                             }
@@ -133,7 +133,7 @@ pub async fn execute_request(
                     let pass = basic.password.as_deref().unwrap_or("");
                     let encoded = base64_encode(&format!("{}:{}", user, pass));
                     if let Ok(val) = HeaderValue::from_str(&format!("Basic {}", encoded)) {
-                        header_map.insert(HeaderName::from_str("Authorization").unwrap(), val);
+                        header_map.insert(HeaderName::from_static("authorization"), val);
                     }
                 }
             }
@@ -168,7 +168,7 @@ pub async fn execute_request(
     }
 
     // Extract Host for Cookie Jar
-    let parsed_url = url::Url::parse(&url).map_err(|_| "Invalid URL format".to_string())?;
+    let parsed_url = url::Url::parse(&url).map_err(|e| format!("Invalid URL format: {}", e))?;
     let host = parsed_url.host_str().unwrap_or("").to_string();
 
     // Attach saved cookies for this host
