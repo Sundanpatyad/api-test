@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import Editor from '@monaco-editor/react';
 import { useRequestStore } from '@/store/requestStore';
 import { useUIStore } from '@/store/uiStore';
 import { getStatusClass, formatSize, formatTime, formatBody } from '@/utils/helpers';
+import JsonFormatter from './JsonFormatter';
 
 const RESPONSE_TABS = ['Pretty', 'Raw', 'Headers'];
 
@@ -121,25 +121,9 @@ export default function ResponseViewer() {
       {/* Body */}
       <div className="flex-1 overflow-hidden">
         {activeTab === 'Pretty' && (
-          <Editor
-            height="100%"
-            language={lang}
-            value={prettyBody || '// No response body'}
-            theme={theme === 'light' ? 'light' : 'vs-dark'}
-            loading={<div className="h-full flex items-center justify-center text-surface-400 text-sm"><pre className="text-xs text-tx-secondary font-mono whitespace-pre-wrap break-all p-3">{prettyBody || response.body || 'No response body'}</pre></div>}
-            options={{
-              readOnly: true,
-              minimap: { enabled: false },
-              fontSize: 12,
-              fontFamily: 'JetBrains Mono, Fira Code, monospace',
-              lineNumbers: 'off',
-              scrollBeyondLastLine: false,
-              wordWrap: 'on',
-              automaticLayout: true,
-              scrollbar: { useShadows: false, verticalScrollbarSize: 6 },
-              padding: { top: 8, bottom: 8 },
-              folding: true,
-            }}
+          <JsonFormatter 
+            value={prettyBody || response.body} 
+            className="h-full"
           />
         )}
 

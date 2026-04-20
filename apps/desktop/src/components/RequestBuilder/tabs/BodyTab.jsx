@@ -1,6 +1,7 @@
 import { useRequestStore } from '@/store/requestStore';
 import { useUIStore } from '@/store/uiStore';
 import Editor from '@monaco-editor/react';
+import JsonEditor from './JsonEditor';
 
 const BODY_MODES = [
   { id: 'none',        label: 'None' },
@@ -65,10 +66,18 @@ export default function BodyTab() {
           </div>
         )}
 
-        {body.mode === 'raw' && (
+        {body.mode === 'raw' && body.rawLanguage === 'json' && (
+          <JsonEditor
+            value={body.raw || ''}
+            onChange={setRaw}
+            className="h-full"
+          />
+        )}
+
+        {body.mode === 'raw' && body.rawLanguage !== 'json' && (
           <Editor
             height="100%"
-            language={body.rawLanguage === 'json' ? 'json' : body.rawLanguage}
+            language={body.rawLanguage}
             value={body.raw || ''}
             onChange={setRaw}
             theme={theme === 'light' ? 'light' : 'vs-dark'}
