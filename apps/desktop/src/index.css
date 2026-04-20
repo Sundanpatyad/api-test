@@ -980,17 +980,16 @@ textarea,
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   V2 SIDEBAR
+   V2 SIDEBAR - Minimal VS Code Style
    ══════════════════════════════════════════════════════════════════ */
 .sdbv2-container {
   height: 100%;
   display: flex;
   background: var(--bg-secondary);
-  border-right: 1px solid var(--border-1);
   overflow: hidden;
 }
 
-/* Activity Bar (Icon Rail) */
+/* Activity Bar - Minimal */
 .sdbv2-activity-bar {
   width: 48px;
   flex-shrink: 0;
@@ -998,7 +997,7 @@ textarea,
   flex-direction: column;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 0;
+  padding: 8px 0;
   background: var(--rail-bg);
   border-right: 1px solid var(--border-1);
 }
@@ -1008,51 +1007,43 @@ textarea,
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
   width: 100%;
 }
 
 .sdbv2-activity-item {
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--text-muted);
   background: transparent;
   border: none;
-  border-radius: 8px;
+  border-radius: 6px;
   cursor: pointer;
   position: relative;
-  transition: color 0.15s, background 0.15s;
+  transition: color 0.12s;
 }
 
 .sdbv2-activity-item:hover {
   color: var(--text-primary);
-  background: var(--surface-2);
 }
 
 .sdbv2-activity-item--active {
   color: var(--text-primary);
-  background: var(--surface-3);
 }
 
-.sdbv2-activity-active-bar {
+.sdbv2-activity-item--active::before {
+  content: '';
   position: absolute;
   left: 0;
-  top: 8px;
-  bottom: 8px;
-  width: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 24px;
   background: var(--accent);
-  border-top-right-radius: 2px;
-  border-bottom-right-radius: 2px;
-  opacity: 0.85;
-}
-
-.sdbv2-activity-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  border-radius: 0 2px 2px 0;
 }
 
 .sdbv2-activity-avatar {
@@ -1062,19 +1053,17 @@ textarea,
   background: var(--surface-3);
   border: 1px solid var(--border-1);
   color: var(--text-secondary);
-  font-size: 10px;
-  font-weight: 700;
-  font-family: 'Poppins', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: border-color 0.2s, background 0.2s;
+  transition: border-color 0.15s;
 }
 
 .sdbv2-activity-avatar:hover {
   border-color: var(--border-2);
-  background: var(--surface-3);
 }
 
 /* Main Content Area */
@@ -1306,7 +1295,6 @@ textarea,
   color: var(--text-primary);
 }
 
-/* Tree rows - matte, no box-shadow overlap */
 .sdbv2-tree-row {
   display: flex;
   align-items: center;
@@ -1327,20 +1315,30 @@ textarea,
 }
 
 .sdbv2-tree-row--active {
-  background: var(--surface-3);
+  background: var(--surface-2);
 }
 
-/* Team / project styled rows */
+.sdbv2-tree-row--active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 4px;
+  width: 2px;
+  background: var(--accent);
+  border-radius: 0 2px 2px 0;
+}
+
 .sdbv2-tree-row.team-row,
 .sdbv2-tree-row.proj-row {
-  border-radius: 7px;
-  margin-bottom: 2px;
+  border-radius: 4px;
+  margin-bottom: 1px;
+  position: relative;
 }
 
-.sdbv2-tree-row.team-row.sdbv2-tree-row--active {
-  background: rgba(99, 102, 241, 0.08);
-  outline: 1px solid rgba(99, 102, 241, 0.2);
-  outline-offset: -1px;
+.sdbv2-tree-row.team-row.sdbv2-tree-row--active,
+.sdbv2-tree-row.proj-row.sdbv2-tree-row--active {
+  background: var(--surface-2);
 }
 
 .sdbv2-tree-avatar {
@@ -1412,11 +1410,10 @@ textarea,
   transform: rotate(90deg);
 }
 
-/* Indent — matte guide line */
 .sdbv2-indent {
-  margin-left: 14px;
-  padding-left: 10px;
-  border-left: 1px solid var(--border-1);
+  margin-left: 16px;
+  padding-left: 0;
+  border-left: none;
   display: flex;
   flex-direction: column;
   gap: 1px;

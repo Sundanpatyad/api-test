@@ -217,10 +217,15 @@ const JsonRow = memo(function JsonRow({ line, index, colors, isHit, isCurrent, o
 });
 
 // ─── Virtualised list ─────────────────────────────────────────────────────────
-function VirtualJsonList({ lines, colors, hitSet, hitIndices, searchIdx, onToggle, onCopy, copiedIdx }) {
+function VirtualJsonList({ lines, colors, hitSet, hitIndices, searchIdx, onToggle, onCopy, copiedIdx, scrollRef }) {
   const { containerRef, startIdx, endIdx, totalHeight } = useVirtualList({
     count: lines.length, itemHeight: ROW_H, overscan: OVERSCAN,
   });
+
+  // Expose the raw scrolling container so external logic (like search) can manipulate scrollTop
+  useLayoutEffect(() => {
+    if (scrollRef) scrollRef.current = containerRef.current;
+  }, [scrollRef, containerRef]);
 
   return (
     <div ref={containerRef} style={{ height: '100%', overflow: 'auto', position: 'relative' }}>
@@ -334,7 +339,9 @@ export default function PostmanJsonViewer({ value, className = '' }) {
     return buildLines(parsed, 'root', 0, expandedPaths, false);
   }, [parsed, expandedPaths]);
 
-  // ── Search hits — O(n) scan, then O(1) lookup ──────────────────────────────
+  // ── Search hits ────────────────────────────────────────────────────────────
+  // We scan `lines` only. Since `expandedPaths` now auto-expands to reveal all hits,
+  // all hits WILL be present in `lines`.
   const { hitSet, hitIndices } = useMemo(() => {
     const q = searchQ.trim().toLowerCase();
     if (!q || !lines.length) return { hitSet: new Set(), hitIndices: [] };
@@ -348,12 +355,65 @@ export default function PostmanJsonViewer({ value, className = '' }) {
 
   const clampedIdx = hitIndices.length ? Math.min(searchIdx, hitIndices.length - 1) : 0;
 
+  // ── Auto-expand nodes that match the search query ──────────────────────────
+  useEffect(() => {
+    const q = searchQ.trim().toLowerCase();
+    if (!q || !parsed) return;
+
+    // Fast DFS to find paths of all nodes matching the query
+    const newExpanded = new Set(expandedPaths);
+    let added = false;
+
+    function searchNode(v, path) {
+      let isMatch = false;
+
+      // Check this node
+      if (v === null) {
+        if ("null".includes(q)) isMatch = true;
+      } else if (typeof v === 'boolean' || typeof v === 'number') {
+        if (String(v).toLowerCase().includes(q)) isMatch = true;
+      } else if (typeof v === 'string') {
+        if (v.toLowerCase().includes(q)) isMatch = true;
+      } else if (Array.isArray(v)) {
+        for (let i = 0; i < v.length; i++) {
+          if (searchNode(v[i], `${path}[${i}]`)) {
+            newExpanded.add(path); // expand array
+            added = true;
+            isMatch = true;
+          }
+        }
+      } else if (typeof v === 'object') {
+        const keys = Object.keys(v);
+        for (let i = 0; i < keys.length; i++) {
+          const k = keys[i];
+          const kMatch = k.toLowerCase().includes(q);
+          const childMatch = searchNode(v[k], `${path}.${k}`);
+          
+          if (kMatch || childMatch) {
+            newExpanded.add(path); // expand object
+            added = true;
+            isMatch = true;
+          }
+        }
+      }
+      return isMatch;
+    }
+
+    searchNode(parsed, 'root');
+
+    // Only update state if we actually needed to expand something new
+    if (added) {
+      setExpanded(newExpanded);
+    }
+  }, [searchQ, parsed]); // deliberately omitted expandedPaths to avoid infinite loop
+
   // Auto-scroll to current search hit
   useLayoutEffect(() => {
     if (!hitIndices.length) return;
+    const hitRowIdx = hitIndices[clampedIdx];
     const el = hitScrollRef.current;
-    if (el) el.scrollTop = Math.max(0, (hitIndices[clampedIdx] - 5) * ROW_H);
-  }, [clampedIdx, hitIndices]);
+    if (el) el.scrollTop = Math.max(0, (hitRowIdx - 5) * ROW_H);
+  }, [clampedIdx, hitIndices, lines]);
 
   // ── Handlers ────────────────────────────────────────────────────────────────
   const handleToggle = useCallback(path => {
@@ -490,20 +550,20 @@ export default function PostmanJsonViewer({ value, className = '' }) {
                 }}
                 placeholder="search keys/values…"
                 style={{
-                  fontSize: 11, padding: '3px 56px 3px 24px', borderRadius: 4,
+                  fontSize: 11, padding: '3px 80px 3px 24px', borderRadius: 4,
                   border: '0.5px solid var(--color-border-secondary, #ccc)',
                   background: 'var(--color-background-primary)',
                   color: 'var(--color-text-primary)', fontFamily: 'inherit',
-                  width: 160, outline: 'none',
+                  width: 220, outline: 'none',
                 }}
               />
               {searchRaw && (
                 <>
-                  <span style={{ position: 'absolute', right: 38, fontSize: 10, color: 'var(--color-text-tertiary)', pointerEvents: 'none' }}>
+                  <span style={{ position: 'absolute', right: 46, fontSize: 10, color: 'var(--color-text-tertiary)', pointerEvents: 'none', background: 'var(--color-background-primary)', paddingLeft: 4 }}>
                     {hitIndices.length ? `${clampedIdx + 1}/${hitIndices.length}` : '0/0'}
                   </span>
-                  <button onClick={() => navigateSearch(-1)} style={{ position: 'absolute', right: 20, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', fontSize: 12, padding: '0 2px' }} title="Previous (Shift+Enter)">‹</button>
-                  <button onClick={() => navigateSearch(1)}  style={{ position: 'absolute', right: 4,  background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', fontSize: 12, padding: '0 2px' }} title="Next (Enter)">›</button>
+                  <button onClick={() => navigateSearch(-1)} style={{ position: 'absolute', right: 22, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', fontSize: 12, padding: '0 2px' }} title="Previous (Shift+Enter)">‹</button>
+                  <button onClick={() => navigateSearch(1)}  style={{ position: 'absolute', right: 6,  background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', fontSize: 12, padding: '0 2px' }} title="Next (Enter)">›</button>
                 </>
               )}
             </div>
@@ -575,11 +635,12 @@ export default function PostmanJsonViewer({ value, className = '' }) {
             </div>
           ) : (
             // Pass hitScrollRef so search hits can scroll the container
-            <div style={{ height: '100%' }} ref={hitScrollRef}>
+            <div style={{ height: '100%' }}>
               <VirtualJsonList
                 lines={lines} colors={colors}
                 hitSet={hitSet} hitIndices={hitIndices} searchIdx={clampedIdx}
                 onToggle={handleToggle} onCopy={handleCopy} copiedIdx={copiedIdx}
+                scrollRef={hitScrollRef}
               />
             </div>
           )
