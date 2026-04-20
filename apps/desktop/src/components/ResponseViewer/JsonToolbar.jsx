@@ -138,3 +138,20 @@ export default function JsonToolbar({
     </div>
   );
 }
+
+// Custom SVG icons for expand/collapse
+function ExpandIcon({ className }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+    </svg>
+  );
+}
+
+function CollapseIcon({ className }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M9 9l3 3-3 3M15 9l-3 3 3 3" />
+    </svg>
+  );
+}

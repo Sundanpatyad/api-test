@@ -44,7 +44,7 @@ export default function SplashScreen({ onComplete }) {
             {/* Main Logo Container with Metallic Gradient */}
             <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#E6EDF3] via-[#8B949E] to-[#484F58] flex items-center justify-center p-4 shadow-2xl relative z-10 overflow-hidden">
               <div className="absolute inset-0 bg-gradient-to-tr from-white/20 to-transparent pointer-events-none" />
-              <img src={logo} alt="PayloadX" className="w-full h-full object-contain filter drop-shadow-md" />
+              <img src={logo} alt="PayloadX" className="w-full h-full object-contain drop-shadow-md" />
               {/* Shimmer Effect */}
               <div className="absolute -inset-full bg-gradient-to-r from-transparent via-white/40 to-transparent transform rotate-45 animate-shimmer" />
             </div>

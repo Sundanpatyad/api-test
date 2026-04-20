@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useRequestStore } from '@/store/requestStore';
 import { useUIStore } from '@/store/uiStore';
 import { getStatusClass, formatSize, formatTime, formatBody, isJson } from '@/utils/helpers';
-import JsonTreeViewer from './JsonTreeViewer';
+import PostmanJsonViewer from './PostmanJsonViewer';
 import JsonFormatter from './JsonFormatter';
 
 const RESPONSE_TABS = ['Pretty', 'Raw', 'Headers'];
@@ -123,7 +123,7 @@ export default function ResponseViewer() {
       <div className="flex-1 overflow-hidden">
         {activeTab === 'Pretty' && (
           contentType.includes('application/json') || isJson(response.body) ? (
-            <JsonTreeViewer 
+            <PostmanJsonViewer 
               value={response.body} 
               className="h-full"
             />

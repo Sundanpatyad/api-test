@@ -1,0 +1,19 @@
+{
+  "success": true,
+  "data": {
+    "message": "Logged in successfully",
+    "data": {
+      "_id": "695ebbec2d2b602523aa0cfc",
+      "employeeId": "SURYATRAIN00017",
+      "name": "SUNDAN_PM",
+      "departmentId": {},
+      "designationId": {
+        "_id": "67f757655c50057e3e5799e7",
+        "name": "project manager",
+        "roleId": "SURYAHOP",
+        "role": "project_manager"
+      },
+      "phoneNumber": "9682578174"
+    }
+  }
+}

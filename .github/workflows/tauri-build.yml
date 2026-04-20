@@ -59,4 +59,4 @@ jobs:
           releaseBody: "PayloadX API Studio Release (Signed & Notarized macOS Build)"
           releaseDraft: true
           prerelease: false
-          tagName: v${{ github.ref_name }}
+          tagName: ${{ github.ref_name }}
