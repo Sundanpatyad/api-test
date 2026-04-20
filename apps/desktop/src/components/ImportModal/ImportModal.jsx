@@ -84,8 +84,10 @@ export default function ImportModal() {
           localStorage.setItem('sidebar_expanded_collections', JSON.stringify(expanded));
         }
         
-        // Dispatch event to trigger sidebar expansion
-        window.dispatchEvent(new CustomEvent('collection-imported', { detail: data.collection._id }));
+        // Dispatch event to trigger sidebar expansion (pass both collectionId and projectId)
+        window.dispatchEvent(new CustomEvent('collection-imported', { 
+          detail: { collectionId: data.collection._id, projectId: currentProject._id }
+        }));
       }
 
       // Emit to real-time room

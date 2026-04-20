@@ -124,8 +124,9 @@ export default function ResponseViewer() {
           <Editor
             height="100%"
             language={lang}
-            value={prettyBody}
+            value={prettyBody || '// No response body'}
             theme={theme === 'light' ? 'light' : 'vs-dark'}
+            loading={<div className="h-full flex items-center justify-center text-surface-400 text-sm"><pre className="text-xs text-tx-secondary font-mono whitespace-pre-wrap break-all p-3">{prettyBody || response.body || 'No response body'}</pre></div>}
             options={{
               readOnly: true,
               minimap: { enabled: false },

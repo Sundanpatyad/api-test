@@ -251,7 +251,9 @@ export default function SidebarV2({
   // ── Listen for collection import events to auto-expand ──────────────────
   useEffect(() => {
     const handleCollectionImported = (e) => {
-      const collectionId = e.detail;
+      const { collectionId, projectId } = e.detail || {};
+      
+      // Expand the collection
       const currentExpanded = expandedCollectionsRef.current;
       if (collectionId && !currentExpanded.has(collectionId)) {
         const next = new Set([...currentExpanded, collectionId]);
@@ -260,11 +262,18 @@ export default function SidebarV2({
         // Fetch requests from API for the newly imported collection
         fetchCollectionRequests(collectionId, true);
       }
+      
+      // Expand the parent project so the collection is visible
+      if (projectId && !expandedProjects.has(projectId)) {
+        const nextProjects = new Set([...expandedProjects, projectId]);
+        setExpandedProjects(nextProjects);
+        localStorage.setItem('sidebar_expanded_projects', JSON.stringify([...nextProjects]));
+      }
     };
 
     window.addEventListener('collection-imported', handleCollectionImported);
     return () => window.removeEventListener('collection-imported', handleCollectionImported);
-  }, []);
+  }, [expandedProjects]);
 
   // ── Sync expanded collections with data (Persistence) ──────────────────
   useEffect(() => {

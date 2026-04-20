@@ -82,8 +82,14 @@ export default function RESTRequestBuilder() {
         timeoutMs: 30000,
       };
 
+      console.log('[ExecuteRequest] Starting request to:', resolvedUrl);
       const response = await executeHttpRequest(payload);
-      if (isCancelled) return;
+      console.log('[ExecuteRequest] Got response:', response?.status);
+      
+      if (isCancelled) {
+        console.log('[ExecuteRequest] Request was cancelled, ignoring response');
+        return;
+      }
 
       setResponse(response);
       addToHistory({
@@ -97,13 +103,18 @@ export default function RESTRequestBuilder() {
         emitRequestUpdate(currentTeam._id, currentRequest, user.id);
       }
     } catch (err) {
+      console.error('[ExecuteRequest] Error:', err);
       const errorMsg = typeof err === 'string' ? err : (err.message || 'Request failed');
       toast.error(`Error: ${errorMsg}`);
       if (!isCancelled) {
         setResponse({ status: 'Error', statusText: '', headers: {}, body: errorMsg, responseTimeMs: 0, sizeBytes: 0 });
       }
     } finally {
-      if (!isCancelled) setIsExecuting(false);
+      console.log('[ExecuteRequest] Finally block, isCancelled:', isCancelled);
+      // Clear loading state immediately (not in setTimeout) to prevent race condition
+      if (!isCancelled) {
+        setIsExecuting(false);
+      }
       useRequestStore.setState({ cancelCurrentRequest: null });
     }
   }, [currentRequest, activeEnvironment, executeHttpRequest, resolveVariables, setResponse, setIsExecuting, addToHistory, currentTeam, user, emitRequestUpdate]);

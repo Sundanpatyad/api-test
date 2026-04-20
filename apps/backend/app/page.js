@@ -201,6 +201,22 @@ export default function LandingPage() {
               })}
             </div>
           </div>
+
+          <div className={styles.storyNote}>
+            <div className={styles.storyQuote}>
+              "Why build PayloadX? Because Postman's pricing is a feature I'd rather skip."
+            </div>
+            <div className={styles.storyText}>
+              Built for <strong>engineers</strong> who want speed, local-first collaboration, and zero corporate bloat.
+            </div>
+            <div className={styles.storyFooter}>
+              <div className={styles.signature}>
+                <span className={styles.signatureName}>Sundan Sharma</span>
+                <span className={styles.signatureTitle}>Creator / Engineer</span>
+              </div>
+              <div className={styles.creatorAvatar}>SS</div>
+            </div>
+          </div>
         </div>
 
         {/* ── RIGHT — ORBIT ── */}
