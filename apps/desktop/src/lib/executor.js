@@ -130,16 +130,16 @@ async function executeFetchFallback(payload) {
       sizeBytes: new TextEncoder().encode(bodyText).length,
     };
   } catch (err) {
+    clearTimeout(timer);
+    
     if (err.name === 'AbortError') throw 'Request timed out';
 
-    // CORS error detection
+    // CORS error detection - provide helpful message
     const msg = err.message || String(err);
-    if (msg === 'Failed to fetch' || msg.includes('NetworkError') || msg.includes('CORS')) {
-      throw 'CORS Error: The target server blocked this request from the browser.';
+    if (msg === 'Failed to fetch' || msg.includes('NetworkError') || msg.includes('CORS') || msg.includes('blocked')) {
+      throw 'CORS Error: The target server blocked this request. If using the desktop app, please use the production build (.AppImage or .deb) instead of development mode.';
     }
 
     throw msg;
-  } finally {
-    clearTimeout(timer);
   }
 }

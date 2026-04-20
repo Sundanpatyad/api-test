@@ -216,7 +216,7 @@ pub async fn execute_request(
     let response = req.send().await.map_err(|e| {
         if e.is_timeout()  { "Request timed out".to_string() }
         else if e.is_connect() { format!("Connection failed: {}", e) }
-        else { e.to_string() }
+        else { format!("Request failed: {}", e) }
     })?;
     let elapsed = start.elapsed().as_millis() as u64;
 
@@ -258,7 +258,14 @@ pub async fn execute_request(
         }
     }
 
-    let body_bytes = response.bytes().await.map_err(|e| e.to_string())?;
+    // Read body with timeout to prevent hanging on Linux
+    let body_bytes = tokio::time::timeout(
+        std::time::Duration::from_secs(30),
+        response.bytes()
+    ).await
+    .map_err(|_| "Body read timed out".to_string())?
+    .map_err(|e| format!("Failed to read response body: {}", e))?;
+    
     let size_bytes = body_bytes.len();
     let body_str = String::from_utf8_lossy(&body_bytes).to_string();
 
