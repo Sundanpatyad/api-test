@@ -185,11 +185,12 @@ const JsonRow = memo(function JsonRow({ line, index, colors, isHit, isCurrent, o
         <span>{index + 1}</span>
       </div>
 
-      {/* Content */}
+      {/* Content — userSelect: text so mouse can select & copy any token */}
       <div style={{
         paddingLeft: 6 + line.depth * 14, flex: 1,
         whiteSpace: 'pre', overflow: 'hidden',
         textOverflow: 'ellipsis', lineHeight: `${ROW_H}px`,
+        userSelect: 'text', cursor: 'text',
       }}>
         {line.parts.map((p, i) => (
           <span key={i} style={{ color: colors[p.t] ?? colors.pun }}>{p.s}</span>
@@ -318,6 +319,15 @@ export default function PostmanJsonViewer({ value, className = '' }) {
     setCopiedIdx(null);
   }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Auto-expand all nodes when parse completes ─────────────────────────────
+  // Runs once per parsed object — gives Postman-style "everything open on load".
+  // collectAllExpandable is a cheap DFS that only runs on parse completion.
+  useEffect(() => {
+    if (parsed) {
+      setExpanded(collectAllExpandable(parsed, 'root'));
+    }
+  }, [parsed]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Line building — cheap because only expanded subtrees are walked ────────
   const lines = useMemo(() => {
     if (!parsed) return [];
@@ -368,6 +378,7 @@ export default function PostmanJsonViewer({ value, className = '' }) {
   const handleParsePaste = () => {
     if (!pasteText.trim()) return;
     setPasteOverride(pasteText);
+    // expandedPaths will be set by the auto-expand effect once the worker returns
     setExpanded(new Set());
     setSearchRaw(''); setSearchQ(''); setSearchIdx(0);
     setTab('pretty');
