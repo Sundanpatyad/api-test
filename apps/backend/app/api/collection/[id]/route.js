@@ -16,7 +16,8 @@ export async function GET(request, { params }) {
     const requests = await Request.find({ collectionId: params.id }).sort({ order: 1, createdAt: 1 });
     return NextResponse.json({ collection, requests });
   } catch (err) {
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('[GET /api/collection/:id] Error:', err.message);
+    return NextResponse.json({ error: 'Internal server error', details: err.message }, { status: 500 });
   }
 }
 
@@ -41,10 +42,16 @@ export async function DELETE(request, { params }) {
 
   try {
     await connectDB();
+    // Idempotent delete - don't check if exists, just delete
     await Collection.findByIdAndDelete(params.id);
+    // Also delete associated requests
     await Request.deleteMany({ collectionId: params.id });
-    return NextResponse.json({ message: 'Collection and requests deleted' });
+    return NextResponse.json({ 
+      message: 'Collection and requests deleted',
+      collectionId: params.id 
+    });
   } catch (err) {
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('[DELETE /api/collection/:id] Error:', err.message);
+    return NextResponse.json({ error: 'Internal server error', details: err.message }, { status: 500 });
   }
 }
