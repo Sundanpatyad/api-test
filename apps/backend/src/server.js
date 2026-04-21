@@ -294,6 +294,28 @@ io.on('connection', (socket) => {
   });
 });
 
+// ── Keep-Alive Ping (for Render free tier) ─────────────────────────────────
+// Prevents the server from going to sleep on free hosting
+const SELF_URL = process.env.SELF_URL || `http://localhost:${PORT}`;
+const KEEP_ALIVE_INTERVAL = 30 * 1000; // 30 seconds
+
+if (process.env.ENABLE_KEEP_ALIVE === 'true' || SELF_URL.includes('onrender.com')) {
+  setInterval(async () => {
+    try {
+      const response = await fetch(`${SELF_URL}/health`);
+      if (response.ok) {
+        console.log(`[keep-alive] ✅ Server pinged successfully at ${new Date().toISOString()}`);
+      } else {
+        console.log(`[keep-alive] ⚠️ Server returned ${response.status}`);
+      }
+    } catch (error) {
+      console.log(`[keep-alive] ❌ Ping failed: ${error.message}`);
+    }
+  }, KEEP_ALIVE_INTERVAL);
+
+  console.log(`[keep-alive] Enabled - pinging every 30s to keep Render free tier awake`);
+}
+
 // ── Start Server ────────────────────────────────────────────────────────────
 server.listen(PORT, () => {
   console.log(`🚀 PayloadX Express API + Socket.IO running on http://localhost:${PORT}`);
