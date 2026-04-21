@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
 import Request from '@/models/Request';
+import User from '@/models/User';
 import { authenticate } from '@/lib/auth';
 
 export async function GET(request) {
@@ -37,6 +38,7 @@ export async function GET(request) {
     const requests = await mQuery;
     return NextResponse.json({ requests });
   } catch (err) {
+    console.error('[API GET /request] Error:', err.message);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -59,26 +61,36 @@ export async function POST(request) {
     const finalProtocol = protocol || 'http';
     console.log(`[API POST] Creating request: "${name}" | Protocol: ${finalProtocol} | Method: ${method || 'N/A'}`);
 
-    // Only default to 'GET' for HTTP requests. For WS/SIO, method is irrelevant.
-    const finalMethod = finalProtocol === 'http' ? (method || 'GET') : undefined;
+    // Only set method for HTTP requests. For WS/SIO, don't include method field.
+    const methodField = finalProtocol === 'http' ? (method || 'GET') : undefined;
 
-    const req = await Request.create({
+    const createData = {
       ...body,
       name,
-      method: finalMethod,
       url,
       protocol: finalProtocol,
       collectionId,
       projectId,
       teamId,
       creatorId: user.id,
-    });
+    };
+    
+    // Only add method for HTTP requests (WS/Socket.IO don't use HTTP methods)
+    if (methodField) {
+      createData.method = methodField;
+    }
+    
+    const req = await Request.create(createData);
 
     // Populate creator before returning
     const populated = await Request.findById(req._id).populate('creatorId', 'name email avatar');
 
     return NextResponse.json({ request: populated }, { status: 201 });
   } catch (err) {
+    console.error('[API POST /request] Error:', err.message);
+    if (err.name === 'ValidationError') {
+      return NextResponse.json({ error: err.message, details: err.errors }, { status: 400 });
+    }
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
