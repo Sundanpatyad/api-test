@@ -139,6 +139,7 @@ export default function SidebarV2({
   const [searchResults, setSearchResults] = useState(null);
   const [isSearching, setIsSearching] = useState(false);
   const [showLogout, setShowLogout] = useState(false);
+  const logoutMenuRef = useRef(null);
   const [initializedCollections, setInitializedCollections] = useState(new Set());
   
   const [expandedProjects, setExpandedProjects] = useState(() => {
@@ -224,6 +225,20 @@ export default function SidebarV2({
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
+
+  // ── Close logout menu when clicking outside ──────────────────
+  useEffect(() => {
+    if (!showLogout) return;
+
+    const handleClickOutside = (e) => {
+      if (logoutMenuRef.current && !logoutMenuRef.current.contains(e.target)) {
+        setShowLogout(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showLogout]);
 
   // ── Load cached requests for expanded collections on mount ──────────────────
   useEffect(() => {
@@ -671,7 +686,7 @@ export default function SidebarV2({
           </button>
 
           {showLogout && (
-            <div className="sdbv2-logout-menu">
+            <div ref={logoutMenuRef} className="sdbv2-logout-menu">
               <div className="sdbv2-logout-email">{user?.email}</div>
               <button className="sdbv2-logout-btn" onClick={handleLogout}>
                 <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">

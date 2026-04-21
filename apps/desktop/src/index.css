@@ -1009,6 +1009,7 @@ textarea,
   align-items: center;
   gap: 2px;
   width: 100%;
+  position: relative;
 }
 
 .sdbv2-activity-item {
