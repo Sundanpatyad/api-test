@@ -78,7 +78,7 @@ export default function RequestBuilder() {
     }
   }, [saveRequest, isSaving]);
 
-  if (noActiveRequest) {
+  if (noActiveRequest || !currentRequest) {
     return <EmptyState onNewRequest={newRequest} />;
   }
 

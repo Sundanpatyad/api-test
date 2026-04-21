@@ -21,6 +21,8 @@ export default function ImportModal() {
   const [file, setFile] = useState(null);
   const [parsed, setParsed] = useState(null);
   const [isImporting, setIsImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState(0);
+  const [totalRequests, setTotalRequests] = useState(0);
   const [parseError, setParseError] = useState(null);
   const [step, setStep] = useState('upload'); // 'upload' | 'preview' | 'done'
 
@@ -62,38 +64,64 @@ export default function ImportModal() {
     }
 
     setIsImporting(true);
+    setImportProgress(0);
+    setTotalRequests(parsed.requests.length);
+
     try {
-      const { data } = await api.post('/api/import', {
-        postmanJson: parsed.rawJson,
+      // 1. Initialize Collection
+      const { data: initData } = await api.post('/api/import/init', {
+        collectionMeta: parsed.collectionMeta,
+        folders: parsed.folders,
         projectId: currentProject._id,
         teamId: currentTeam._id,
       });
+
+      const collectionId = initData.collectionId;
+      const collection = initData.collection;
+
+      // 2. Upload chunks
+      const CHUNK_SIZE = 50;
+      let insertedCount = 0;
+      
+      for (let i = 0; i < parsed.requests.length; i += CHUNK_SIZE) {
+        const chunk = parsed.requests.slice(i, i + CHUNK_SIZE);
+        
+        const { data: chunkData } = await api.post('/api/import/chunk', {
+          collectionId,
+          projectId: currentProject._id,
+          teamId: currentTeam._id,
+          requests: chunk,
+        });
+        
+        insertedCount += chunkData.insertedCount || 0;
+        setImportProgress(Math.min(i + CHUNK_SIZE, parsed.requests.length));
+      }
 
       // Force refresh collections to get the newly imported collection
       await fetchCollections(currentProject._id, true);
 
       // Set the imported collection as current and fetch its requests
-      if (data.collection) {
-        setCurrentCollection(data.collection);
-        await fetchCollectionRequests(data.collection._id, true);
+      if (collection) {
+        setCurrentCollection(collection);
+        await fetchCollectionRequests(collection._id, true);
         
         // Update expanded collections in localStorage
         const expanded = JSON.parse(localStorage.getItem('sidebar_expanded_collections') || '[]');
-        if (!expanded.includes(data.collection._id)) {
-          expanded.push(data.collection._id);
+        if (!expanded.includes(collection._id)) {
+          expanded.push(collection._id);
           localStorage.setItem('sidebar_expanded_collections', JSON.stringify(expanded));
         }
         
         // Dispatch event to trigger sidebar expansion (pass both collectionId and projectId)
         window.dispatchEvent(new CustomEvent('collection-imported', { 
-          detail: { collectionId: data.collection._id, projectId: currentProject._id }
+          detail: { collectionId: collection._id, projectId: currentProject._id }
         }));
       }
 
       // Emit to real-time room
-      emitCollectionImport(currentTeam._id, data.collection, data.requestCount, user?.id);
+      emitCollectionImport(currentTeam._id, collection, insertedCount, user?.id);
 
-      toast.success(`Imported "${data.collection.name}" — ${data.requestCount} requests`);
+      toast.success(`Imported "${collection.name}" — ${insertedCount} requests`);
       
       // Close modal
       setShowImportModal(false);
@@ -203,14 +231,22 @@ export default function ImportModal() {
                 <button
                   onClick={handleImport}
                   disabled={isImporting || !currentProject}
-                  className="btn-primary flex-1 text-sm"
+                  className="btn-primary flex-1 text-sm relative overflow-hidden"
                 >
-                  {isImporting ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg>
-                      Importing...
-                    </span>
-                  ) : `Import ${parsed.requests.length} Requests →`}
+                  {isImporting && totalRequests > 0 && (
+                    <div 
+                      className="absolute left-0 top-0 bottom-0 bg-white/20 transition-all duration-300"
+                      style={{ width: `${(importProgress / totalRequests) * 100}%` }}
+                    />
+                  )}
+                  <span className="relative z-10 flex items-center justify-center gap-2">
+                    {isImporting ? (
+                      <>
+                        <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/></svg>
+                        {totalRequests > 0 ? `Importing ${importProgress} / ${totalRequests}...` : 'Importing...'}
+                      </>
+                    ) : `Import ${parsed.requests.length} Requests →`}
+                  </span>
                 </button>
               </div>
             </div>

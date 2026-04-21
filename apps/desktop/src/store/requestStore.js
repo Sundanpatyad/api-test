@@ -476,10 +476,14 @@ export const useRequestStore = create(
         }
         
         // Also clean from request store's local state
-        set((state) => ({
-          requests: state.requests.filter(r => r._id !== id),
-          currentRequest: state.currentRequest?._id === id ? null : state.currentRequest,
-        }));
+        set((state) => {
+          const isCurrent = state.currentRequest?._id === id;
+          return {
+            requests: state.requests ? state.requests.filter(r => r._id !== id) : [],
+            currentRequest: isCurrent ? null : state.currentRequest,
+            noActiveRequest: isCurrent ? true : state.noActiveRequest,
+          };
+        });
         
         return { success: true };
       },
