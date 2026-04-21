@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { executeHttpRequest } from '@/lib/executor';
+import { executeHttpRequest } from '@/services/requestService';
 import { useRequestStore } from '@/store/requestStore';
 import { useEnvironmentStore } from '@/store/environmentStore';
 import { useSocketStore } from '@/store/socketStore';
@@ -34,11 +34,6 @@ export default function RESTRequestBuilder() {
   const [showMethodDropdown, setShowMethodDropdown] = useState(false);
 
   const executeRequest = useCallback(async () => {
-    if (!navigator.onLine) {
-      toast.error('You are offline. Please check your connection.');
-      return;
-    }
-
     if (!currentRequest.url.trim()) {
       toast.error('Enter a URL first');
       return;

@@ -1,9 +1,13 @@
 use std::collections::HashMap;
-use std::time::Instant;
 use std::str::FromStr;
+use std::time::Instant;
 use serde::{Deserialize, Serialize};
-use reqwest::{Client, Method, header::{HeaderMap, HeaderName, HeaderValue}};
-use crate::security::{validate_url, SsrfError};
+use reqwest::{
+    header::{HeaderMap, HeaderName, HeaderValue},
+    multipart::Form,
+    Method,
+};
+use crate::security::{validate_http_url, SsrfError};
 
 // ── Request types ─────────────────────────────────────────────────────────────
 
@@ -14,7 +18,7 @@ pub struct RequestHeader {
     pub enabled: Option<bool>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct RequestParam {
     pub key: String,
     pub value: String,
@@ -27,6 +31,8 @@ pub struct BodyConfig {
     pub mode: Option<String>,
     pub raw: Option<String>,
     pub raw_language: Option<String>,
+    pub form_data: Option<Vec<RequestParam>>,
+    pub urlencoded: Option<Vec<RequestParam>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -64,7 +70,6 @@ pub struct ExecuteRequestPayload {
     pub method: String,
     pub url: String,
     pub headers: Option<Vec<RequestHeader>>,
-    pub params: Option<Vec<RequestParam>>,
     pub body: Option<BodyConfig>,
     pub auth: Option<AuthConfig>,
     pub timeout_ms: Option<u64>,
@@ -91,14 +96,15 @@ pub async fn execute_request(
     client: tauri::State<'_, reqwest::Client>,
     cookie_jar: tauri::State<'_, crate::AppCookieJar>,
 ) -> Result<ExecuteResponse, String> {
-    // 1. SSRF protection
-    validate_url(&payload.url).map_err(|e| match e {
+    // Desktop requests run locally, so we only validate that the URL is a real
+    // HTTP(S) target and allow localhost/LAN/private hosts.
+    validate_http_url(&payload.url).map_err(|e| match e {
         SsrfError::InvalidUrl(msg) => format!("SSRF_INVALID_URL: {}", msg),
-        SsrfError::BlockedHost(host) => format!("SSRF_BLOCKED: {} is a blocked internal address", host),
     })?;
 
-    // 2. URL already contains query params visually thanks to 2-way UI binding
-    let url = payload.url.clone();
+    // 2. Build URL and apply query-based auth before sending.
+    let mut url = url::Url::parse(&payload.url)
+        .map_err(|e| format!("Invalid URL format: {}", e))?;
 
     // 3. HTTP method
     let method = Method::from_str(&payload.method.to_uppercase())
@@ -139,14 +145,14 @@ pub async fn execute_request(
             }
             Some("apikey") => {
                 if let Some(apikey) = &auth.apikey {
-                    if apikey.location.as_deref() == Some("header") {
-                        if let (Some(k), Some(v)) = (&apikey.key, &apikey.value) {
-                            if let (Ok(name), Ok(val)) = (
-                                HeaderName::from_str(k),
-                                HeaderValue::from_str(v),
-                            ) {
-                                header_map.insert(name, val);
-                            }
+                    if let (Some(k), Some(v)) = (&apikey.key, &apikey.value) {
+                        if apikey.location.as_deref() == Some("query") {
+                            url.query_pairs_mut().append_pair(k, v);
+                        } else if let (Ok(name), Ok(val)) = (
+                            HeaderName::from_str(k),
+                            HeaderValue::from_str(v),
+                        ) {
+                            header_map.insert(name, val);
                         }
                     }
                 }
@@ -168,8 +174,7 @@ pub async fn execute_request(
     }
 
     // Extract Host for Cookie Jar
-    let parsed_url = url::Url::parse(&url).map_err(|e| format!("Invalid URL format: {}", e))?;
-    let host = parsed_url.host_str().unwrap_or("").to_string();
+    let host = url.host_str().unwrap_or("").to_string();
 
     // Attach saved cookies for this host
     if !host.is_empty() {
@@ -193,21 +198,51 @@ pub async fn execute_request(
     }
 
     // 6. Build request
-    let mut req = client.request(method, &url)
+    let has_content_type = header_map.contains_key(reqwest::header::CONTENT_TYPE);
+
+    let mut req = client.request(method.clone(), url.as_str())
         .headers(header_map)
         .timeout(std::time::Duration::from_secs(timeout_secs.max(5).min(60)));
 
     // 7. Body
-    if let Some(body) = &payload.body {
-        if body.mode.as_deref() == Some("raw") {
-            let raw = body.raw.clone().unwrap_or_default();
-            let content_type = match body.raw_language.as_deref() {
-                Some("json") => "application/json",
-                Some("xml")  => "application/xml",
-                Some("html") => "text/html",
-                _            => "text/plain",
-            };
-            req = req.header("Content-Type", content_type).body(raw);
+    if !matches!(method, Method::GET | Method::HEAD) {
+        if let Some(body) = &payload.body {
+            if body.mode.as_deref() == Some("raw") {
+                let raw = body.raw.clone().unwrap_or_default();
+
+                if !has_content_type {
+                    let content_type = match body.raw_language.as_deref() {
+                        Some("json") => "application/json",
+                        Some("xml") => "application/xml",
+                        Some("html") => "text/html",
+                        _ => "text/plain",
+                    };
+
+                    req = req.header("Content-Type", content_type);
+                }
+
+                req = req.body(raw);
+            } else if body.mode.as_deref() == Some("form-data") {
+                let mut form = Form::new();
+
+                if let Some(items) = &body.form_data {
+                    for item in items.iter().filter(|item| item.enabled.unwrap_or(true) && !item.key.is_empty()) {
+                        form = form.text(item.key.clone(), item.value.clone());
+                    }
+                }
+
+                req = req.multipart(form);
+            } else if body.mode.as_deref() == Some("urlencoded") {
+                let mut fields = Vec::new();
+
+                if let Some(items) = &body.urlencoded {
+                    for item in items.iter().filter(|item| item.enabled.unwrap_or(true) && !item.key.is_empty()) {
+                        fields.push((item.key.clone(), item.value.clone()));
+                    }
+                }
+
+                req = req.form(&fields);
+            }
         }
     }
 
@@ -280,19 +315,6 @@ pub async fn execute_request(
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-/// Percent-encode a URL component (RFC 3986 unreserved chars pass through)
-fn percent_encode(s: &str) -> String {
-    let mut result = String::with_capacity(s.len());
-    for byte in s.bytes() {
-        match byte {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9'
-            | b'-' | b'_' | b'.' | b'~' => result.push(byte as char),
-            _ => result.push_str(&format!("%{:02X}", byte)),
-        }
-    }
-    result
-}
 
 /// Base64 encode (RFC 4648) — used for Basic auth header
 fn base64_encode(input: &str) -> String {
