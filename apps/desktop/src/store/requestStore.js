@@ -447,6 +447,8 @@ export const useRequestStore = create(
           return { success: false, error: 'Offline' };
         }
 
+        const isNotFound = (err) => err.response?.status === 404 || err.response?.data?.error?.includes('not found');
+
         try {
           await api.delete(`/api/request/${id}`);
           
@@ -459,16 +461,27 @@ export const useRequestStore = create(
             id,
             useAuthStore.getState().user?._id
           );
-
-          if (collectionId) {
-            const { useCollectionStore } = await import('@/store/collectionStore');
-            useCollectionStore.getState().removeRequest(id, collectionId);
-          }
-          
-          return { success: true };
         } catch (err) {
-          return { success: false, error: err.response?.data?.error || 'Failed to delete request' };
+          // If not found on server, still clean up locally
+          if (!isNotFound(err)) {
+            return { success: false, error: err.response?.data?.error || 'Failed to delete request' };
+          }
+          // Continue to local cleanup for 404 errors
         }
+
+        // Clean up local state regardless of server response (for 404 or success)
+        if (collectionId) {
+          const { useCollectionStore } = await import('@/store/collectionStore');
+          useCollectionStore.getState().removeRequest(id, collectionId);
+        }
+        
+        // Also clean from request store's local state
+        set((state) => ({
+          requests: state.requests.filter(r => r._id !== id),
+          currentRequest: state.currentRequest?._id === id ? null : state.currentRequest,
+        }));
+        
+        return { success: true };
       },
       
       // Helper to reconcile IDs after sync

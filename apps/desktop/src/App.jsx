@@ -41,6 +41,7 @@ export default function App() {
     joinTeam,
     onRequestUpdated,
     onCollectionUpdated,
+    onCollectionCreated,
     onCollectionImported,
     onTeamUpdated,
     onTeamDeleted,
@@ -160,6 +161,13 @@ export default function App() {
     const offCollection = onCollectionUpdated(({ collection }) => {
       updateCollection(collection);
     });
+    const offCollectionCreatedListener = onCollectionCreated(({ collection }) => {
+      // Only add if not already present (prevent duplicates)
+      const { collections } = useCollectionStore.getState();
+      if (!collections.find(c => c._id === collection._id)) {
+        useCollectionStore.setState({ collections: [...collections, collection] });
+      }
+    });
     const offImport = onCollectionImported(({ collection }) => {
       updateCollection(collection);
     });
@@ -167,6 +175,7 @@ export default function App() {
     return () => {
       offRequest?.();
       offCollection?.();
+      offCollectionCreatedListener?.();
       offImport?.();
     };
   }, [isConnected]);

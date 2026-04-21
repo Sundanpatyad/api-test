@@ -210,7 +210,7 @@ export async function POST(request) {
       folderCount: allFolders.length,
     });
   } catch (err) {
-    console.error('Import error:', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('[POST /api/import] Error:', err.message, err.stack);
+    return NextResponse.json({ error: 'Internal server error', details: err.message }, { status: 500 });
   }
 }
