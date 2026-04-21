@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/db';
 import Project from '@/models/Project';
 import Team from '@/models/Team';
+import User from '@/models/User';
 import { authenticate } from '@/lib/auth';
 
 // GET /api/project?teamId=xxx
