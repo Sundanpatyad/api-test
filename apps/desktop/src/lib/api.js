@@ -1,8 +1,8 @@
 import axios from 'axios';
 import { useSyncQueueStore } from '@/store/syncQueueStore';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-// const API_URL = import.meta.env.VITE_API_URL || 'https://api-test-2-ffrp.onrender.com';
+// const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const API_URL = import.meta.env.VITE_API_URL || 'https://api-test-2-ffrp.onrender.com';
 
 const api = axios.create({
   baseURL: API_URL,

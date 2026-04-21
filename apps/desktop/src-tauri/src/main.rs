@@ -24,7 +24,127 @@ async fn system_open(app_handle: tauri::AppHandle, url: String) -> Result<(), St
 
 #[tauri::command]
 async fn start_oauth_flow(window: tauri::Window) -> Result<u16, String> {
-    tauri_plugin_oauth::start(move |url| {
+    let success_html = r#"
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PayloadX Auth</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #000000;
+            --surface: #0a0a0a;
+            --border: #222222;
+            --accent: #00dc82;
+            --text: #ffffff;
+            --text-dim: #666666;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'JetBrains Mono', monospace;
+            background-color: var(--bg);
+            color: var(--text);
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            width: 100%;
+            max-width: 440px;
+            padding: 40px;
+            background-color: var(--surface);
+            border: 1px solid var(--border);
+            text-align: left;
+            position: relative;
+        }
+        .logo-box {
+            width: 32px;
+            height: 32px;
+            background-color: var(--accent);
+            margin-bottom: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .logo-box::after {
+            content: 'P';
+            font-weight: 700;
+            color: black;
+            font-size: 18px;
+        }
+        h1 {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            letter-spacing: -0.5px;
+        }
+        p {
+            font-size: 13px;
+            color: var(--text-dim);
+            line-height: 1.6;
+            margin-bottom: 32px;
+        }
+        .status-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 12px;
+            color: var(--accent);
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--accent);
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(0.9); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+        .code-block {
+            background-color: #050505;
+            padding: 12px;
+            border: 1px solid var(--border);
+            font-size: 11px;
+            color: #444;
+            margin-top: 32px;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo-box"></div>
+        <h1>AUTH_SUCCESS</h1>
+        <p>Your session for PayloadX API Studio has been verified. You may now return to the desktop application.</p>
+        <div class="status-container">
+            <div class="status-dot"></div>
+            <span>HANDSHAKE_COMPLETE</span>
+        </div>
+        <div class="code-block">
+            $> payloadx auth --status verified --id oauth_v2_google
+        </div>
+    </div>
+    <script>
+        setTimeout(() => { window.close(); }, 3000);
+    </script>
+</body>
+</html>
+"#;
+
+    let config = tauri_plugin_oauth::OauthConfig {
+        ports: None,
+        response: Some(success_html.into()),
+    };
+
+    tauri_plugin_oauth::start_with_config(config, move |url| {
         let _ = window.emit("oauth_callback", url);
     })
     .map_err(|e| e.to_string())
