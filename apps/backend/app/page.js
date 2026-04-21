@@ -220,7 +220,7 @@ export default function LandingPage() {
         </div>
 
         {/* ── RIGHT — ORBIT ── */}
-        {hasMounted && !isMobile && (
+        {hasMounted && (
           <div className={styles.heroRight}>
             <div className={styles.orbitScene}>
               {/* Dynamic orbital rings */}

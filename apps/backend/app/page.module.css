@@ -349,12 +349,47 @@
   .orbitScene { width: 40vw; height: 40vw; }
 }
 @media (max-width: 900px) {
-  .root { height: auto; overflow-y: auto; }
-  .hero { grid-template-columns: 1fr; padding: 4rem 5vw; gap: 3rem; }
-  .heroRight { display: none; }
+  .root { height: auto; min-height: 100vh; overflow-y: auto; overflow-x: hidden; }
+  .nav { padding: 0 1.5rem; }
+  .hero { 
+    grid-template-columns: 1fr; 
+    padding: 2rem 5vw 4rem; 
+    gap: 3rem; 
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    overflow: visible;
+  }
+  .heroLeft { align-items: center; }
+  .heroSub { margin-left: auto; margin-right: auto; }
+  .featurePills { justify-content: center; }
+  .dlSection { align-items: center; }
+  .dlLabel { text-align: center; }
+  .dlButtons { justify-content: center; }
+  
+  .heroRight { 
+    display: flex; 
+    width: 100%; 
+    justify-content: center;
+    margin-top: 1rem;
+    padding-bottom: 2rem;
+  }
+  .orbitScene { width: min(85vw, 320px); height: min(85vw, 320px); }
+  
   .navLinks { display: none; }
-  .techStrip { gap: 1.5rem; }
+  .navCta { padding: 6px 14px; font-size: 0.75rem; }
+  .techStrip { display: flex; flex-wrap: wrap; justify-content: center; gap: 1rem; }
   .techName { display: none; }
+  .footer { flex-direction: column; gap: 1rem; padding: 2rem 5vw; height: auto; text-align: center; }
+  .storyNote { max-width: 100%; text-align: left; }
+}
+@media (max-width: 600px) {
+  .heroTitle { font-size: 2.2rem; }
+  .centerStat { font-size: 1.5rem; }
+  .centerStatLabel { font-size: 0.5rem; }
+  .dlButtons { flex-direction: column; width: 100%; }
+  .dlBtn { width: 100%; justify-content: center; }
 }
 
 /* ──────────────────
