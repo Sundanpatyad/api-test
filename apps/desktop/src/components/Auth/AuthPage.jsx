@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useAuthStore } from '@/store/authStore';
 import toast from 'react-hot-toast';
 import logoImg from '@/assets/logo.png';
-import heroImg from '@/assets/auth_hero.png';
 
 export default function AuthPage() {
   const [mode, setMode] = useState('login'); // 'login' | 'signup'
@@ -23,133 +22,323 @@ export default function AuthPage() {
     if (!result.success) toast.error(result.error);
   };
 
-  return (
-    <div className="flex h-screen bg-[#0f0f0f] overflow-hidden font-inter selection:bg-sky-500/20">
-      {/* ── Left Side: Hero Image with Brand Overlay ── */}
-      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden group">
-        <img
-          src={heroImg}
-          alt="PayloadX Studio"
-          className="absolute inset-0 w-full h-full object-cover transition-transform duration-[2.5s] ease-out group-hover:scale-105"
-        />
-        {/* Soft Modern Overlay */}
-        <div className="absolute inset-0 bg-[#0f0f0f]/60" />
-        <div className="absolute inset-0 bg-gradient-to-tr from-[#0f0f0f] via-transparent to-transparent" />
+  // Google icon SVG
+  const GoogleIcon = () => (
+    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
+      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+    </svg>
+  );
 
-        {/* Content on Image */}
-        <div className="relative z-10 w-full h-full flex flex-col justify-center p-24 animate-fade-in">
-          <div className="space-y-8">
-            <div className="w-12 h-1 bg-sky-500 rounded-full" />
-            <h2 className="text-6xl font-bold text-white tracking-tight leading-tight">
-              The Studio for <br />
-              <span className="text-sky-400 italic">Modern Teams</span>
-            </h2>
-            <p className="text-slate-400 text-base max-w-[400px] font-medium leading-relaxed tracking-wide">
-              Blazing fast API management powered by Rust. Collaborate in real-time without the bloat.
-            </p>
+  // X (Twitter) icon SVG
+  const XIcon = () => (
+    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+    </svg>
+  );
+
+  // Check icon for password requirements
+  const CheckIcon = () => (
+    <svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+    </svg>
+  );
+
+  return (
+    <div className="flex h-screen bg-[#0a0a0a] overflow-hidden font-sans">
+      {/* ── Left Side: Auth Form ── */}
+      <div className="w-full lg:w-[45%] flex flex-col bg-[#0a0a0a] relative">
+        {/* App Logo */}
+        <div className="absolute top-6 left-6 flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+            <img src={logoImg} alt="PayloadX" className="w-6 h-6 object-contain" />
+          </div>
+          <span className="text-white font-semibold text-sm">PayloadX</span>
+        </div>
+
+        {/* Form Container */}
+        <div className="flex-1 flex flex-col justify-center px-8 lg:px-16 max-w-[480px] mx-auto w-full">
+          <div className="space-y-6">
+            {/* Heading */}
+            <h1 className="text-2xl font-semibold text-white">
+              {mode === 'login' ? 'Welcome back' : 'Create an account'}
+            </h1>
+
+            {/* Social Login Buttons */}
+            <div className="space-y-3">
+              <button className="w-full h-11 flex items-center justify-center gap-3 bg-transparent border border-slate-700 rounded-lg text-white hover:border-slate-600 transition-colors">
+                <GoogleIcon />
+                <span className="text-sm font-medium">Sign in with Google</span>
+              </button>
+          
+            </div>
+
+            {/* OR Divider */}
+            <div className="flex items-center gap-4">
+              <div className="flex-1 h-px bg-slate-800"></div>
+              <span className="text-xs text-slate-500 uppercase">OR</span>
+              <div className="flex-1 h-px bg-slate-800"></div>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {mode === 'signup' && (
+                <div className="space-y-1.5">
+                  <label className="text-sm text-slate-400">Full Name</label>
+                  <input
+                    className="w-full h-11 px-4 bg-[#141414] border border-slate-800 rounded-lg text-white placeholder:text-slate-600 focus:border-slate-600 outline-none transition-colors text-sm"
+                    type="text"
+                    placeholder="John Doe"
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    required
+                  />
+                </div>
+              )}
+
+              <div className="space-y-1.5">
+                <label className="text-sm text-slate-400">Email*</label>
+                <input
+                  className="w-full h-11 px-4 bg-[#141414] border border-slate-800 rounded-lg text-white placeholder:text-slate-600 focus:border-slate-600 outline-none transition-colors text-sm"
+                  type="email"
+                  placeholder="Enter your email"
+                  value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-sm text-slate-400">Password*</label>
+                <input
+                  className="w-full h-11 px-4 bg-[#141414] border border-slate-800 rounded-lg text-white placeholder:text-slate-600 focus:border-slate-600 outline-none transition-colors text-sm"
+                  type="password"
+                  placeholder="Create a password"
+                  value={form.password}
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  required
+                  minLength={8}
+                />
+              </div>
+
+              {/* Password Requirements */}
+              {mode === 'signup' && (
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-center gap-2 text-sm text-slate-500">
+                    <CheckIcon />
+                    <span>Must be at least 8 characters</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-slate-500">
+                    <CheckIcon />
+                    <span>Must contain one special character</span>
+                  </div>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                className="w-full h-11 bg-[#1a1a1a] hover:bg-[#252525] border border-slate-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 mt-2"
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mx-auto" />
+                ) : (
+                  mode === 'login' ? 'Sign in' : 'Create account'
+                )}
+              </button>
+            </form>
+
+            {/* Footer */}
+            <div className="flex items-center justify-center gap-1 text-sm text-slate-500 pt-2">
+              <span>{mode === 'login' ? "Don't have an account?" : 'Already have an account?'}</span>
+              <button
+                onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
+                className="text-white underline hover:no-underline transition-all"
+              >
+                {mode === 'login' ? 'Log in' : 'Sign in'}
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* ── Right Side: Clean Auth Form ── */}
-      <div className="w-full lg:w-1/2 flex flex-col justify-center items-center p-12 bg-[#0f0f0f] relative">
-        <div className="w-full max-w-[380px] z-10 space-y-10">
-          {/* Header */}
-          <div className="space-y-8">
-            <div className="flex flex-col items-center lg:items-start gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-sky-500 flex items-center justify-center p-0 shadow-lg shadow-sky-500/20">
-                <img src={logoImg} alt="logo" className="w-full h-full object-contain " />
-              </div>
-              <h1 className="text-3xl font-bold text-white tracking-tight">
-                {mode === 'login' ? 'Welcome back' : 'Create an account'}
-              </h1>
-              <p className="text-slate-500 text-sm font-medium">
-                {mode === 'login'
-                  ? 'Access your workspace and continue building.'
-                  : 'Start your journey with PayloadX today.'}
-              </p>
-            </div>
+      {/* ── Right Side: App Preview ── */}
+      <div className="hidden lg:flex lg:w-[55%] bg-[#111111] relative overflow-hidden">
+        {/* Background gradient */}
+        <div className="absolute inset-0 bg-gradient-to-br from-[#111111] via-[#0d0d0d] to-[#111111]" />
+        
+        {/* Content */}
+        <div className="relative z-10 w-full h-full flex flex-col p-12">
+          {/* Header Tagline */}
+          <div className="mb-8">
+            <h2 className="text-3xl font-semibold text-white mb-2">
+              Build and test APIs faster
+            </h2>
+            <p className="text-slate-500 text-base">
+              Collaborate in real-time with your team. Test REST, GraphQL, and WebSocket APIs with powerful tools.
+            </p>
           </div>
 
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {mode === 'signup' && (
-              <div className="space-y-2">
-                <label className="text-xs font-semibold text-slate-400 ml-1">Full Name</label>
-                <input
-                  className="w-full h-12 px-5 bg-white/[0.02] border border-white/10 rounded-xl text-white placeholder:text-slate-600 focus:bg-white/[0.04] focus:border-sky-500 outline-none transition-all duration-200"
-                  type="text"
-                  placeholder="John Doe"
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  required
-                />
+          {/* App Preview Card */}
+          <div className="flex-1 bg-[#0d0d0d] rounded-2xl border border-slate-800 overflow-hidden shadow-2xl">
+            {/* Mock App Header */}
+            <div className="flex items-center justify-between p-4 border-b border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                  <span className="text-white text-xs font-bold">P</span>
+                </div>
+                <div>
+                  <div className="text-white text-sm font-medium">PayloadX Team</div>
+                  <div className="text-slate-500 text-xs">hello@payloadx.com</div>
+                </div>
               </div>
-            )}
-
-            <div className="space-y-2">
-              <label className="text-xs font-semibold text-slate-400 ml-1">Email address</label>
-              <input
-                className="w-full h-12 px-5 bg-white/[0.02] border border-white/10 rounded-xl text-white placeholder:text-slate-600 focus:bg-white/[0.04] focus:border-sky-500 outline-none transition-all duration-200"
-                type="email"
-                placeholder="hello@example.com"
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-                required
-              />
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-green-500"></div>
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <div className="flex justify-between items-center px-1">
-                <label className="text-xs font-semibold text-slate-400">Password</label>
-                {mode === 'login' && <button type="button" className="text-[11px] text-sky-500/80 hover:text-sky-400 transition-colors font-medium">Forgot password?</button>}
-              </div>
-              <input
-                className="w-full h-12 px-5 bg-white/[0.02] border border-white/10 rounded-xl text-white placeholder:text-slate-600 focus:bg-white/[0.04] focus:border-sky-500 outline-none transition-all duration-200"
-                type="password"
-                placeholder="••••••••"
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-                required
-                minLength={8}
-              />
-            </div>
-
-            <button
-              type="submit"
-              className="w-full h-12 bg-sky-500 hover:bg-sky-400 text-slate-900 font-bold rounded-full transition-all duration-300 active:scale-[0.98] mt-6 flex items-center justify-center gap-2 group disabled:opacity-50"
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <div className="w-5 h-5 border-2 border-slate-900/30 border-t-slate-900 rounded-full animate-spin" />
-              ) : (
-                <>
-                  <span>{mode === 'login' ? 'Sign in' : 'Get started'}</span>
-                  <svg className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            {/* Mock App Content */}
+            <div className="flex h-[calc(100%-65px)]">
+              {/* Sidebar */}
+              <div className="w-48 border-r border-slate-800 p-3 space-y-1">
+                <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-slate-800/50">
+                  <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                   </svg>
-                </>
-              )}
-            </button>
-          </form>
+                  <span className="text-sm text-white">Home</span>
+                </div>
+                <div className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-slate-800/30">
+                  <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                  </svg>
+                  <span className="text-sm text-slate-400">My projects</span>
+                </div>
+                <div className="pt-4">
+                  <div className="flex items-center justify-between px-3 mb-2">
+                    <span className="text-xs text-slate-500 uppercase font-medium">Folders</span>
+                    <svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between px-3 py-1.5">
+                      <span className="text-sm text-slate-400">View all</span>
+                      <span className="text-xs text-slate-600">48</span>
+                    </div>
+                    <div className="flex items-center justify-between px-3 py-1.5">
+                      <span className="text-sm text-slate-400">Recent</span>
+                      <span className="text-xs text-slate-600">6</span>
+                    </div>
+                    <div className="flex items-center justify-between px-3 py-1.5">
+                      <span className="text-sm text-slate-400">Favorites</span>
+                      <span className="text-xs text-slate-600">4</span>
+                    </div>
+                    <div className="flex items-center justify-between px-3 py-1.5">
+                      <span className="text-sm text-slate-400">Shared</span>
+                      <span className="text-xs text-slate-600">22</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
-          {/* Footer */}
-          <div className="pt-6 border-t border-white/5 flex flex-col items-center gap-8">
-            <div className="flex items-center gap-2 text-sm font-medium text-slate-500">
-              <span>{mode === 'login' ? "Don't have an account? " : 'Already a member? '}</span>
-              <button
-                onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
-                className="text-sky-500 font-bold hover:text-sky-400 transition-colors"
-              >
-                {mode === 'login' ? 'Sign up' : 'Sign in'}
-              </button>
-            </div>
+              {/* Main Content */}
+              <div className="flex-1 p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-lg font-semibold text-white">Welcome back</h3>
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-800/50 rounded-lg">
+                    <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    <span className="text-sm text-slate-500">Search</span>
+                  </div>
+                </div>
 
-            <div className="flex flex-col items-center gap-1 opacity-20">
-              <p className="text-[10px] font-bold text-white uppercase tracking-widest">
-                PayloadX Studio
-              </p>
-              <span className="text-[9px] font-medium text-slate-500">v1.2.0 • Created by Sundan Sharma</span>
+                {/* Quick Actions */}
+                <div className="grid grid-cols-4 gap-3 mb-8">
+                  <div className="p-4 bg-slate-800/30 rounded-xl border border-slate-800 hover:border-slate-700 transition-colors cursor-pointer">
+                    <div className="w-8 h-8 rounded-lg bg-slate-700/50 flex items-center justify-center mb-3">
+                      <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                    </div>
+                    <span className="text-sm text-slate-300">GET Request</span>
+                  </div>
+                  <div className="p-4 bg-slate-800/30 rounded-xl border border-slate-800 hover:border-slate-700 transition-colors cursor-pointer">
+                    <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center mb-3">
+                      <span className="text-blue-400 text-xs font-bold">POST</span>
+                    </div>
+                    <span className="text-sm text-slate-300">POST Request</span>
+                  </div>
+                  <div className="p-4 bg-slate-800/30 rounded-xl border border-slate-800 hover:border-slate-700 transition-colors cursor-pointer">
+                    <div className="w-8 h-8 rounded-lg bg-yellow-500/20 flex items-center justify-center mb-3">
+                      <span className="text-yellow-400 text-xs font-bold">PUT</span>
+                    </div>
+                    <span className="text-sm text-slate-300">PUT Request</span>
+                  </div>
+                  <div className="p-4 bg-slate-800/30 rounded-xl border border-slate-800 hover:border-slate-700 transition-colors cursor-pointer">
+                    <div className="w-8 h-8 rounded-lg bg-red-500/20 flex items-center justify-center mb-3">
+                      <span className="text-red-400 text-xs font-bold">DEL</span>
+                    </div>
+                    <span className="text-sm text-slate-300">DEL Request</span>
+                  </div>
+                </div>
+
+                {/* API Collections Section */}
+                <div>
+                  <div className="flex items-center gap-6 mb-4 border-b border-slate-800 pb-3">
+                    <span className="text-sm text-white font-medium">Collections</span>
+                    <span className="text-sm text-slate-500">History</span>
+                    <span className="text-sm text-slate-500">Environments</span>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    {/* Collection Item 1 */}
+                    <div className="flex items-center gap-3 p-3 bg-slate-800/20 rounded-xl border border-slate-800 hover:border-slate-700 transition-colors cursor-pointer">
+                      <div className="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center">
+                        <span className="text-green-400 text-xs font-bold">GET</span>
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="text-sm text-white font-medium">Get Users</h4>
+                        <p className="text-xs text-slate-500">/api/users • 200ms</p>
+                      </div>
+                      <div className="flex -space-x-1.5">
+                        <div className="w-5 h-5 rounded-full bg-blue-500 border border-slate-700"></div>
+                      </div>
+                    </div>
+                    
+                    {/* Collection Item 2 */}
+                    <div className="flex items-center gap-3 p-3 bg-slate-800/20 rounded-xl border border-slate-800 hover:border-slate-700 transition-colors cursor-pointer">
+                      <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                        <span className="text-blue-400 text-xs font-bold">POST</span>
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="text-sm text-white font-medium">Create Order</h4>
+                        <p className="text-xs text-slate-500">/api/orders • 342ms</p>
+                      </div>
+                      <div className="flex -space-x-1.5">
+                        <div className="w-5 h-5 rounded-full bg-purple-500 border border-slate-700"></div>
+                        <div className="w-5 h-5 rounded-full bg-pink-500 border border-slate-700"></div>
+                      </div>
+                    </div>
+                    
+                    {/* Collection Item 3 */}
+                    <div className="flex items-center gap-3 p-3 bg-slate-800/20 rounded-xl border border-slate-800 hover:border-slate-700 transition-colors cursor-pointer">
+                      <div className="w-10 h-10 rounded-lg bg-yellow-500/20 flex items-center justify-center">
+                        <span className="text-yellow-400 text-xs font-bold">PUT</span>
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="text-sm text-white font-medium">Update Profile</h4>
+                        <p className="text-xs text-slate-500">/api/profile • 156ms</p>
+                      </div>
+                      <div className="flex -space-x-1.5">
+                        <div className="w-5 h-5 rounded-full bg-green-500 border border-slate-700"></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

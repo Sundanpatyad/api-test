@@ -57,6 +57,6 @@ jobs:
           projectPath: "apps/desktop"
           releaseName: "PayloadX-API-Studio v__VERSION__"
           releaseBody: "PayloadX API Studio Release (Signed & Notarized macOS Build)"
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false
           tagName: ${{ github.ref_name }}
