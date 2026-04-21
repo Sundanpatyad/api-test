@@ -208,22 +208,30 @@ export const useTeamStore = create((set, get) => ({
       return { success: false, error: 'Offline' };
     }
 
+    const isNotFound = (err) => err.response?.status === 404 || err.response?.data?.error?.includes('not found');
+
     try {
       await api.delete(`/api/team/${id}`);
-      set((state) => {
-        const updatedTeams = state.teams.filter((t) => t._id !== id);
-        const updatedCurrent = state.currentTeam?._id === id ? null : state.currentTeam;
-        localStorageService.saveTeams(updatedTeams);
-        localStorageService.saveCurrentTeam(updatedCurrent);
-        return {
-          teams: updatedTeams,
-          currentTeam: updatedCurrent,
-        };
-      });
-      return { success: true };
     } catch (err) {
-      return { success: false, error: err.response?.data?.error || 'Failed to delete team' };
+      // If not found on server, still clean up locally
+      if (!isNotFound(err)) {
+        return { success: false, error: err.response?.data?.error || 'Failed to delete team' };
+      }
+      // Continue to local cleanup for 404 errors
     }
+
+    // Clean up local state regardless of server response (for 404 or success)
+    set((state) => {
+      const updatedTeams = state.teams.filter((t) => t._id !== id);
+      const updatedCurrent = state.currentTeam?._id === id ? null : state.currentTeam;
+      localStorageService.saveTeams(updatedTeams);
+      localStorageService.saveCurrentTeam(updatedCurrent);
+      return {
+        teams: updatedTeams,
+        currentTeam: updatedCurrent,
+      };
+    });
+    return { success: true };
   },
   
   // Register store for global refresh

@@ -23,7 +23,8 @@ export async function GET(request) {
 
     return NextResponse.json({ collections });
   } catch (err) {
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('[GET /api/collection] Error:', err.message, err.stack);
+    return NextResponse.json({ error: 'Internal server error', details: err.message }, { status: 500 });
   }
 }
 
@@ -50,6 +51,7 @@ export async function POST(request) {
 
     return NextResponse.json({ collection }, { status: 201 });
   } catch (err) {
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('[POST /api/collection] Error:', err.message);
+    return NextResponse.json({ error: 'Internal server error', details: err.message }, { status: 500 });
   }
 }

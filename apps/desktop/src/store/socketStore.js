@@ -236,6 +236,21 @@ export const useSocketStore = create((set, get) => ({
     return () => socket.off('collection_updated', callback);
   },
 
+  onCollectionCreated: (callback) => {
+    const socket = get().socket;
+    if (!socket) return () => { };
+    socket.on('collection_created', (data) => {
+      // Update localStorage - add new collection if not exists
+      const collections = localStorageService.get(localStorageService.KEYS.COLLECTIONS) || [];
+      if (!collections.find(c => c._id === data.collection._id)) {
+        const updated = [...collections, data.collection];
+        localStorageService.saveCollections(updated);
+      }
+      callback(data);
+    });
+    return () => socket.off('collection_created', callback);
+  },
+
   onCollectionDeleted: (callback) => {
     const socket = get().socket;
     if (!socket) return () => { };

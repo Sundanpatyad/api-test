@@ -452,6 +452,8 @@ export const useCollectionStore = create((set, get) => ({
       return { success: false, error: 'Offline' };
     }
 
+    const isNotFound = (err) => err.response?.status === 404 || err.response?.data?.error?.includes('not found');
+
     try {
       await api.delete(`/api/collection/${id}`);
 
@@ -463,22 +465,29 @@ export const useCollectionStore = create((set, get) => ({
         id,
         useAuthStore.getState().user?._id
       );
-
-      set((state) => {
-        const updated = state.collections.filter((c) => c._id !== id);
-        const updatedCurrent = state.currentCollection?._id === id ? null : state.currentCollection;
-        localStorageService.saveCollections(updated);
-        localStorageService.saveCurrentCollection(updatedCurrent);
-        return {
-          collections: updated,
-          currentCollection: updatedCurrent,
-        };
-      });
-
-      return { success: true };
     } catch (err) {
-      return { success: false, error: err.response?.data?.error || 'Failed to delete collection' };
+      // If not found on server, still clean up locally
+      if (!isNotFound(err)) {
+        return { success: false, error: err.response?.data?.error || 'Failed to delete collection' };
+      }
+      // Continue to local cleanup for 404 errors
     }
+
+    // Clean up local state regardless of server response (for 404 or success)
+    set((state) => {
+      const updated = state.collections.filter((c) => c._id !== id);
+      const updatedCurrent = state.currentCollection?._id === id ? null : state.currentCollection;
+      localStorageService.saveCollections(updated);
+      localStorageService.saveCurrentCollection(updatedCurrent);
+      // Also clean up requests for this collection
+      localStorageService.saveRequests(id, []);
+      return {
+        collections: updated,
+        currentCollection: updatedCurrent,
+      };
+    });
+
+    return { success: true };
   },
 
   reset: () => {

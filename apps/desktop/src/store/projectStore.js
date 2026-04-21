@@ -228,6 +228,8 @@ export const useProjectStore = create((set, get) => ({
       return { success: false, error: 'Offline' };
     }
 
+    const isNotFound = (err) => err.response?.status === 404 || err.response?.data?.error?.includes('not found');
+
     try {
       await api.delete(`/api/project/${id}`);
       
@@ -240,22 +242,27 @@ export const useProjectStore = create((set, get) => ({
         id, 
         useAuthStore.getState().user?._id
       );
-
-      set((state) => {
-        const updated = state.projects.filter((p) => p._id !== id);
-        const updatedCurrent = state.currentProject?._id === id ? null : state.currentProject;
-        localStorageService.saveProjects(updated);
-        localStorageService.saveCurrentProject(updatedCurrent);
-        return {
-          projects: updated,
-          currentProject: updatedCurrent,
-        };
-      });
-      
-      return { success: true };
     } catch (err) {
-      return { success: false, error: err.response?.data?.error || 'Failed to delete project' };
+      // If not found on server, still clean up locally
+      if (!isNotFound(err)) {
+        return { success: false, error: err.response?.data?.error || 'Failed to delete project' };
+      }
+      // Continue to local cleanup for 404 errors
     }
+
+    // Clean up local state regardless of server response (for 404 or success)
+    set((state) => {
+      const updated = state.projects.filter((p) => p._id !== id);
+      const updatedCurrent = state.currentProject?._id === id ? null : state.currentProject;
+      localStorageService.saveProjects(updated);
+      localStorageService.saveCurrentProject(updatedCurrent);
+      return {
+        projects: updated,
+        currentProject: updatedCurrent,
+      };
+    });
+    
+    return { success: true };
   },
 
   reset: () => {

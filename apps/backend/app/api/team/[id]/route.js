@@ -55,12 +55,24 @@ export async function DELETE(request, { params }) {
   try {
     await connectDB();
     const team = await Team.findById(params.id);
-    if (!team) return NextResponse.json({ error: 'Team not found' }, { status: 404 });
+    
+    // If not found, still return success (idempotent delete)
+    if (!team) {
+      return NextResponse.json({ 
+        message: 'Team deleted',
+        teamId: params.id 
+      });
+    }
+    
     if (team.ownerId.toString() !== user.id) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     await Team.findByIdAndDelete(params.id);
-    return NextResponse.json({ message: 'Team deleted' });
+    return NextResponse.json({ 
+      message: 'Team deleted',
+      teamId: params.id 
+    });
   } catch (err) {
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('[DELETE /api/team/:id] Error:', err.message);
+    return NextResponse.json({ error: 'Internal server error', details: err.message }, { status: 500 });
   }
 }
