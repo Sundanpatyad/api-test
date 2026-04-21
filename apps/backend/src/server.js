@@ -29,7 +29,7 @@ let cachedConnection = null;
 
 async function connectDB() {
   if (cachedConnection) return cachedConnection;
-  
+
   try {
     const conn = await mongoose.connect(MONGODB_URI, {
       bufferCommands: false,

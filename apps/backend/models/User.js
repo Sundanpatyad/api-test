@@ -20,9 +20,17 @@ const UserSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: [true, 'Password is required'],
+      required: function() {
+        return !this.googleId;
+      },
       minlength: [8, 'Password must be at least 8 characters'],
       select: false,
+    },
+    googleId: {
+      type: String,
+      unique: true,
+      sparse: true,
+      index: true,
     },
     avatar: {
       type: String,

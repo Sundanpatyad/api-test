@@ -7,6 +7,7 @@
  */
 
 import express from 'express';
+import axios from 'axios';
 import User from '../../models/User.js';
 import { signToken, authenticate } from '../middleware/auth.js';
 
@@ -37,6 +38,54 @@ router.post('/login', async (req, res) => {
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/auth/google
+router.post('/google', async (req, res) => {
+  try {
+    let { accessToken, code, redirectUri } = req.body;
+
+    // Desktop apps must use the 'code' exchange flow
+    if (code) {
+      if (!redirectUri) return res.status(400).json({ error: 'Redirect URI is required for code exchange' });
+      
+      const tokenResponse = await axios.post('https://oauth2.googleapis.com/token', {
+        code,
+        client_id: process.env.CLIENT_ID,
+        client_secret: process.env.CLIENT_SECRET,
+        redirect_uri: redirectUri,
+        grant_type: 'authorization_code'
+      });
+      accessToken = tokenResponse.data.access_token;
+    }
+
+    if (!accessToken) {
+      return res.status(400).json({ error: 'Access token or code is required' });
+    }
+
+    // Fetch user info from Google
+    const response = await axios.get('https://www.googleapis.com/oauth2/v3/userinfo', {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+
+    const { sub: googleId, email, name, picture: avatar } = response.data;
+
+    // Use Atomic Upsert to prevent race conditions (Duplicate Key Errors)
+    const user = await User.findOneAndUpdate(
+      { $or: [{ googleId }, { email: email.toLowerCase() }] },
+      { 
+        $set: { googleId, avatar }, // Always link/update these
+        $setOnInsert: { name, email: email.toLowerCase(), isVerified: true } // Only if new
+      },
+      { upsert: true, new: true, runValidators: true }
+    );
+
+    const token = signToken({ id: user._id, email: user.email, name: user.name });
+    res.json({ user: user.toSafeObject(), token });
+  } catch (error) {
+    console.error('Google Auth error:', error.response?.data || error.message);
+    res.status(500).json({ error: 'Failed to authenticate with Google' });
   }
 });
 
