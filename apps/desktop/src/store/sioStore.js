@@ -145,7 +145,8 @@ export const useSIOStore = create((set, get) => ({
   },
 
   disconnectAll: () => {
-    Object.values(conns).forEach((s) => s.disconnect());
+    const { connections } = get();
+    Object.values(connections).forEach((s) => s.disconnect());
     set({ connections: {}, connectionStatus: {} });
   },
 

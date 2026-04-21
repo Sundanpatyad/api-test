@@ -24,6 +24,23 @@ export const useAuthStore = create(
         }
       },
 
+      loginWithGoogle: async (payload) => {
+        set({ isLoading: true, error: null });
+        try {
+          // payload can be { accessToken } or { code, redirectUri }
+          const body = typeof payload === 'string' ? { accessToken: payload } : payload;
+          const { data } = await api.post('/api/auth/google', body);
+          
+          localStorage.setItem('payloadx_token', data.token);
+          set({ user: data.user, token: data.token, isLoading: false });
+          return { success: true };
+        } catch (err) {
+          const error = err.response?.data?.error || 'Google login failed';
+          set({ isLoading: false, error });
+          return { success: false, error };
+        }
+      },
+
       signup: async (name, email, password) => {
         set({ isLoading: true, error: null });
         try {

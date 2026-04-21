@@ -88,6 +88,11 @@ export const useRequestStore = create(
             id: item.id || (item._id ? String(item._id) : uuidv4()),
           }));
 
+        if (!req) {
+          set({ currentRequest: defaultRequest(), response: null });
+          return;
+        }
+
         const newReq = {
           ...defaultRequest(),
           ...req,

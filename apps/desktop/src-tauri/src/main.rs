@@ -16,6 +16,20 @@ use std::collections::HashMap;
 #[derive(Default)]
 pub struct AppCookieJar(pub Mutex<HashMap<String, HashMap<String, String>>>);
 
+#[tauri::command]
+async fn system_open(app_handle: tauri::AppHandle, url: String) -> Result<(), String> {
+    tauri::api::shell::open(&app_handle.shell_scope(), url, None)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn start_oauth_flow(window: tauri::Window) -> Result<u16, String> {
+    tauri_plugin_oauth::start(move |url| {
+        let _ = window.emit("oauth_callback", url);
+    })
+    .map_err(|e| e.to_string())
+}
+
 fn main() {
     // Persistent HTTP client with proper configuration for Linux
     let http_client = reqwest::Client::builder()
@@ -29,6 +43,7 @@ fn main() {
     tauri::Builder::default()
         .manage(http_client)
         .manage(AppCookieJar::default())
+        .plugin(tauri_plugin_oauth::init())
         .setup(|app| {
             #[cfg(debug_assertions)]
             {
@@ -43,6 +58,8 @@ fn main() {
             read_local_file,
             list_local_files,
             parse_json,
+            start_oauth_flow,
+            system_open,
         ])
         .run(tauri::generate_context!())
         .expect("error while running PayloadX API Studio");

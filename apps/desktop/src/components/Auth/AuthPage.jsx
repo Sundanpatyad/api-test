@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuthStore } from '@/store/authStore';
+import { invoke } from '@tauri-apps/api/tauri';
+import { listen } from '@tauri-apps/api/event';
 import toast from 'react-hot-toast';
 import logoImg from '@/assets/logo.png';
 
@@ -7,7 +9,72 @@ export default function AuthPage() {
   const [mode, setMode] = useState('login'); // 'login' | 'signup'
   const [form, setForm] = useState({ name: '', email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
-  const { login, signup, isLoading } = useAuthStore();
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const { login, signup, loginWithGoogle, isLoading } = useAuthStore();
+  
+  const processingOAuth = useRef(false);
+
+  const GOOGLE_CLIENT_ID = "382570154047-3o3mts9ee2nnvlkg9dmq1hdqvs26249q.apps.googleusercontent.com";
+
+  useEffect(() => {
+    // Listen for the OAuth callback from Rust
+    let unlisten;
+    const setupListener = async () => {
+      unlisten = await listen('oauth_callback', async (event) => {
+        // Prevent duplicate processing
+        if (processingOAuth.current) return;
+        processingOAuth.current = true;
+        
+        const url = new URL(event.payload);
+        const params = new URLSearchParams(url.search || url.hash.substring(1));
+        const code = params.get('code');
+        const port = url.port || url.origin.split(':').pop();
+        const redirectUri = `http://localhost:${port}/`;
+        
+        if (code) {
+          setIsGoogleLoading(true);
+          const result = await loginWithGoogle({ code, redirectUri });
+          setIsGoogleLoading(false);
+          if (!result.success) {
+            toast.error(result.error);
+            processingOAuth.current = false; // Allow retry if failed
+          }
+        } else {
+          console.error('[Google Auth] No code found in callback URL:', event.payload);
+          processingOAuth.current = false;
+        }
+      });
+    };
+
+    setupListener();
+    return () => {
+      if (unlisten) unlisten().then(u => u && u());
+    };
+  }, [loginWithGoogle]);
+
+  const handleGoogleLogin = async () => {
+    if (isLoading || isGoogleLoading) return;
+    
+    try {
+      processingOAuth.current = false; // Reset for new attempt
+      // 1. Start the local listener via Rust and get the port
+      const port = await invoke('start_oauth_flow');
+      const redirectUri = `http://localhost:${port}/`;
+
+      // 2. Construct Google Auth URL
+      const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` + 
+        `client_id=${GOOGLE_CLIENT_ID}&` +
+        `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+        `response_type=code&` +
+        `scope=${encodeURIComponent('openid email profile')}`;
+
+      // 3. Open in System Browser
+      await invoke('system_open', { url: authUrl });
+    } catch (error) {
+      console.error('[Google Auth] Initialiation Failed:', error);
+      toast.error('Failed to start Google login');
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -83,7 +150,11 @@ export default function AuthPage() {
 
             {/* Social Login Buttons */}
             <div className="space-y-3">
-              <button className="w-full h-11 flex items-center justify-center gap-3 bg-transparent border border-slate-700 rounded-lg text-white hover:border-slate-600 transition-colors">
+              <button 
+                onClick={() => handleGoogleLogin()}
+                className="w-full h-11 flex items-center justify-center gap-3 bg-transparent border border-slate-700 rounded-lg text-white hover:border-slate-600 transition-colors"
+                disabled={isLoading}
+              >
                 <GoogleIcon />
                 <span className="text-sm font-medium">Sign in with Google</span>
               </button>
