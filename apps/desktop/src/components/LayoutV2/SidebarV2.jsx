@@ -174,10 +174,14 @@ export default function SidebarV2({
   }, [showProjectsSection]);
 
   // Filtered data based on current selection
-  const filteredProjects = useMemo(() =>
-    currentTeam ? getFilteredProjects(currentTeam._id) : [],
-    [currentTeam?._id, projects]
-  );
+  const filteredProjects = useMemo(() => {
+    if (!currentTeam) return [];
+    const all = getFilteredProjects(currentTeam._id);
+    if (currentProject) {
+      return all.filter(p => p._id === currentProject._id);
+    }
+    return all;
+  }, [currentTeam?._id, currentProject?._id, projects]);
 
   const filteredCollections = useMemo(() =>
     currentProject ? getFilteredCollections(currentProject._id) : [],

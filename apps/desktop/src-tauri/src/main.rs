@@ -30,56 +30,73 @@ async fn start_oauth_flow(window: tauri::Window) -> Result<u16, String> {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PayloadX Auth</title>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <title>PayloadX | Authentication Success</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg: #000000;
-            --surface: #0a0a0a;
-            --border: #222222;
-            --accent: #00dc82;
+            --bg: #060606;
+            --surface: #0d0d0d;
+            --border: rgba(255, 255, 255, 0.05);
+            --accent: #ffffff;
             --text: #ffffff;
-            --text-dim: #666666;
+            --text-dim: #555555;
+            --text-muted: #222222;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'Inter', sans-serif;
             background-color: var(--bg);
             color: var(--text);
             height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
+            overflow: hidden;
+        }
+        .noise {
+            position: fixed;
+            inset: 0;
+            background: url('https://grainy-gradients.vercel.app/noise.svg');
+            opacity: 0.02;
+            pointer-events: none;
         }
         .container {
             width: 100%;
             max-width: 440px;
-            padding: 40px;
+            padding: 48px;
             background-color: var(--surface);
             border: 1px solid var(--border);
             text-align: left;
             position: relative;
+            z-index: 10;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
         }
         .logo-box {
             width: 32px;
             height: 32px;
-            background-color: var(--accent);
+            background-color: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border);
             margin-bottom: 32px;
             display: flex;
             align-items: center;
             justify-content: center;
+            border-radius: 6px;
         }
         .logo-box::after {
-            content: 'P';
-            font-weight: 700;
-            color: black;
-            font-size: 18px;
+            content: '';
+            width: 14px;
+            height: 14px;
+            background-color: white;
+            clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 0 0, 20% 20%, 20% 80%, 80% 80%, 80% 20%, 20% 20%);
+            opacity: 0.8;
         }
         h1 {
-            font-size: 20px;
+            font-size: 18px;
             font-weight: 700;
-            margin-bottom: 8px;
-            letter-spacing: -0.5px;
+            margin-bottom: 12px;
+            letter-spacing: -0.02em;
+            text-transform: uppercase;
+            color: #fff;
         }
         p {
             font-size: 13px;
@@ -90,46 +107,59 @@ async fn start_oauth_flow(window: tauri::Window) -> Result<u16, String> {
         .status-container {
             display: flex;
             align-items: center;
-            gap: 12px;
-            font-size: 12px;
-            color: var(--accent);
+            gap: 10px;
+            font-size: 10px;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
         }
         .status-dot {
-            width: 8px;
-            height: 8px;
-            background-color: var(--accent);
+            width: 6px;
+            height: 6px;
+            background-color: #fff;
             border-radius: 50%;
-            animation: pulse 1.5s infinite;
-        }
-        @keyframes pulse {
-            0% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.4; transform: scale(0.9); }
-            100% { opacity: 1; transform: scale(1); }
+            box-shadow: 0 0 10px rgba(255,255,255,0.5);
         }
         .code-block {
+            font-family: 'JetBrains Mono', monospace;
             background-color: #050505;
-            padding: 12px;
+            padding: 16px;
             border: 1px solid var(--border);
-            font-size: 11px;
-            color: #444;
-            margin-top: 32px;
-            overflow: hidden;
-            white-space: nowrap;
-            text-overflow: ellipsis;
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-top: 40px;
+            border-radius: 4px;
+        }
+        .attribution {
+            position: absolute;
+            bottom: -60px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            font-size: 9px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.3em;
+            font-weight: 700;
         }
     </style>
 </head>
 <body>
+    <div class="noise"></div>
     <div class="container">
         <div class="logo-box"></div>
-        <h1>AUTH_SUCCESS</h1>
-        <p>Your session for PayloadX API Studio has been verified. You may now return to the desktop application.</p>
+        <h1>Auth Success</h1>
+        <p>Your workspace session has been verified. You can now close this tab and return to the PayloadX desktop application.</p>
         <div class="status-container">
             <div class="status-dot"></div>
-            <span>HANDSHAKE_COMPLETE</span>
+            <span>Handshake Verified</span>
         </div>
         <div class="code-block">
-            $> payloadx auth --status verified --id oauth_v2_google
+            $> payloadx auth --id google_v2 --status success
+        </div>
+        <div class="attribution">
+            Created by Sundan Sharma
         </div>
     </div>
     <script>
