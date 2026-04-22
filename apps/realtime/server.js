@@ -35,7 +35,8 @@ app.use(express.json());
 // ─────────────────────────────────────────────────────────────────────────────
 const roomMembers = new Map();
 const requestViewers = new Map();
-const socketMeta = new Map();
+const apiDocViewers = new Map();
+const socketMeta = new Map(); // Map<socketId, { teamId?, openRequestId?, openApiDocId? }>
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -47,6 +48,12 @@ function getMembers(room) {
 function getViewers(requestId) {
   return requestViewers.has(requestId)
     ? Array.from(requestViewers.get(requestId).values())
+    : [];
+}
+
+function getApiDocViewers(endpointId) {
+  return apiDocViewers.has(endpointId)
+    ? Array.from(apiDocViewers.get(endpointId).values())
     : [];
 }
 
@@ -133,6 +140,33 @@ io.on('connection', (socket) => {
     const meta = socketMeta.get(socket.id) || {};
     socketMeta.set(socket.id, { ...meta, openRequestId: null });
     log('close_request', `requestId=${requestId}`);
+  });
+
+  // ── 2b. PRESENCE: Who is viewing a specific API Doc endpoint ────────────────
+  socket.on('open_apidoc', ({ teamId, endpointId, user } = {}) => {
+    if (!endpointId || !teamId) return;
+
+    if (!apiDocViewers.has(endpointId)) apiDocViewers.set(endpointId, new Map());
+    apiDocViewers.get(endpointId).set(socket.id, { ...user, socketId: socket.id });
+
+    const meta = socketMeta.get(socket.id) || {};
+    socketMeta.set(socket.id, { ...meta, openApiDocId: endpointId, teamId });
+
+    const viewers = getApiDocViewers(endpointId);
+    io.to(`team:${teamId}`).emit('apidoc_viewers_updated', { endpointId, viewers });
+    log('open_apidoc', `endpointId=${endpointId} viewers=${viewers.length}`);
+  });
+
+  socket.on('close_apidoc', ({ teamId, endpointId } = {}) => {
+    if (!endpointId) return;
+    if (apiDocViewers.has(endpointId)) {
+      apiDocViewers.get(endpointId).delete(socket.id);
+      const viewers = getApiDocViewers(endpointId);
+      if (teamId) io.to(`team:${teamId}`).emit('apidoc_viewers_updated', { endpointId, viewers });
+    }
+    const meta = socketMeta.get(socket.id) || {};
+    socketMeta.set(socket.id, { ...meta, openApiDocId: null });
+    log('close_apidoc', `endpointId=${endpointId}`);
   });
 
   // ── 3. REQUEST EVENTS ───────────────────────────────────────────────────────
@@ -317,6 +351,16 @@ io.on('connection', (socket) => {
       // Broadcast to all team rooms since teamId might be stale
       for (const [room] of roomMembers.entries()) {
         io.to(room).emit('request_viewers_updated', { requestId: openRequestId, viewers });
+      }
+    }
+
+    // Remove from api doc viewers
+    const openApiDocId = meta.openApiDocId;
+    if (openApiDocId && apiDocViewers.has(openApiDocId)) {
+      apiDocViewers.get(openApiDocId).delete(socket.id);
+      const viewers = getApiDocViewers(openApiDocId);
+      for (const [room] of roomMembers.entries()) {
+        io.to(room).emit('apidoc_viewers_updated', { endpointId: openApiDocId, viewers });
       }
     }
 

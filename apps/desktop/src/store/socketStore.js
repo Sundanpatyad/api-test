@@ -10,6 +10,7 @@ export const useSocketStore = create((set, get) => ({
   roomMembers: [],
   currentRoom: null,
   requestViewers: {}, // { [requestId]: User[] }
+  apiDocViewers: {},  // { [endpointId]: User[] }
 
   connect: () => {
     const existing = get().socket;
@@ -51,6 +52,12 @@ export const useSocketStore = create((set, get) => ({
       }));
     });
 
+    socket.on('apidoc_viewers_updated', ({ endpointId, viewers }) => {
+      set((state) => ({
+        apiDocViewers: { ...state.apiDocViewers, [endpointId]: viewers },
+      }));
+    });
+
     set({ socket });
   },
 
@@ -72,6 +79,18 @@ export const useSocketStore = create((set, get) => ({
     const socket = get().socket;
     if (!socket || !teamId || !requestId) return;
     socket.emit('close_request', { teamId, requestId, userId });
+  },
+
+  emitOpenApiDoc: (teamId, endpointId, user) => {
+    const socket = get().socket;
+    if (!socket || !teamId || !endpointId) return;
+    socket.emit('open_apidoc', { teamId, endpointId, user });
+  },
+
+  emitCloseApiDoc: (teamId, endpointId) => {
+    const socket = get().socket;
+    if (!socket || !teamId || !endpointId) return;
+    socket.emit('close_apidoc', { teamId, endpointId });
   },
   // ──────────────────────────────────────────────────────────────────
 

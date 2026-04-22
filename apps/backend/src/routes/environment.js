@@ -87,7 +87,6 @@ router.post('/', authenticate, async (req, res) => {
       variables: sanitizedVars,
     });
 
-    const { maskSecrets } = require('../../models/Environment');
     res.status(201).json({ message: 'Environment created', environment: maskSecrets(env) });
   } catch (err) {
     console.error('[POST /api/environment]', err);
@@ -105,7 +104,6 @@ router.get('/:id', authenticate, async (req, res) => {
     const env = await Environment.findById(req.params.id);
     if (!env) return res.status(404).json({ error: 'Environment not found' });
 
-    const { maskSecrets } = require('../../models/Environment');
     res.json({ environment: revealSecrets === 'true' ? env.toObject() : maskSecrets(env) });
   } catch (err) {
     console.error('[GET /api/environment/:id]', err);
@@ -144,7 +142,6 @@ router.put('/:id', authenticate, async (req, res) => {
     }
 
     await env.save();
-    const { maskSecrets } = require('../../models/Environment');
     res.json({ message: 'Environment updated', environment: maskSecrets(env) });
   } catch (err) {
     console.error('[PUT /api/environment/:id]', err);
@@ -257,7 +254,6 @@ router.put('/:id/variables', authenticate, async (req, res) => {
 
     env.variables = merged;
     await env.save();
-    const { maskSecrets } = require('../../models/Environment');
 
     res.json({
       message: 'Variables saved',

@@ -5,6 +5,7 @@ import { useApiDocStore } from '@/store/apiDocStore';
 import { useSocketStore } from '@/store/socketStore';
 import { useTeamStore } from '@/store/teamStore';
 import { useAuthStore } from '@/store/authStore';
+import ApiDocPresence from './ApiDocPresence';
 
 const TABS = ['Info', 'Params', 'Headers', 'Body', 'Responses'];
 const METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'];
@@ -29,13 +30,34 @@ export default function EndpointEditor({ endpoint, docId }) {
   const typingRef = useRef(null);
   const saveTimeoutRef = useRef(null);
 
+  // Presence Logic
+  const prevEpIdRef = useRef(null);
+  useEffect(() => {
+    if (!endpoint.id || !currentTeam || !user) return;
+    
+    // Close previous if changed
+    if (prevEpIdRef.current && prevEpIdRef.current !== endpoint.id) {
+       socket?.emit('close_apidoc', { teamId: currentTeam._id, endpointId: prevEpIdRef.current });
+    }
+
+    // Open current
+    socket?.emit('open_apidoc', { teamId: currentTeam._id, endpointId: endpoint.id, user });
+    prevEpIdRef.current = endpoint.id;
+
+    return () => {
+      if (endpoint.id && currentTeam) {
+        socket?.emit('close_apidoc', { teamId: currentTeam._id, endpointId: endpoint.id });
+      }
+    };
+  }, [endpoint.id, currentTeam?._id]);
+
   // Sync with prop changes if it's a different endpoint
   useEffect(() => {
     if (endpoint.id !== localEp.id) {
        setLocalEp(endpoint);
        setActiveTab('Info');
     }
-  }, [endpoint.id]); // only refresh if the ID changes, otherwise we overwrite typed changes
+  }, [endpoint.id]);
 
   // Auto-save logic
   const triggerSave = (newEp) => {
@@ -142,7 +164,9 @@ export default function EndpointEditor({ endpoint, docId }) {
         </div>
 
         {/* Controls */}
-        <div className="flex items-center gap-2 ml-4">
+        <div className="flex items-center gap-3 ml-4">
+          <ApiDocPresence endpointId={endpoint.id} />
+          <div className="w-px h-4 bg-[var(--border-1)] mx-1"></div>
           {isSaving && <span className="text-[10px] text-surface-400 animate-pulse">Saving...</span>}
           <button onClick={handleDelete} title="Delete Endpoint" className="p-1.5 text-surface-500 hover:text-error hover:bg-error/10 rounded-md transition-colors">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>

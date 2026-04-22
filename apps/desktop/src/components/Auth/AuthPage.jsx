@@ -76,12 +76,47 @@ export default function AuthPage() {
     }
   };
 
+  const validateForm = () => {
+    const { email, password, name } = form;
+
+    // Email validation
+    if (!email.trim()) {
+      toast.error('Email is required');
+      return false;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      toast.error('Please enter a valid email address');
+      return false;
+    }
+
+    // Password validation
+    if (!password) {
+      toast.error('Password is required');
+      return false;
+    }
+    if (password.length < 8) {
+      toast.error('Password must be at least 8 characters');
+      return false;
+    }
+
+    // Signup specific validation
+    if (mode === 'signup' && !name.trim()) {
+      toast.error('Full name is required');
+      return false;
+    }
+
+    return true;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!navigator.onLine) {
       toast.error('You are offline. Please check your connection.');
       return;
     }
+
+    if (!validateForm()) return;
 
     const result = mode === 'login'
       ? await login(form.email, form.password)
