@@ -20,12 +20,19 @@ router.get('/', authenticate, async (req, res) => {
     // For simple search, we fetch and filter in memory if needed, 
     // but better to use proper Firestore queries if possible.
     
-    const snapshot = await query.orderBy('updatedAt', 'desc').get();
+    const snapshot = await query.get();
     let workflows = snapshot.docs.map(doc => ({
       _id: doc.id,
       id: doc.id,
       ...doc.data()
     }));
+
+    // Sort in memory to avoid "index required" error
+    workflows.sort((a, b) => {
+      const dateA = new Date(a.updatedAt || 0);
+      const dateB = new Date(b.updatedAt || 0);
+      return dateB - dateA;
+    });
 
     if (search) {
       const searchLower = search.toLowerCase();
