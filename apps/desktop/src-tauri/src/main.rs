@@ -5,10 +5,12 @@ use tauri::Manager;
 
 mod commands;
 mod security;
+mod workflow;
 
 use commands::http::{execute_request, get_cookies, set_cookie, delete_cookie, list_cookie_domains};
 use commands::files::{save_local_file, read_local_file, list_local_files};
 use commands::json::parse_json;
+use commands::workflow::{execute_workflow, validate_workflow, cancel_workflow_execution};
 
 use std::sync::Mutex;
 use std::collections::HashMap;
@@ -214,6 +216,9 @@ fn main() {
             parse_json,
             start_oauth_flow,
             system_open,
+            execute_workflow,
+            validate_workflow,
+            cancel_workflow_execution,
         ])
         .run(tauri::generate_context!())
         .expect("error while running PayloadX API Studio");
