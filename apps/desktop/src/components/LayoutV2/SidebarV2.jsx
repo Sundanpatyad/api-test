@@ -9,6 +9,7 @@ import { useSocketStore } from '@/store/socketStore';
 import toast from 'react-hot-toast';
 import api from '@/lib/api';
 import { v4 as uuidv4 } from 'uuid';
+import { useWorkflowStore } from '@/store/workflowStore';
 import RefreshButton from '@/components/RefreshButton/RefreshButton';
 import PayloadX from '@/components/core/logo';
 
@@ -113,6 +114,8 @@ export default function SidebarV2({
     getFilteredCollections,
     setCurrentCollection
   } = useCollectionStore();
+
+  const { workflows, currentWorkflow, openWorkflow, fetchWorkflows } = useWorkflowStore();
 
   const { disconnect } = useSocketStore();
   const { isConnected } = useSocketStore();
@@ -757,6 +760,74 @@ export default function SidebarV2({
               ) : (
                 <p className="sdbv2-empty-note">No matches found in project</p>
               )}
+            </div>
+          ) : activeV2Nav === 'workflow' ? (
+            <div className="flex-1 flex flex-col min-h-0">
+              {/* Workflows List */}
+              <div className="sdbv2-section shrink-0 max-h-[40%] flex flex-col">
+                <div className="sdbv2-section-head">
+                  <span className="sdbv2-section-label">My Workflows</span>
+                  <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                    <RefreshButton
+                      onRefresh={() => currentTeam && fetchWorkflows(currentTeam._id, currentProject?._id)}
+                      tooltip="Refresh Workflows"
+                      size={12}
+                    />
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1 mt-1 overflow-y-auto pr-1">
+                  {workflows.filter(w => !currentProject || w.projectId === currentProject._id).length > 0 ? (
+                    workflows
+                      .filter(w => !currentProject || w.projectId === currentProject._id)
+                      .map((wf) => (
+                        <button
+                          key={wf.id}
+                          onClick={() => openWorkflow(wf)}
+                          className={`sdbv2-tree-row w-full ${currentWorkflow?.id === wf.id ? 'sdbv2-tree-row--active' : ''}`}
+                        >
+                          <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ color: 'var(--brand-500)', flexShrink: 0 }}>
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                          </svg>
+                          <span className="sdbv2-tree-text flex-1 text-left">{wf.name || 'Untitled Workflow'}</span>
+                        </button>
+                      ))
+                  ) : (
+                    <p className="sdbv2-empty-note p-2">No workflows found</p>
+                  )}
+                </div>
+              </div>
+
+              {/* APIs List (for drag and drop) */}
+              <div className="sdbv2-section flex-1 flex flex-col min-h-0 border-t border-[var(--border-1)] mt-2 pt-2">
+                <div className="sdbv2-section-head">
+                  <span className="sdbv2-section-label">Drag APIs to Canvas</span>
+                </div>
+                <div className="flex-1 overflow-y-auto pr-1 mt-1">
+                  {currentProject ? (
+                    filteredProjects.map((project) => {
+                      const projectCollections = collectionsByProject[project._id] || [];
+                      return projectCollections.map((col) => (
+                        <div key={col._id} className="mb-2">
+                          <div className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider px-2 mb-1 opacity-50 flex items-center gap-1">
+                            <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+                            {col.name}
+                          </div>
+                          {requests.filter(r => r.collectionId === col._id).map(req => (
+                            <SidebarRequest
+                              key={req._id}
+                              request={req}
+                              onSelect={() => {}} // No-op on click in workflow mode, just drag
+                              isActive={false}
+                            />
+                          ))}
+                        </div>
+                      ));
+                    })
+                  ) : (
+                    <p className="sdbv2-empty-note p-4 text-center">Select a project to see APIs</p>
+                  )}
+                </div>
+              </div>
             </div>
           ) : (
             <>

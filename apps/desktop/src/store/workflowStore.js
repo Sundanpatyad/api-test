@@ -395,6 +395,16 @@ export const useWorkflowStore = create(
         }
       },
 
+      openWorkflow: (workflow) => {
+        set({
+          currentWorkflow: workflow,
+          selectedNode: null,
+          showConfigPanel: false,
+          isExecuting: false,
+          executionResult: null,
+        });
+      },
+
       // ─── Reset ─────────────────────────────────────────────────
 
       reset: () => {

@@ -7,6 +7,7 @@ import {
   Search, CheckCircle2, AlertCircle, ChevronDown 
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
+import { useEnvironmentStore } from '@/store/environmentStore';
 
 export default function NodeConfigPanel() {
   const { 
@@ -17,7 +18,7 @@ export default function NodeConfigPanel() {
     showConfigPanel,
     executionResult 
   } = useWorkflowStore();
-  const { collections } = useCollectionStore();
+  const { collections, requests } = useCollectionStore();
   const { currentProject } = useProjectStore();
   
   const [showApiPicker, setShowApiPicker] = useState(false);
@@ -26,12 +27,19 @@ export default function NodeConfigPanel() {
   // ─── API Picker Helpers (Must be before early returns!) ───────
   const groupedRequests = useMemo(() => {
     if (!currentProject) return {};
+    
+    // Get all collections for this project
     const projectCols = collections.filter(c => c.projectId === currentProject._id);
+    const colIds = new Set(projectCols.map(c => c._id));
+    
     const groups = {};
     
     projectCols.forEach(col => {
-      if (col.requests && col.requests.length > 0) {
-        const filtered = col.requests.filter(r => 
+      // Find requests belonging to this collection
+      const colRequests = requests.filter(r => r.collectionId === col._id);
+      
+      if (colRequests.length > 0) {
+        const filtered = colRequests.filter(r => 
           !apiSearch || 
           r.name.toLowerCase().includes(apiSearch.toLowerCase()) || 
           r.url?.toLowerCase().includes(apiSearch.toLowerCase())
@@ -43,7 +51,7 @@ export default function NodeConfigPanel() {
       }
     });
     return groups;
-  }, [collections, currentProject, apiSearch]);
+  }, [collections, requests, currentProject, apiSearch]);
 
   if (!showConfigPanel || !selectedNode) return null;
 
@@ -441,10 +449,55 @@ export default function NodeConfigPanel() {
         )}
       </div>
       
+      {/* Environment Reference Section */}
+      <div className="border-t border-[var(--border-2)] p-5 bg-surface-1/30 backdrop-blur-sm">
+        <div className="flex items-center gap-2 mb-3">
+          <Globe size={14} className="text-surface-500" />
+          <span className="text-[11px] font-black uppercase tracking-widest text-surface-500">Variables</span>
+        </div>
+        <p className="text-[10px] text-surface-600 font-medium mb-3 leading-relaxed">
+          Use <code className="text-[var(--accent)] font-bold">{"{{key}}"}</code> to inject variables into your request.
+        </p>
+        
+        <EnvironmentReference />
+      </div>
+
       {/* Footer info */}
       <div className="p-4 text-center border-t border-[var(--border-2)]">
          <p className="text-[9px] font-bold uppercase tracking-widest text-surface-600">PayloadX Node Automation Engine</p>
       </div>
+    </div>
+  );
+}
+
+function EnvironmentReference() {
+  const { environments, currentEnvironment } = useEnvironmentStore();
+  
+  if (!currentEnvironment) {
+    return (
+      <div className="text-[10px] text-surface-600 text-center py-4 border border-dashed border-[var(--border-2)] rounded-xl font-medium italic">
+        No environment active
+      </div>
+    );
+  }
+  
+  const env = environments.find(e => e._id === currentEnvironment);
+  if (!env || !env.variables || env.variables.length === 0) {
+    return (
+      <div className="text-[10px] text-surface-600 text-center py-4 border border-dashed border-[var(--border-2)] rounded-xl font-medium italic">
+        No variables in {env?.name || 'environment'}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-1.5 max-h-[150px] overflow-y-auto pr-1 scrollbar-hide">
+      {env.variables.map((v, i) => (
+        <div key={i} className="flex items-center justify-between p-2 bg-surface-2/50 border border-[var(--border-2)] rounded-lg group hover:border-[var(--accent)] transition-all">
+          <span className="text-[10px] font-mono font-bold text-[var(--accent)]">{v.key}</span>
+          <span className="text-[10px] font-mono text-surface-500 truncate ml-2 max-w-[100px]">{v.value}</span>
+        </div>
+      ))}
     </div>
   );
 }
