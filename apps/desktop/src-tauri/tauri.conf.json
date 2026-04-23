@@ -27,7 +27,10 @@
       "dialog": {
         "all": false,
         "open": true,
-        "save": true
+        "save": true,
+        "message": true,
+        "confirm": true,
+        "ask": true
       }
     },
     "bundle": {

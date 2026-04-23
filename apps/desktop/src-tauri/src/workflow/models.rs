@@ -70,6 +70,8 @@ pub struct NodeData {
     pub timeout: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub retries: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub save_session: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

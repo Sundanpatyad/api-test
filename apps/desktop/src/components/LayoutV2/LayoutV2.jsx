@@ -15,6 +15,7 @@ import ResponseViewer from '@/components/ResponseViewer/ResponseViewer';
 import ApiDocsPanel from '@/components/ApiDocs/ApiDocsPanel';
 import InlineDocViewer from '@/components/ResponseViewer/InlineDocViewer';
 import RightSidebar from './RightSidebar';
+import WorkflowBuilder from '@/components/WorkflowBuilder/WorkflowBuilder';
 
 export default function LayoutV2({
   onShowTeamModal,
@@ -101,6 +102,8 @@ export default function LayoutV2({
             <Dashboard />
           ) : activeV2Nav === 'docs' ? (
             <ApiDocsPanel />
+          ) : activeV2Nav === 'workflow' ? (
+            <WorkflowBuilder />
           ) : needsOnboarding ? (
             <EmptyState
               onShowTeamModal={onShowTeamModal}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+  import { useState, useEffect, useRef, useMemo } from 'react';
 import { useTeamStore } from '@/store/teamStore';
 import { useProjectStore } from '@/store/projectStore';
 import { useCollectionStore } from '@/store/collectionStore';
@@ -19,6 +19,15 @@ const NAV_ITEMS = [
     icon: (
       <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+      </svg>
+    ),
+  },
+  {
+    id: 'workflow',
+    label: 'Workflow',
+    icon: (
+      <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 5a1 1 0 011-1h4a1 1 0 011 1v7a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v7a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 16a1 1 0 011-1h4a1 1 0 011 1v3a1 1 0 01-1 1H5a1 1 0 01-1-1v-3zM14 16a1 1 0 011-1h4a1 1 0 011 1v3a1 1 0 01-1 1h-4a1 1 0 01-1-1v-3z" />
       </svg>
     ),
   },
@@ -927,11 +936,21 @@ function SidebarRequest({ request, onSelect, isActive, onContextMenu }) {
   const isSio = request.protocol === 'socketio';
   const color = isWs ? '#38bdf8' : isSio ? '#f0883e' : (METHOD_COLORS[request.method] || '#9A9A9A');
 
+  const onDragStart = (event) => {
+    const data = JSON.stringify(request);
+    event.dataTransfer.setData('application/json', data);
+    event.dataTransfer.setData('text/plain', data);
+    event.dataTransfer.effectAllowed = 'move';
+  };
+
   return (
     <button
       onClick={() => onSelect(request)}
       onContextMenu={onContextMenu}
-      className={`sdbv2-tree-row sdbv2-req-row ${isActive ? 'sdbv2-tree-row--active' : ''} relative`}
+      draggable={true}
+      onDragStart={onDragStart}
+      className={`sdbv2-tree-row sdbv2-req-row ${isActive ? 'sdbv2-tree-row--active' : ''} relative cursor-move`}
+      title="Drag to workflow canvas"
     >
       <span className="sdbv2-method-badge" style={{
         color,
@@ -943,6 +962,9 @@ function SidebarRequest({ request, onSelect, isActive, onContextMenu }) {
         {isWs ? 'WS' : isSio ? 'SIO' : (request.method || 'GET')}
       </span>
       <span className="sdbv2-tree-text">{request.name}</span>
+      <span className="text-[10px] text-[var(--text-muted)] ml-auto opacity-0 group-hover:opacity-100">
+        ⋮⋮
+      </span>
     </button>
   );
 }

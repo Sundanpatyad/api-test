@@ -37,7 +37,7 @@ router.post('/login', async (req, res) => {
     res.json({ user: user.toSafeObject(), token });
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Login failed. Please try again later.' });
   }
 });
 
@@ -113,7 +113,14 @@ router.post('/signup', async (req, res) => {
     res.status(201).json({ user: user.toSafeObject(), token });
   } catch (error) {
     console.error('Signup error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(val => val.message);
+      return res.status(400).json({ error: messages[0] });
+    }
+    if (error.code === 11000) {
+      return res.status(409).json({ error: 'Email already registered' });
+    }
+    res.status(500).json({ error: 'Signup failed. Please try again later.' });
   }
 });
 

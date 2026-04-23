@@ -75,6 +75,8 @@ import environmentRoutes from './routes/environment.js';
 import apidocRoutes from './routes/apidoc.js';
 import importRoutes from './routes/import.js';
 import commentRoutes from './routes/comment.js';
+import workflowRoutes from './routes/workflow.js';
+import workflowExecutionRoutes from './routes/workflowExecution.js';
 
 app.use('/api/auth', authRoutes);
 app.use('/api/request', requestRoutes);
@@ -85,6 +87,8 @@ app.use('/api/environment', environmentRoutes);
 app.use('/api/apidoc', apidocRoutes);
 app.use('/api/import', importRoutes);
 app.use('/api/comment', commentRoutes);
+app.use('/api/workflow', workflowRoutes);
+app.use('/api/workflow-execution', workflowExecutionRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

@@ -29,6 +29,7 @@ import EditNameModal from '@/components/EditNameModal/EditNameModal';
 import SyncStatusTag from '@/components/SyncStatusTag/SyncStatusTag';
 import OfflineSyncManager from '@/components/OfflineSyncManager/OfflineSyncManager';
 import { useProjectStore } from '@/store/projectStore';
+import { useWorkflowStore } from '@/store/workflowStore';
 
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
@@ -52,6 +53,7 @@ export default function App() {
     onRequestDeleted,
     onRequestCreated
   } = useSocketStore();
+  const { workflows, fetchWorkflows } = useWorkflowStore();
   const { currentTeam, initFromStorage: initTeams, updateTeamName, deleteTeam, fetchTeams, teams } = useTeamStore();
   const { initFromStorage: initProjects, updateProjectName, deleteProject, fetchProjects, projects } = useProjectStore();
   const { updateRequest, updateCollection, deleteCollection, addRequest, initFromStorage: initCollections } = useCollectionStore();
@@ -122,6 +124,12 @@ export default function App() {
       fetchProjects(currentTeam._id);
     }
   }, [user, currentTeam, projects.length]);
+
+  useEffect(() => {
+    if (user && currentTeam && workflows.length === 0) {
+      fetchWorkflows(currentTeam._id);
+    }
+  }, [user, currentTeam, workflows.length]);
 
 
   // Apply theme class to <html> so CSS variables switch correctly

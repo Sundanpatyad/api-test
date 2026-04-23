@@ -6,6 +6,7 @@ use tauri::{State, Window};
 pub async fn execute_workflow(
     workflow_json: String,
     client: State<'_, Client>,
+    cookie_jar: State<'_, crate::AppCookieJar>,
     window: Window,
 ) -> Result<WorkflowExecution, String> {
     // Parse workflow from JSON
@@ -16,6 +17,7 @@ pub async fn execute_workflow(
     let mut executor = WorkflowExecutor::new(
         workflow,
         client.inner().clone(),
+        Some(cookie_jar.inner().clone()),
         Some(window),
     );
 

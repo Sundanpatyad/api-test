@@ -7,7 +7,7 @@ mod commands;
 mod security;
 mod workflow;
 
-use commands::http::{execute_request, get_cookies, set_cookie, delete_cookie, list_cookie_domains};
+use commands::http::{execute_request, get_cookies, set_cookie, delete_cookie, list_cookie_domains, clear_cookies};
 use commands::files::{save_local_file, read_local_file, list_local_files};
 use commands::json::parse_json;
 use commands::workflow::{execute_workflow, validate_workflow, cancel_workflow_execution};
@@ -15,8 +15,8 @@ use commands::workflow::{execute_workflow, validate_workflow, cancel_workflow_ex
 use std::sync::Mutex;
 use std::collections::HashMap;
 
-#[derive(Default)]
-pub struct AppCookieJar(pub Mutex<HashMap<String, HashMap<String, String>>>);
+#[derive(Default, Clone)]
+pub struct AppCookieJar(pub std::sync::Arc<Mutex<HashMap<String, HashMap<String, String>>>>);
 
 #[tauri::command]
 async fn system_open(app_handle: tauri::AppHandle, url: String) -> Result<(), String> {
@@ -210,6 +210,7 @@ fn main() {
             set_cookie,
             delete_cookie,
             list_cookie_domains,
+            clear_cookies,
             save_local_file,
             read_local_file,
             list_local_files,

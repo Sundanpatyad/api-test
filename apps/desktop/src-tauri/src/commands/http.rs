@@ -315,6 +315,18 @@ pub async fn execute_request(
 }
 
 #[tauri::command]
+pub async fn clear_cookies(
+    cookie_jar: tauri::State<'_, crate::AppCookieJar>,
+) -> Result<(), String> {
+    if let Ok(mut jar) = cookie_jar.0.lock() {
+        jar.clear();
+        Ok(())
+    } else {
+        Err("Failed to lock cookie jar".to_string())
+    }
+}
+
+#[tauri::command]
 pub async fn get_cookies(
     host: String,
     cookie_jar: tauri::State<'_, crate::AppCookieJar>,

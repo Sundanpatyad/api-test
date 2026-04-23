@@ -6,22 +6,28 @@ use anyhow::{Context, Result};
 use chrono::Utc;
 use petgraph::graph::NodeIndex;
 use reqwest::Client;
+use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use std::collections::HashMap;
 use std::time::Instant;
+use std::sync::Arc;
+use std::str::FromStr;
 use tauri::Window;
+use crate::AppCookieJar;
 
 pub struct WorkflowExecutor {
     workflow: Workflow,
     client: Client,
+    cookie_jar: Option<AppCookieJar>,
     data_mapper: DataMapper,
     window: Option<Window>,
 }
 
 impl WorkflowExecutor {
-    pub fn new(workflow: Workflow, client: Client, window: Option<Window>) -> Self {
+    pub fn new(workflow: Workflow, client: Client, cookie_jar: Option<AppCookieJar>, window: Option<Window>) -> Self {
         Self {
             workflow,
             client,
+            cookie_jar,
             data_mapper: DataMapper::new(),
             window,
         }
@@ -48,6 +54,11 @@ impl WorkflowExecutor {
             
             // Emit progress event
             self.emit_progress(node_results.len(), graph.node_count()).await;
+            
+            // Emit node started event
+            if let Some(window) = &self.window {
+                let _ = window.emit("node_execution_started", node.id.clone());
+            }
 
             match self.execute_node(node).await {
                 Ok(result) => {
@@ -139,11 +150,14 @@ impl WorkflowExecutor {
         // Apply data mappings
         let mapped_node = self.data_mapper.apply_mappings(node)?;
 
-        // Build request
         let method = mapped_node.data.method.as_ref()
             .context("API node missing method")?;
         let url = mapped_node.data.url.as_ref()
             .context("API node missing URL")?;
+
+        // 3. HTTP method and URL
+        let url_obj = ::url::Url::parse(url).context("Invalid URL format")?;
+        let host = url_obj.host_str().unwrap_or("").to_string();
 
         let mut request = self.client.request(
             method.parse().context("Invalid HTTP method")?,
@@ -151,13 +165,45 @@ impl WorkflowExecutor {
         );
 
         // Add headers
+        let mut header_map = HeaderMap::new();
         if let Some(headers) = &mapped_node.data.headers {
             for header in headers {
                 if header.enabled {
-                    request = request.header(&header.key, &header.value);
+                    if let (Ok(name), Ok(val)) = (
+                        HeaderName::from_str(&header.key),
+                        HeaderValue::from_str(&header.value),
+                    ) {
+                        header_map.insert(name, val);
+                    }
                 }
             }
         }
+
+        // Attach cookies from jar
+        if !host.is_empty() {
+            if let Some(jar_wrapper) = &self.cookie_jar {
+                if let Ok(jar) = jar_wrapper.0.lock() {
+                    if let Some(cookies) = jar.get(&host) {
+                        if !cookies.is_empty() {
+                            println!("DEBUG: Attaching {} cookies from jar for host {}", cookies.len(), host);
+                            let mut cookie_components = Vec::new();
+                            for (k, v) in cookies.iter() {
+                                if v.is_empty() {
+                                    cookie_components.push(k.clone());
+                                } else {
+                                    cookie_components.push(format!("{}={}", k, v));
+                                }
+                            }
+                            if let Ok(val) = HeaderValue::from_str(&cookie_components.join("; ")) {
+                                header_map.insert(reqwest::header::COOKIE, val);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        request = request.headers(header_map);
 
         // Add body
         if let Some(body) = &mapped_node.data.body {
@@ -171,6 +217,29 @@ impl WorkflowExecutor {
         // Execute request
         let response = request.send().await
             .context("Failed to execute request")?;
+
+        // Handle saving session
+        if mapped_node.data.save_session.unwrap_or(false) && !host.is_empty() {
+            if let Some(jar_wrapper) = &self.cookie_jar {
+                let set_cookies = response.headers().get_all(reqwest::header::SET_COOKIE);
+                for cookie in set_cookies.iter() {
+                    if let Ok(c_str) = cookie.to_str() {
+                        // Parse key=value
+                        let parts: Vec<&str> = c_str.split(';').collect();
+                        if let Some(first_part) = parts.first() {
+                            let kv: Vec<&str> = first_part.splitn(2, '=').collect();
+                            if let Ok(mut jar) = jar_wrapper.0.lock() {
+                                let host_jar = jar.entry(host.clone()).or_insert_with(HashMap::new);
+                                let key = kv[0].trim().to_string();
+                                let val = if kv.len() > 1 { kv[1].trim().to_string() } else { "".to_string() };
+                                println!("DEBUG: Saving cookie {}={} for host {}", key, val, host);
+                                host_jar.insert(key, val);
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         // Extract response details
         let status = response.status().as_u16();
@@ -201,7 +270,12 @@ impl WorkflowExecutor {
             &response_details,
         );
 
-        let all_passed = validations.iter().all(|v| v.passed);
+        let all_passed = if validations.is_empty() {
+            status < 400
+        } else {
+            validations.iter().all(|v| v.passed)
+        };
+
         let node_status = if all_passed {
             NodeStatus::Success
         } else {

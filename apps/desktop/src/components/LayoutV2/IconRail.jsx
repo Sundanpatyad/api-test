@@ -10,7 +10,8 @@ import {
   Sun, 
   Moon, 
   Layout, 
-  Monitor 
+  Monitor,
+  Workflow
 } from 'lucide-react';
 
 const NAV_ITEMS = [
@@ -18,6 +19,11 @@ const NAV_ITEMS = [
     id: 'collections',
     label: 'Collections',
     icon: <FolderOpen size={18} />,
+  },
+  {
+    id: 'workflow',
+    label: 'API Automation',
+    icon: <Workflow size={18} />,
   },
   {
     id: 'environments',
