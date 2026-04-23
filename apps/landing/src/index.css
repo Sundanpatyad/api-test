@@ -12,6 +12,9 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-text-size-adjust: 100%;
+
+  /* PayloadX Logo Styles */
+  --grad-logo: linear-gradient(145deg, #C8CDD8, #7A8090, #B0B5C0, #E0E3E8);
 }
 
 * {
@@ -31,4 +34,23 @@ body {
   height: 100dvh;
   margin: 0;
   padding: 0;
+}
+
+/* Animations */
+@keyframes shimmer {
+  0% { transform: translateX(-100%) skewX(-12deg); }
+  100% { transform: translateX(200%) skewX(-12deg); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.02; transform: scale(1); }
+  50% { opacity: 0.05; transform: scale(1.05); }
+}
+
+.animate-shimmer {
+  animation: shimmer 2.5s infinite linear;
+}
+
+.animate-pulse {
+  animation: pulse 3s infinite ease-in-out;
 }

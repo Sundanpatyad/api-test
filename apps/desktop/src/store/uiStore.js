@@ -12,6 +12,9 @@ export const useUIStore = create(
       showProjectModal: false,
       showCollectionModal: false,
       showEnvironmentPanel: false,
+      rightSidebarOpen: false,
+      rightSidebarActiveTab: 'environment', // 'environment' | 'cookies'
+      rightSidebarWidth: 420,
       showInviteModal: false,
       showConfirmDialog: false,
       showEditNameModal: false,
@@ -35,6 +38,14 @@ export const useUIStore = create(
       setShowProjectModal:    (v) => set({ showProjectModal: v }),
       setShowCollectionModal: (v) => set({ showCollectionModal: v }),
       setShowEnvironmentPanel:(v) => set({ showEnvironmentPanel: v }),
+      
+      // Right sidebar actions
+      setRightSidebarOpen:    (v) => set({ rightSidebarOpen: v }),
+      setRightSidebarActiveTab: (v) => set({ rightSidebarActiveTab: v }),
+      setRightSidebarWidth:   (w) => set({ rightSidebarWidth: Math.max(300, Math.min(800, w)) }),
+      toggleRightSidebar:     () => set((s) => ({ rightSidebarOpen: !s.rightSidebarOpen })),
+      openRightSidebarTab:    (tab) => set({ rightSidebarActiveTab: tab, rightSidebarOpen: true }),
+      
       setShowInviteModal:     (v) => set({ showInviteModal: v }),
       setShowConfirmDialog:   (v, config = null) => set({ showConfirmDialog: v, confirmDialogConfig: config }),
       setShowEditNameModal:   (v, config = null) => set({ showEditNameModal: v, editNameModalConfig: config }),

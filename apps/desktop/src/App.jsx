@@ -256,17 +256,15 @@ export default function App() {
           onShowProjectModal={() => useUIStore.getState().setShowProjectModal(true)}
           onShowCollectionModal={() => useUIStore.getState().setShowCollectionModal(true)}
           onShowImportModal={() => useUIStore.getState().setShowImportModal(true)}
-          onOpenEnvPanel={() => useUIStore.getState().setShowEnvironmentPanel(true)}
+          onOpenEnvPanel={() => useUIStore.getState().openRightSidebarTab('environment')}
         />
 
         {/* Shared Modals */}
-        {showEnvironmentPanel && <EnvironmentPanel />}
         {showImportModal && <ImportModal />}
         {showTeamModal && <CreateTeamModal />}
         {showProjectModal && <CreateProjectModal />}
         {showCollectionModal && <CreateCollectionModal />}
         {showInviteModal && <InviteModal />}
-        {showCookieModal && <CookieModal />}
         <ContextMenu />
         <ConfirmDialog />
         <EditNameModal />

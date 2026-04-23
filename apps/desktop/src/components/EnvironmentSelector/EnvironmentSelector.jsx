@@ -3,13 +3,12 @@ import { useEnvironmentStore } from '@/store/environmentStore';
 import { useProjectStore } from '@/store/projectStore';
 import { useTeamStore } from '@/store/teamStore';
 import { useUIStore } from '@/store/uiStore';
-import { Layers, ChevronDown, X, CheckCircle2, Settings, Plus, Eye, EyeOff } from 'lucide-react';
+import { Layers, ChevronDown, X, CheckCircle2, Settings, Plus, Eye, EyeOff, Cookie } from 'lucide-react';
 
 export default function EnvironmentSelector() {
   const { environments, activeEnvironment, setActiveEnvironment, fetchEnvironments } = useEnvironmentStore();
   const { currentProject } = useProjectStore();
   const { currentTeam } = useTeamStore();
-  const { setShowEnvironmentPanel } = useUIStore();
   const [open, setOpen] = useState(false);
   const [showVars, setShowVars] = useState(false);
   const ref = useRef(null);
@@ -134,20 +133,38 @@ export default function EnvironmentSelector() {
                 Environments
               </span>
             </div>
-            <button
-              onClick={() => { setShowEnvironmentPanel(true); setOpen(false); }}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '4px',
-                fontSize: '10px', fontWeight: 600,
-                color: 'var(--text-muted)',
-                padding: '3px 8px', borderRadius: '5px',
-                background: 'var(--surface-2)', border: '1px solid var(--border-1)',
-                cursor: 'pointer', transition: 'all 0.15s',
-              }}
-            >
-              <Settings size={10} />
-              Manage
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => { setOpen(false); useUIStore.getState().openRightSidebarTab('cookies'); }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '4px',
+                  fontSize: '10px', fontWeight: 600,
+                  color: 'var(--text-muted)',
+                  padding: '3px 8px', borderRadius: '5px',
+                  background: 'var(--surface-2)', border: '1px solid var(--border-1)',
+                  cursor: 'pointer', transition: 'all 0.15s',
+                }}
+                title="Manage Cookies"
+              >
+                <Cookie size={10} />
+                Cookies
+              </button>
+              <button
+                onClick={() => { setOpen(false); useUIStore.getState().openRightSidebarTab('environment'); }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '4px',
+                  fontSize: '10px', fontWeight: 600,
+                  color: 'var(--text-muted)',
+                  padding: '3px 8px', borderRadius: '5px',
+                  background: 'var(--surface-2)', border: '1px solid var(--border-1)',
+                  cursor: 'pointer', transition: 'all 0.15s',
+                }}
+                title="Manage Environments"
+              >
+                <Settings size={10} />
+                Manage
+              </button>
+            </div>
           </div>
 
           {/* None option */}
@@ -171,7 +188,7 @@ export default function EnvironmentSelector() {
             <div style={{ padding: '20px 14px', textAlign: 'center' }}>
               <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px' }}>No environments yet</p>
               <button
-                onClick={() => { setShowEnvironmentPanel(true); setOpen(false); }}
+                onClick={() => { setOpen(false); useUIStore.getState().openRightSidebarTab('environment'); }}
                 style={{
                   fontSize: '10px', fontWeight: 600,
                   color: 'var(--accent)', padding: '5px 12px',

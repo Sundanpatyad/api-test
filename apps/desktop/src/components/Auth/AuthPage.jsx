@@ -3,7 +3,7 @@ import { useAuthStore } from '@/store/authStore';
 import { invoke } from '@tauri-apps/api/tauri';
 import { listen } from '@tauri-apps/api/event';
 import toast from 'react-hot-toast';
-import logoImg from '@/assets/logo.png';
+import PayloadX from '../core/logo';
 
 export default function AuthPage() {
   const [mode, setMode] = useState('login'); // 'login' | 'signup'
@@ -169,9 +169,7 @@ export default function AuthPage() {
       <div className="w-full lg:w-[35%] flex flex-col bg-[#080808] relative border-r border-white/[0.03]">
         {/* App Logo */}
         <div className="absolute top-10 left-10 flex items-center gap-3 z-20">
-          <div className="w-8 h-8 rounded-lg bg-white/[0.05] border border-white/10 flex items-center justify-center">
-            <img src={logoImg} alt="PayloadX" className="w-5 h-5 object-contain" />
-          </div>
+         <PayloadX />
           <span className="text-white font-bold text-sm tracking-tight">PayloadX</span>
         </div>
 

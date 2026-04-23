@@ -14,6 +14,7 @@ import Dashboard from '@/components/Dashboard/Dashboard';
 import ResponseViewer from '@/components/ResponseViewer/ResponseViewer';
 import ApiDocsPanel from '@/components/ApiDocs/ApiDocsPanel';
 import InlineDocViewer from '@/components/ResponseViewer/InlineDocViewer';
+import RightSidebar from './RightSidebar';
 
 export default function LayoutV2({
   onShowTeamModal,
@@ -370,6 +371,9 @@ export default function LayoutV2({
             </>
           )}
         </div>
+
+        {/* Right Sidebar (VS Code style) */}
+        <RightSidebar />
       </div>
     </div>
   );

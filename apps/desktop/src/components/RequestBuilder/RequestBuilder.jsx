@@ -5,6 +5,7 @@ import { useAuthStore } from '@/store/authStore';
 import toast from 'react-hot-toast';
 import RequestPresence from './RequestPresence';
 import { useUIStore } from '@/store/uiStore';
+import { Cookie } from 'lucide-react';
 
 // Specialized Builders
 import RESTRequestBuilder from './RESTRequestBuilder';
@@ -178,12 +179,10 @@ export default function RequestBuilder() {
 
           <button
             title="Manage Cookies"
-            onClick={() => useUIStore.getState().setShowCookieModal(true)}
-            className="btn-ghost flex items-center justify-center p-1.5 opacity-70 hover:opacity-100 hover:bg-[color:var(--surface-3)] transition-all rounded-md w-[27px] h-[27px]"
+            onClick={() => useUIStore.getState().openRightSidebarTab('cookies')}
+            className="btn-ghost flex items-center justify-center p-1.5 opacity-70 hover:opacity-100 hover:bg-[color:var(--surface-3)] hover:text-[color:var(--accent)] transition-all rounded-md w-[27px] h-[27px]"
           >
-            <svg className="w-[15px] h-[15px]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
+            <Cookie size={16} />
           </button>
 
           <button

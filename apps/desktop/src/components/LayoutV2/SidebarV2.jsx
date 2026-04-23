@@ -10,7 +10,7 @@ import toast from 'react-hot-toast';
 import api from '@/lib/api';
 import { v4 as uuidv4 } from 'uuid';
 import RefreshButton from '@/components/RefreshButton/RefreshButton';
-import logo from '@/assets/logo.png';
+import PayloadX from '@/components/core/logo';
 
 const NAV_ITEMS = [
   {
@@ -708,9 +708,7 @@ export default function SidebarV2({
         {/* Logo & App Name */}
         <div className="sdbv2-header">
           <div className="sdbv2-logo-row">
-            <div className="sdbv2-logo-icon">
-              <img src={logo} alt="PayloadX" className="w-5 h-5 object-contain" />
-            </div>
+            <PayloadX className="w-5 h-5" fontSize="8px" />
             <div className="sdbv2-logo-text">
               <span className="sdbv2-app-name">PayloadX Studio</span>
               {currentTeam && (

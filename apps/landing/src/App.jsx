@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import styles from "./App.module.css";
 import { Zap, Lock, Users, Code, Download } from 'lucide-react';
 import { FaApple, FaWindows, FaLinux } from 'react-icons/fa';
+import PayloadX from "./components/core/Logo";
 
 const FEATURES = [
   { icon: <Zap size={18} />, tag: "PERFORMANCE", title: "Lightning Fast", desc: "Rust-powered engine" },
@@ -33,9 +34,7 @@ export default function App() {
 
       {/* NAV */}
       <nav className={styles.nav}>
-        <div className={styles.logoMark}>
-          <img src="/logo.png" alt="PayloadX Logo" />
-        </div>
+        <PayloadX size="28px" fontSize="10px" />
         <span className={styles.logoName}>PayloadX</span>
         <div className={styles.navSpacer} />
         <a href="#" className={styles.navLink}>Docs</a>

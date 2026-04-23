@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import PayloadX from '@/components/core/logo';
 import { useTeamStore } from '@/store/teamStore';
 import { useProjectStore } from '@/store/projectStore';
 import { useCollectionStore } from '@/store/collectionStore';
@@ -103,16 +104,7 @@ export default function Sidebar() {
       {/* Header */}
       <div className="p-3 border-b border-[var(--border-1)]">
         <div className="flex items-center gap-2 mb-3">
-          <div
-            className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
-            style={{ background: 'var(--surface-3)', border: '1px solid var(--border-1)' }}
-          >
-            <svg width="14" height="14" viewBox="0 0 36 36" fill="none">
-              <path d="M6 18C6 11.373 11.373 6 18 6" stroke="white" strokeWidth="3.5" strokeLinecap="round"/>
-              <path d="M30 18C30 24.627 24.627 30 18 30" stroke="white" strokeWidth="3.5" strokeLinecap="round"/>
-              <circle cx="18" cy="18" r="4" fill="white"/>
-            </svg>
-          </div>
+          <PayloadX className="w-7 h-7" fontSize="10px" />
           <span className="text-sm font-semibold text-tx-primary">PayloadX Studio</span>
         </div>
 

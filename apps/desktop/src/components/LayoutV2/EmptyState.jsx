@@ -1,7 +1,7 @@
 import { useTeamStore } from '@/store/teamStore';
 import { useProjectStore } from '@/store/projectStore';
 import { useUIStore } from '@/store/uiStore';
-import logoImg from '@/assets/logo.png';
+import PayloadX from '@/components/core/logo';
 
 export default function EmptyState({ onShowTeamModal, onShowProjectModal }) {
   const { teams } = useTeamStore();
@@ -66,7 +66,7 @@ export default function EmptyState({ onShowTeamModal, onShowProjectModal }) {
             <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
               <div className="relative mb-6">
                 <div className="w-14 h-14 rounded-2xl bg-white/[0.02] border border-white/[0.08] flex items-center justify-center relative overflow-hidden">
-                  <img src={logoImg} alt="" className="w-8 h-8 opacity-40 grayscale" />
+                  <PayloadX className="w-8 h-8" fontSize="12px" />
                 </div>
                 <div className="absolute -inset-2 rounded-full bg-white/[0.01] blur-md -z-10 animate-pulse" />
               </div>

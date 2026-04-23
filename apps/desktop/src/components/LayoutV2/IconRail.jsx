@@ -1,5 +1,5 @@
 import { useUIStore } from '@/store/uiStore';
-import logoImg from '@/assets/logo.png';
+import PayloadX from '@/components/core/logo';
 import { 
   FolderOpen, 
   Layers, 
@@ -53,9 +53,7 @@ export default function IconRail({ activePanel, setActivePanel }) {
     <div className="icon-rail" style={{ background: 'var(--rail-bg)', borderRight: '1px solid var(--border-1)' }}>
       {/* Logo */}
       <div className="rail-logo">
-        <div className="rail-logo-inner" style={{ background: 'var(--grad-logo)', border: 'none', overflow: 'hidden' }}>
-          <img src={logoImg} alt="PayloadX" className="w-full h-full object-cover" />
-        </div>
+        <PayloadX className="w-10 h-10" fontSize="14px" />
       </div>
 
       {/* Nav items */}

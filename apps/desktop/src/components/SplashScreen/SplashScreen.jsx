@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import logoImg from '@/assets/logo.png';
+import PayloadX from '@/components/core/logo';
 
 const steps = [
   { progress: 18, text: 'Initializing…' },
@@ -48,14 +48,7 @@ export default function SplashScreen({ onComplete }) {
 
             {/* Mock Content (Centered Logo) */}
             <div className="flex-1 flex flex-col items-center justify-center relative">
-              <div className="relative group">
-                <div className="w-16 h-16 rounded-2xl flex items-center justify-center relative overflow-hidden" style={{ background: 'var(--grad-logo)' }}>
-                  <span style={{ fontFamily: 'Syne', fontWeight: 900, fontSize: '24px', color: '#0D1017', letterSpacing: '-1.5px' }}>PX</span>
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.1] to-transparent -skew-x-12 animate-shimmer" />
-                </div>
-                {/* Logo Glow */}
-                <div className="absolute -inset-4 rounded-3xl bg-white/[0.02] -z-10 animate-pulse" />
-              </div>
+              <PayloadX className="w-16 h-16" fontSize="24px" />
 
               <div className="mt-6 text-center">
                 <h1 className="text-3xl font-black tracking-tighter" style={{ background: 'var(--grad-chrome)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>PayloadX</h1>
