@@ -5,25 +5,25 @@ import { useEnvironmentStore } from '@/store/environmentStore';
 import toast from 'react-hot-toast';
 
 const STATUS_CONFIG = {
-  idle:         { label: 'Idle',         color: 'var(--text-muted)',   bg: 'transparent' },
-  connecting:   { label: 'Connecting…',  color: '#f0883e',            bg: 'rgba(240,136,62,0.1)' },
-  connected:    { label: 'Connected',    color: '#3fb950',            bg: 'rgba(63,185,80,0.1)' },
-  disconnected: { label: 'Disconnected', color: 'var(--text-muted)',  bg: 'transparent' },
-  error:        { label: 'Error',        color: '#f85149',            bg: 'rgba(248,81,73,0.1)' },
+  idle: { label: 'Idle', color: 'var(--text-muted)', bg: 'transparent' },
+  connecting: { label: 'Connecting…', color: '#f0883e', bg: 'rgba(240,136,62,0.1)' },
+  connected: { label: 'Connected', color: '#3fb950', bg: 'rgba(63,185,80,0.1)' },
+  disconnected: { label: 'Disconnected', color: 'var(--text-muted)', bg: 'transparent' },
+  error: { label: 'Error', color: '#f85149', bg: 'rgba(248,81,73,0.1)' },
 };
 
 const LOG_ICON = {
-  sent:     '↑',
+  sent: '↑',
   received: '↓',
-  system:   '●',
-  error:    '✕',
+  system: '●',
+  error: '✕',
 };
 
 const LOG_COLOR = {
-  sent:     '#38bdf8',
+  sent: '#38bdf8',
   received: '#3fb950',
-  system:   'var(--text-muted)',
-  error:    '#f85149',
+  system: 'var(--text-muted)',
+  error: '#f85149',
 };
 
 export default function WSRequestBuilder() {
@@ -123,26 +123,26 @@ export default function WSRequestBuilder() {
 
       {/* ── URL Bar ── */}
       <div className="ws-url-bar px-3 py-2 bg-[color:var(--surface-1)] border-b border-[color:var(--border-1)] flex items-center gap-2">
-         <div className="flex items-center gap-1.5 flex-1 p-1">
-            <span className="text-[10px] font-bold text-[#38bdf8] bg-[#38bdf8]/10 px-1.5 py-0.5 rounded">WS</span>
-            <input
-              className="flex-1 bg-transparent border-none outline-none text-[12px] text-[color:var(--text-primary)]"
-              placeholder="wss://echo.websocket.org"
-              value={currentRequest.url}
-              onChange={(e) => updateField('url', e.target.value)}
-              disabled={isConnected || isConnecting}
-            />
-         </div>
-         
-         {/* Status Indicator */}
-         {(isConnected || isConnecting || status === 'error') && (
-           <div className="flex items-center gap-2 px-2 py-1 rounded-full bg-[color:var(--surface-2)] border border-[color:var(--border-1)] mr-1">
-              <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-[#3fb950] shadow-[0_0_8px_rgba(63,185,80,0.5)] animate-pulse' : isConnecting ? 'bg-[#f0883e] animate-pulse' : 'bg-[#f85149]'}`} />
-              <span className="text-[10px] font-bold uppercase tracking-wider opacity-80" style={{ color: statusConfig.color }}>
-                {statusConfig.label}
-              </span>
-           </div>
-         )}
+        <div className="flex items-center gap-1.5 flex-1 p-1">
+          <span className="text-[10px] font-bold text-[#38bdf8] bg-[#38bdf8]/10 px-1.5 py-0.5 rounded">WS</span>
+          <input
+            className="flex-1 bg-transparent border-none outline-none text-[12px] text-[color:var(--text-primary)]"
+            placeholder="wss://echo.websocket.org"
+            value={currentRequest.url}
+            onChange={(e) => updateField('url', e.target.value)}
+            disabled={isConnected || isConnecting}
+          />
+        </div>
+
+        {/* Status Indicator */}
+        {(isConnected || isConnecting || status === 'error') && (
+          <div className="flex items-center gap-2 px-2 py-1 rounded-full bg-[color:var(--surface-2)] border border-[color:var(--border-1)] mr-1">
+            <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-[#3fb950] shadow-[0_0_8px_rgba(63,185,80,0.5)] animate-pulse' : isConnecting ? 'bg-[#f0883e] animate-pulse' : 'bg-[#f85149]'}`} />
+            <span className="text-[10px] font-bold uppercase tracking-wider opacity-80" style={{ color: statusConfig.color }}>
+              {statusConfig.label}
+            </span>
+          </div>
+        )}
 
         {isConnected || isConnecting ? (
           <button className="ws-disconnect-btn flex items-center gap-1.5 !rounded-md px-4 py-1.5 text-[11px] font-bold transition-all bg-surface-3 hover:bg-surface-4" onClick={handleDisconnect} disabled={!isConnected && !isConnecting}>
@@ -159,8 +159,8 @@ export default function WSRequestBuilder() {
 
       {isConnected && (
         <div className="bg-[#3fb950]/5 border-b border-[#3fb950]/10 px-4 py-1 flex items-center gap-2">
-           <div className="w-1.5 h-1.5 bg-[#3fb950] rounded-full animate-pulse" />
-           <span className="text-[10px] font-medium text-[#3fb950] uppercase tracking-widest">Active WebSocket Session</span>
+          <div className="w-1.5 h-1.5 bg-[#3fb950] rounded-full animate-pulse" />
+          <span className="text-[10px] font-medium text-[#3fb950] uppercase tracking-widest">Active WebSocket Session</span>
         </div>
       )}
 

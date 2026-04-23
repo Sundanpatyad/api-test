@@ -314,6 +314,61 @@ pub async fn execute_request(
     })
 }
 
+#[tauri::command]
+pub async fn get_cookies(
+    host: String,
+    cookie_jar: tauri::State<'_, crate::AppCookieJar>,
+) -> Result<HashMap<String, String>, String> {
+    if let Ok(jar) = cookie_jar.0.lock() {
+        Ok(jar.get(&host).cloned().unwrap_or_default())
+    } else {
+        Err("Failed to lock cookie jar".to_string())
+    }
+}
+
+#[tauri::command]
+pub async fn set_cookie(
+    host: String,
+    key: String,
+    value: String,
+    cookie_jar: tauri::State<'_, crate::AppCookieJar>,
+) -> Result<(), String> {
+    if let Ok(mut jar) = cookie_jar.0.lock() {
+        let host_jar = jar.entry(host).or_insert_with(HashMap::new);
+        host_jar.insert(key, value);
+        Ok(())
+    } else {
+        Err("Failed to lock cookie jar".to_string())
+    }
+}
+
+#[tauri::command]
+pub async fn delete_cookie(
+    host: String,
+    key: String,
+    cookie_jar: tauri::State<'_, crate::AppCookieJar>,
+) -> Result<(), String> {
+    if let Ok(mut jar) = cookie_jar.0.lock() {
+        if let Some(host_jar) = jar.get_mut(&host) {
+            host_jar.remove(&key);
+        }
+        Ok(())
+    } else {
+        Err("Failed to lock cookie jar".to_string())
+    }
+}
+
+#[tauri::command]
+pub async fn list_cookie_domains(
+    cookie_jar: tauri::State<'_, crate::AppCookieJar>,
+) -> Result<Vec<String>, String> {
+    if let Ok(jar) = cookie_jar.0.lock() {
+        Ok(jar.keys().cloned().collect())
+    } else {
+        Err("Failed to lock cookie jar".to_string())
+    }
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 /// Base64 encode (RFC 4648) — used for Basic auth header

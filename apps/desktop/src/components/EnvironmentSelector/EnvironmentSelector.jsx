@@ -3,6 +3,7 @@ import { useEnvironmentStore } from '@/store/environmentStore';
 import { useProjectStore } from '@/store/projectStore';
 import { useTeamStore } from '@/store/teamStore';
 import { useUIStore } from '@/store/uiStore';
+import { Layers, ChevronDown, X, CheckCircle2, Settings, Plus, Eye, EyeOff } from 'lucide-react';
 
 export default function EnvironmentSelector() {
   const { environments, activeEnvironment, setActiveEnvironment, fetchEnvironments } = useEnvironmentStore();
@@ -10,14 +11,13 @@ export default function EnvironmentSelector() {
   const { currentTeam } = useTeamStore();
   const { setShowEnvironmentPanel } = useUIStore();
   const [open, setOpen] = useState(false);
+  const [showVars, setShowVars] = useState(false);
   const ref = useRef(null);
 
-  // Fetch envs when project changes
   useEffect(() => {
     if (currentProject?._id) fetchEnvironments(currentProject._id, currentTeam?._id, true);
   }, [currentProject?._id, currentTeam?._id]);
 
-  // Close on outside click
   useEffect(() => {
     const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
     document.addEventListener('mousedown', handler);
@@ -35,130 +35,230 @@ export default function EnvironmentSelector() {
     setOpen(false);
   };
 
+  const activeVars = activeEnvironment?.variables?.filter(v => v.enabled !== false && v.key) || [];
+
   return (
-    <div className="relative" ref={ref}>
-      {/* Trigger button */}
+    <div className="relative" ref={ref} style={{ fontFamily: "'DM Mono', monospace" }}>
+
+      {/* Trigger */}
       <button
         onClick={() => setOpen(!open)}
-        className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-medium transition-all ${
-          activeEnvironment
-            ? 'bg-[var(--surface-3)] border-[var(--border-2)] text-tx-primary hover:bg-[var(--surface-2)]'
-            : 'bg-[var(--surface-2)] border-transparent text-surface-400 hover:text-tx-primary'
-        }`}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '7px',
+          padding: '5px 10px',
+          borderRadius: '7px',
+          border: '1px solid',
+          borderColor: activeEnvironment ? 'var(--border-2)' : 'var(--border-1)',
+          background: activeEnvironment
+            ? 'linear-gradient(180deg, var(--surface-3) 0%, var(--surface-2) 100%)'
+            : 'var(--surface-2)',
+          color: activeEnvironment ? 'var(--text-primary)' : 'var(--text-muted)',
+          fontSize: '11px',
+          fontWeight: activeEnvironment ? 600 : 400,
+          cursor: 'pointer',
+          transition: 'all 0.15s',
+          boxShadow: activeEnvironment ? 'inset 0 1px 0 rgba(255,255,255,0.05)' : 'none',
+          position: 'relative',
+          overflow: 'hidden',
+        }}
         title="Select active environment"
       >
-        {/* Status dot */}
-        <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${activeEnvironment ? 'bg-success' : 'bg-surface-600'}`} />
+        {/* Active indicator dot */}
+        <div style={{
+          width: '7px',
+          height: '7px',
+          borderRadius: '50%',
+          flexShrink: 0,
+          backgroundColor: activeEnvironment
+            ? (activeEnvironment.color || 'var(--success)')
+            : 'var(--text-muted)',
+          opacity: activeEnvironment ? 1 : 0.4,
+          boxShadow: activeEnvironment ? `0 0 6px ${activeEnvironment.color || 'var(--success)'}` : 'none',
+        }} />
 
-        <span className="max-w-[120px] truncate">
-          {activeEnvironment ? activeEnvironment.name : 'No Environment'}
+        <span style={{ maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {activeEnvironment ? activeEnvironment.name : 'No Env'}
         </span>
 
-        {/* Clear button */}
         {activeEnvironment && (
           <span
             onClick={handleClear}
-            className="ml-0.5 text-surface-500 hover:text-danger transition-colors cursor-pointer leading-none"
             title="Clear environment"
+            style={{ color: 'var(--text-muted)', cursor: 'pointer', lineHeight: 1, display: 'flex', alignItems: 'center' }}
           >
-            ×
+            <X size={11} />
           </span>
         )}
 
-        <svg
-          className={`w-3 h-3 flex-shrink-0 transition-transform text-surface-500 ${open ? 'rotate-180' : ''}`}
-          fill="none" viewBox="0 0 24 24" stroke="currentColor"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
+        <ChevronDown
+          size={12}
+          style={{
+            flexShrink: 0,
+            color: 'var(--text-muted)',
+            transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
+            transition: 'transform 0.2s',
+          }}
+        />
       </button>
 
       {/* Dropdown */}
       {open && (
-        <div className="absolute right-0 top-full mt-1.5 w-56 bg-surface-850 border border-surface-700 rounded-xl shadow-glass z-50 animate-in py-1">
-          <div className="px-3 py-1.5 flex items-center justify-between border-b border-surface-700/50 mb-1">
-            <span className="text-[10px] font-semibold text-surface-500 uppercase tracking-wider">
-              Environments
-            </span>
+        <div
+          style={{
+            position: 'absolute',
+            right: 0,
+            top: 'calc(100% + 6px)',
+            width: '280px',
+            background: 'var(--bg-secondary)',
+            border: '1px solid var(--border-1)',
+            borderRadius: '10px',
+            boxShadow: '0 16px 40px rgba(0,0,0,0.5)',
+            zIndex: 100,
+            overflow: 'hidden',
+            animation: 'slideUp 0.15s ease',
+          }}
+        >
+          {/* Dropdown Header */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '10px 14px 8px',
+            borderBottom: '1px solid var(--border-1)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Layers size={12} style={{ color: 'var(--accent)' }} />
+              <span style={{ fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--text-muted)' }}>
+                Environments
+              </span>
+            </div>
             <button
               onClick={() => { setShowEnvironmentPanel(true); setOpen(false); }}
-              className="text-[10px] text-brand-400 hover:text-brand-300 transition-colors"
+              style={{
+                display: 'flex', alignItems: 'center', gap: '4px',
+                fontSize: '10px', fontWeight: 600,
+                color: 'var(--text-muted)',
+                padding: '3px 8px', borderRadius: '5px',
+                background: 'var(--surface-2)', border: '1px solid var(--border-1)',
+                cursor: 'pointer', transition: 'all 0.15s',
+              }}
             >
-              Manage →
+              <Settings size={10} />
+              Manage
             </button>
           </div>
 
-          {/* No environment option */}
+          {/* None option */}
           <button
             onClick={() => { setActiveEnvironment(null); setOpen(false); }}
-            className={`flex items-center gap-2 w-full px-3 py-2 text-xs transition-all ${
-              !activeEnvironment
-                ? 'text-tx-primary bg-surface-700'
-                : 'text-surface-400 hover:text-tx-primary hover:bg-surface-800'
-            }`}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '10px',
+              width: '100%', padding: '9px 14px',
+              background: !activeEnvironment ? 'var(--surface-2)' : 'transparent',
+              borderLeft: !activeEnvironment ? '3px solid var(--accent)' : '3px solid transparent',
+              color: !activeEnvironment ? 'var(--text-primary)' : 'var(--text-muted)',
+              fontSize: '11px', fontWeight: !activeEnvironment ? 600 : 400,
+              transition: 'all 0.12s', cursor: 'pointer', textAlign: 'left',
+            }}
           >
-            <div className="w-1.5 h-1.5 rounded-full bg-surface-600 flex-shrink-0" />
+            <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: 'var(--border-2)', flexShrink: 0 }} />
             None
           </button>
 
-          {environments.length === 0 && (
-            <div className="px-3 py-3 text-center">
-              <p className="text-tx-muted text-xs">No environments yet</p>
+          {environments.length === 0 ? (
+            <div style={{ padding: '20px 14px', textAlign: 'center' }}>
+              <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px' }}>No environments yet</p>
               <button
                 onClick={() => { setShowEnvironmentPanel(true); setOpen(false); }}
-                className="text-brand-400 hover:text-brand-300 text-xs mt-1 transition-colors"
+                style={{
+                  fontSize: '10px', fontWeight: 600,
+                  color: 'var(--accent)', padding: '5px 12px',
+                  borderRadius: '6px', border: '1px solid var(--border-1)',
+                  background: 'var(--surface-2)', cursor: 'pointer',
+                  display: 'inline-flex', alignItems: 'center', gap: '5px',
+                }}
               >
-                + Create one
+                <Plus size={11} /> Create one
               </button>
+            </div>
+          ) : (
+            <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+              {environments.map((env) => {
+                const isActive = activeEnvironment?._id === env._id;
+                return (
+                  <button
+                    key={env._id}
+                    onClick={() => handleSelect(env)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '10px',
+                      width: '100%', padding: '9px 14px',
+                      background: isActive ? 'var(--surface-2)' : 'transparent',
+                      borderLeft: isActive ? '3px solid var(--accent)' : '3px solid transparent',
+                      color: isActive ? 'var(--text-primary)' : 'var(--text-muted)',
+                      fontSize: '11px', fontWeight: isActive ? 600 : 400,
+                      transition: 'all 0.12s', cursor: 'pointer', textAlign: 'left',
+                    }}
+                  >
+                    <div style={{
+                      width: '7px', height: '7px', borderRadius: '50%', flexShrink: 0,
+                      backgroundColor: env.color || '#6366f1',
+                      boxShadow: isActive ? `0 0 6px ${env.color || '#6366f1'}` : 'none',
+                    }} />
+                    <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {env.name}
+                    </span>
+                    {isActive && <CheckCircle2 size={11} style={{ color: 'var(--success)', flexShrink: 0 }} />}
+                    <span style={{ fontSize: '10px', color: 'var(--text-muted)', flexShrink: 0 }}>
+                      {env.variables?.filter(v => v.enabled !== false).length || 0}v
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           )}
 
-          {environments.map((env) => (
-            <button
-              key={env._id}
-              onClick={() => handleSelect(env)}
-              className={`flex items-center gap-2 w-full px-3 py-2 text-xs transition-all ${
-                activeEnvironment?._id === env._id
-                  ? 'text-tx-primary bg-surface-700'
-                  : 'text-surface-400 hover:text-tx-primary hover:bg-surface-800'
-              }`}
-            >
-              <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                activeEnvironment?._id === env._id ? 'bg-success' : 'bg-surface-600'
-              }`} />
-              <span className="truncate flex-1 text-left">{env.name}</span>
-              {activeEnvironment?._id === env._id && (
-                <span className="text-[9px] bg-success/20 text-success px-1.5 py-0.5 rounded-full">Active</span>
-              )}
-              <span className="text-tx-muted text-[10px]">
-                {env.variables?.filter(v => v.enabled !== false).length || 0} vars
-              </span>
-            </button>
-          ))}
+          {/* Active Variable Preview */}
+          {activeVars.length > 0 && (
+            <div style={{ borderTop: '1px solid var(--border-1)' }}>
+              <button
+                onClick={() => setShowVars(v => !v)}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  width: '100%', padding: '8px 14px',
+                  fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em',
+                  color: 'var(--text-muted)', cursor: 'pointer', background: 'transparent',
+                }}
+              >
+                <span>Active Variables ({activeVars.length})</span>
+                {showVars ? <EyeOff size={11} /> : <Eye size={11} />}
+              </button>
 
-          {/* Variable preview for active env */}
-          {activeEnvironment?.variables?.length > 0 && (
-            <div className="border-t border-surface-700/50 mt-1 pt-1 px-3 pb-2">
-              <p className="text-[10px] text-tx-muted mb-1.5 font-medium">Active Variables</p>
-              <div className="flex flex-col gap-1 max-h-28 overflow-y-auto">
-                {activeEnvironment.variables
-                  .filter((v) => v.enabled !== false && v.key)
-                  .slice(0, 6)
-                  .map((v, i) => (
-                    <div key={i} className="flex items-center gap-2 text-[10px]">
-                      <code className="text-brand-400 font-mono">{`{{${v.key}}}`}</code>
-                      <span className="text-tx-muted">→</span>
-                      <span className="text-surface-400 truncate font-mono">
+              {showVars && (
+                <div style={{ maxHeight: '140px', overflowY: 'auto', padding: '4px 14px 10px' }}>
+                  {activeVars.slice(0, 8).map((v, i) => (
+                    <div key={i} style={{
+                      display: 'flex', alignItems: 'center', gap: '8px',
+                      padding: '4px 0',
+                      borderBottom: i < Math.min(activeVars.length, 8) - 1 ? '1px solid var(--border-1)' : 'none',
+                    }}>
+                      <code style={{ fontSize: '10px', color: 'var(--accent)', fontFamily: 'inherit', flexShrink: 0 }}>
+                        {`{{${v.key}}}`}
+                      </code>
+                      <span style={{ fontSize: '10px', color: 'var(--text-muted)', flexShrink: 0 }}>→</span>
+                      <span style={{ fontSize: '10px', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {v.isSecret ? '••••••••' : v.value || '(empty)'}
                       </span>
                     </div>
                   ))}
-                {activeEnvironment.variables.filter(v => v.enabled !== false && v.key).length > 6 && (
-                  <p className="text-tx-muted text-[10px]">
-                    +{activeEnvironment.variables.filter(v => v.enabled !== false && v.key).length - 6} more...
-                  </p>
-                )}
-              </div>
+                  {activeVars.length > 8 && (
+                    <p style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '6px', opacity: 0.6 }}>
+                      +{activeVars.length - 8} more — open Manage to see all
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -20,6 +20,7 @@ import CreateTeamModal, {
   CreateCollectionModal,
   InviteModal,
 } from '@/components/Modals/Modals';
+import CookieModal from '@/components/Modals/CookieModal';
 import EnvironmentSelector from '@/components/EnvironmentSelector/EnvironmentSelector';
 import LayoutV2 from '@/components/LayoutV2/LayoutV2';
 import ContextMenu from '@/components/ContextMenu/ContextMenu';
@@ -67,6 +68,7 @@ export default function App() {
     showInviteModal,
     showConfirmDialog,
     showEditNameModal,
+    showCookieModal,
     theme,
     layoutVersion,
     toggleLayout,
@@ -264,6 +266,7 @@ export default function App() {
         {showProjectModal && <CreateProjectModal />}
         {showCollectionModal && <CreateCollectionModal />}
         {showInviteModal && <InviteModal />}
+        {showCookieModal && <CookieModal />}
         <ContextMenu />
         <ConfirmDialog />
         <EditNameModal />
@@ -393,6 +396,7 @@ export default function App() {
         {showProjectModal && <CreateProjectModal />}
         {showCollectionModal && <CreateCollectionModal />}
         {showInviteModal && <InviteModal />}
+        {showCookieModal && <CookieModal />}
         <ContextMenu />
         <ConfirmDialog />
         <EditNameModal />

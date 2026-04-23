@@ -52,12 +52,12 @@ export default function ResponseViewer() {
         <span className={statusClass}>{response.status} {response.statusText}</span>
         <div className="w-px h-3.5 bg-surface-700" />
         <span className="text-surface-400 text-xs flex items-center gap-1">
-          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
           {formatTime(response.responseTimeMs)}
         </span>
         <div className="w-px h-3.5 bg-surface-700" />
         <span className="text-surface-400 text-xs flex items-center gap-1">
-          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582 4 8 4"/></svg>
+          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582 4 8 4" /></svg>
           {formatSize(response.sizeBytes)}
         </span>
 
@@ -107,11 +107,10 @@ export default function ResponseViewer() {
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-2 py-0.5 rounded text-[11px] font-medium transition-all ${
-                activeTab === tab
+              className={`px-2 py-0.5 rounded text-[11px] font-medium transition-all ${activeTab === tab
                   ? 'bg-surface-700 text-tx-primary'
                   : 'text-surface-500 hover:text-tx-primary'
-              }`}
+                }`}
             >
               {tab}
             </button>
@@ -123,13 +122,13 @@ export default function ResponseViewer() {
       <div className="flex-1 overflow-hidden">
         {activeTab === 'Pretty' && (
           contentType.includes('application/json') || isJson(response.body) ? (
-            <PostmanJsonViewer 
-              value={response.body} 
+            <PostmanJsonViewer
+              value={response.body}
               className="h-full"
             />
           ) : (
-            <JsonFormatter 
-              value={prettyBody || response.body} 
+            <JsonFormatter
+              value={prettyBody || response.body}
               className="h-full"
             />
           )
@@ -173,7 +172,7 @@ function EmptyState() {
     <div className="flex flex-col items-center justify-center h-full gap-3 text-center p-6">
       <div className="w-12 h-12 rounded-2xl bg-surface-800 flex items-center justify-center">
         <svg className="w-6 h-6 text-tx-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
         </svg>
       </div>
       <div>
@@ -201,7 +200,7 @@ function ErrorState({ error }) {
     <div className="flex flex-col items-center justify-center h-full gap-3 text-center p-6">
       <div className="w-12 h-12 rounded-2xl bg-danger/10 flex items-center justify-center border border-danger/20">
         <svg className="w-6 h-6 text-danger" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
       </div>
       <div>

@@ -27,46 +27,46 @@ export default function SplashScreen({ onComplete }) {
   }, [onComplete]);
 
   return (
-    <div className="fixed inset-0 bg-[#060606] flex flex-col items-center justify-center z-50 overflow-hidden font-sans">
+    <div className="fixed inset-0 bg-[#07090D] flex flex-col items-center justify-center z-50 overflow-hidden font-mono">
       {/* Background gradients */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-white/[0.02] blur-[120px] rounded-full pointer-events-none" />
-      
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-white/[0.01] blur-[120px] rounded-full pointer-events-none" />
+
       <div className="relative flex flex-col items-center w-full max-w-lg">
-        
+
         {/* Mockup Container (The "Pock up") */}
         <div className="relative w-full h-[320px] mb-12 animate-fade-up">
           {/* Subtle glow behind mockup */}
-          <div className="absolute -inset-4 bg-white/[0.02] blur-3xl rounded-[30px]" />
-          
-          <div className="relative h-full bg-[#0d0d0d] rounded-2xl border border-white/[0.06] shadow-2xl overflow-hidden flex flex-col">
+          <div className="absolute -inset-4 bg-white/[0.01] blur-3xl rounded-[30px]" />
+
+          <div className="relative h-full bg-[#0B0D13] rounded-2xl border border-white/[0.04] shadow-2xl overflow-hidden flex flex-col">
             {/* Mock Header */}
             <div className="h-9 border-b border-white/[0.03] bg-white/[0.01] flex items-center px-4 gap-1.5">
-               <div className="w-2 h-2 rounded-full bg-white/[0.05] border border-white/[0.1]"></div>
-               <div className="w-2 h-2 rounded-full bg-white/[0.05] border border-white/[0.1]"></div>
-               <div className="w-2 h-2 rounded-full bg-white/[0.05] border border-white/[0.1]"></div>
+              <div className="w-2 h-2 rounded-full bg-[#FF5F57]"></div>
+              <div className="w-2 h-2 rounded-full bg-[#FEBC2E]"></div>
+              <div className="w-2 h-2 rounded-full bg-[#28C840]"></div>
             </div>
-            
+
             {/* Mock Content (Centered Logo) */}
             <div className="flex-1 flex flex-col items-center justify-center relative">
-               <div className="relative group">
-                 <div className="w-16 h-16 rounded-2xl bg-white/[0.03] border border-white/[0.1] flex items-center justify-center relative overflow-hidden">
-                    <img src={logoImg} alt="PayloadX" className="w-9 h-9 opacity-80" />
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.05] to-transparent -skew-x-12 animate-shimmer" />
-                 </div>
-                 {/* Logo Glow */}
-                 <div className="absolute -inset-4 rounded-3xl bg-white/[0.02] -z-10 animate-pulse" />
-               </div>
-               
-               <div className="mt-6 text-center">
-                 <h1 className="text-xl font-bold text-white tracking-tight">PayloadX</h1>
-                 <p className="text-[10px] text-slate-600 font-bold uppercase tracking-[0.3em] mt-1">API Studio</p>
-               </div>
+              <div className="relative group">
+                <div className="w-16 h-16 rounded-2xl flex items-center justify-center relative overflow-hidden" style={{ background: 'var(--grad-logo)' }}>
+                  <span style={{ fontFamily: 'Syne', fontWeight: 900, fontSize: '24px', color: '#0D1017', letterSpacing: '-1.5px' }}>PX</span>
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.1] to-transparent -skew-x-12 animate-shimmer" />
+                </div>
+                {/* Logo Glow */}
+                <div className="absolute -inset-4 rounded-3xl bg-white/[0.02] -z-10 animate-pulse" />
+              </div>
+
+              <div className="mt-6 text-center">
+                <h1 className="text-3xl font-black tracking-tighter" style={{ background: 'var(--grad-chrome)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>PayloadX</h1>
+                <p className="text-[10px] text-[#4A5060] font-bold uppercase tracking-[0.3em] mt-1">API Studio</p>
+              </div>
             </div>
-            
+
             {/* Progress Bar (Integrated into mockup bottom) */}
             <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/[0.02]">
-              <div 
-                className="h-full bg-white/[0.2] transition-all duration-700 ease-in-out"
+              <div
+                className="h-full bg-[#9CA3B0] transition-all duration-700 ease-in-out"
                 style={{ width: `${progress}%` }}
               />
             </div>
@@ -75,10 +75,10 @@ export default function SplashScreen({ onComplete }) {
 
         {/* Status Text (Below Mockup) */}
         <div className="flex flex-col items-center gap-4 animate-fade-in">
-           <div className="flex items-center gap-3">
-             <div className="w-3 h-3 border border-white/10 border-t-white/40 rounded-full animate-spin"></div>
-             <span className="text-[11px] text-slate-500 font-medium uppercase tracking-widest">{statusText}</span>
-           </div>
+          <div className="flex items-center gap-3">
+            <div className="w-3 h-3 border border-white/5 border-t-white/20 rounded-full animate-spin"></div>
+            <span className="text-[10px] text-[#2E3445] font-medium uppercase tracking-[0.2em]">{statusText}</span>
+          </div>
         </div>
 
         {/* Footer Attribution */}

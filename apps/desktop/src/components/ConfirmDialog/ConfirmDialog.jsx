@@ -34,7 +34,7 @@ export default function ConfirmDialog() {
             )}
             <h2 className="text-sm font-semibold text-tx-primary">{title}</h2>
           </div>
-          
+
           <p className="text-sm text-surface-400 mb-2">
             {message}
           </p>
@@ -43,7 +43,7 @@ export default function ConfirmDialog() {
               {itemName}
             </p>
           )}
-          
+
           <div className="flex gap-2 pt-2">
             <button
               onClick={handleCancel}
@@ -53,11 +53,10 @@ export default function ConfirmDialog() {
             </button>
             <button
               onClick={handleConfirm}
-              className={`flex-1 py-2 px-4 rounded-xl font-medium text-sm transition-all ${
-                danger 
-                  ? 'bg-danger text-white hover:bg-danger/90' 
+              className={`flex-1 py-2 px-4 rounded-xl font-medium text-sm transition-all ${danger
+                  ? 'bg-danger text-white hover:bg-danger/90'
                   : 'btn-primary'
-              }`}
+                }`}
             >
               {confirmText}
             </button>

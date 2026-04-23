@@ -6,7 +6,7 @@ use tauri::Manager;
 mod commands;
 mod security;
 
-use commands::http::execute_request;
+use commands::http::{execute_request, get_cookies, set_cookie, delete_cookie, list_cookie_domains};
 use commands::files::{save_local_file, read_local_file, list_local_files};
 use commands::json::parse_json;
 
@@ -204,6 +204,10 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             execute_request,
+            get_cookies,
+            set_cookie,
+            delete_cookie,
+            list_cookie_domains,
             save_local_file,
             read_local_file,
             list_local_files,

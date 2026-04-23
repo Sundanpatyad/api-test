@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Ubuntu:ital,wght@0,300;0,400;0,500;0,700;1,300;1,400;1,500;1,700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800;900&family=DM+Mono:wght@300;400;500&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -8,55 +8,63 @@
    DARK MODE TOKENS  (default — gray / off-white / black)
    ══════════════════════════════════════════════════════════════════ */
 :root {
-  /* PayloadX Theme — Neutral Dark & Sky Blue (Synced with Landing Page) */
-  --bg-primary: #0f0f0f;
-  /* Main Workspace Background */
-  --bg-secondary: #080808;
-  /* Sidebar / Rail Background */
-  --bg-tertiary: #0b0b0b;
-  /* Input / Sub-panel Background */
+  /* PayloadX Metallic Theme */
+  --bg-primary: #07090D;
+  /* void */
+  --bg-secondary: #0B0D13;
+  /* abyss */
+  --bg-tertiary: #05070A;
+  /* terminal */
 
-  --surface-1: #161616;
-  /* Solid opaque surface */
-  --surface-2: #1e1e1e;
-  /* Elevated rows */
-  --surface-3: #262626;
-  /* Active/Hover states */
+  --surface-1: #0B0D13;
+  /* abyss */
+  --surface-2: #0C0E14;
+  /* graphite */
+  --surface-3: #0E111A;
+  /* slate */
 
-  --border-1: #2a2a2a;
-  /* Solid borders */
-  --border-2: #383838;
-  /* Stronger separators */
+  --border-1: #1E2530;
+  /* charcoal */
+  --border-2: #2A3040;
+  /* onyx */
 
-  --text-primary: #f1f5f9;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
+  --text-primary: #D0D4DE;
+  /* platinum */
+  --text-secondary: #7A8090;
+  /* iron */
+  --text-muted: #6B7280;
+  /* pewter */
 
-  /* Accent - PayloadX Sky Blue */
-  --accent: #38bdf8;
-  --accent-hover: #7dd3fc;
-  --accent-text: #0f172a;
+  /* Accent - Chrome */
+  --accent: #C8CDD8;
+  --accent-hover: #F0F2F5;
+  --accent-text: #07090D;
 
-  --success: #3fb950;
-  --error: #f85149;
-  --warning: #f0883e;
-  --info: #38bdf8;
+  --success: #3A6B4A;
+  /* ok_check */
+  --error: #6B3A3A;
+  /* err_cross */
+  --warning: #FEBC2E;
+  /* dot_min */
+  --info: #28C840;
+  /* dot_max */
 
-  --scrollbar-track: #0f0f0f;
-  --scrollbar-thumb: #1e1e1e;
-  --scrollbar-thumb-hover: #2a2a2a;
+  --scrollbar-track: #07090D;
+  --scrollbar-thumb: #1E2530;
+  --scrollbar-thumb-hover: #2A3040;
 
-  /* ── Layout tokens ────────────────────────────────── */
-  --v2-sidebar-bg: #080808;
-  --v2-sidebar-border: rgba(255, 255, 255, 0.05);
-  --rail-bg: #080808;
-  --panel-bg: #0a0a0a;
-  --topbar-bg: #0f0f0f;
-  --rail-icon-color: #94a3b8;
-  --rail-icon-active: #ffffff;
-  --rail-active-bar: #38bdf8;
-  --rail-hover-bg: rgba(255, 255, 255, 0.04);
-  --rail-active-bg: rgba(255, 255, 255, 0.08);
+  /* Gradients */
+  --grad-chrome: linear-gradient(175deg, #F0F2F5, #C4C8D4, #8A8F9E, #B8BCC8, #E4E6EC, #9CA3B0);
+  --grad-primary: linear-gradient(140deg, #C8CDD8, #7A8090, #A8ADB8, #D4D8E0);
+  --grad-logo: linear-gradient(145deg, #C8CDD8, #7A8090, #B0B5C0, #E0E3E8);
+
+  /* Terminal Colors */
+  --term-bg: #05070A;
+  --term-close: #FF5F57;
+  --term-min: #FEBC2E;
+  --term-max: #28C840;
+  --term-prompt: #3D4455;
+  --term-cmd: #7A8090;
 }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -121,10 +129,20 @@ body,
   height: 100%;
   overflow: hidden;
   user-select: none;
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: 'DM Mono', monospace;
   background: var(--bg-primary);
   color: var(--text-primary);
   transition: background 0.2s ease, color 0.2s ease;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: 'Syne', sans-serif;
+  font-weight: 700;
 }
 
 input,
@@ -204,15 +222,19 @@ textarea,
     border-color: var(--border-1);
   }
 
-  /* Primary button – accent bg with contrasting text */
+  /* Primary button – metallic gradient bg with dark text */
   .btn-primary {
-    background: var(--accent);
+    background: var(--grad-primary);
     color: var(--accent-text);
-    padding: 6px 10px;
-    font-size: 12px;
+    padding: 6px 14px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
     border-radius: 6px;
-    @apply font-medium transition-all duration-150 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed;
+    @apply transition-all duration-150 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed;
     border: none;
+    cursor: pointer;
   }
 
   .btn-primary:hover:not(:disabled) {
@@ -222,10 +244,13 @@ textarea,
   /* Ghost button */
   .btn-ghost {
     background: transparent;
-    border: 1px solid var(--border-2);
-    color: var(--text-primary);
-    padding: 6px 10px;
-    font-size: 12px;
+    border: 1px solid var(--border-1);
+    color: var(--text-secondary);
+    padding: 6px 14px;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
     border-radius: 6px;
     @apply transition-all duration-150 active:scale-95;
   }
@@ -532,7 +557,7 @@ textarea,
   border: 1px solid var(--border-2);
   color: var(--text-primary);
   font-size: 11px;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'DM Mono', monospace;
   white-space: nowrap;
   padding: 4px 10px;
   border-radius: 7px;
@@ -558,7 +583,7 @@ textarea,
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--text-muted);
-  font-family: 'Poppins', sans-serif;
+  font-family: 'DM Mono', monospace;
 }
 
 .panel-add-btn {
@@ -589,7 +614,7 @@ textarea,
   padding: 4px 8px;
   border-radius: 6px;
   font-size: 11px;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'DM Mono', monospace;
   color: var(--text-secondary);
   background: transparent;
   border: none;
@@ -661,7 +686,7 @@ textarea,
   padding: 6px 8px;
   border-radius: 7px;
   font-size: 11px;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'DM Mono', monospace;
   color: var(--text-secondary);
   background: transparent;
   border: none;
@@ -702,12 +727,12 @@ textarea,
   font-size: 12px;
   font-weight: 600;
   color: var(--text-muted);
-  font-family: 'Poppins', sans-serif;
+  font-family: 'DM Mono', monospace;
 }
 
 .topbar-v2-crumb {
   font-size: 11px;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'DM Mono', monospace;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -751,7 +776,7 @@ textarea,
 
 .topbar-v2-layout-label {
   font-size: 11px;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'DM Mono', monospace;
   font-weight: 500;
 }
 
@@ -890,7 +915,7 @@ textarea,
   border: none;
   outline: none;
   font-size: 12px;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'DM Mono', monospace;
   color: var(--text-secondary);
   cursor: pointer;
   min-width: 0;
@@ -902,7 +927,7 @@ textarea,
 
 .v2-search-kbd {
   font-size: 10px;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'DM Mono', monospace;
   padding: 1px 6px;
   border-radius: 4px;
   background: var(--surface-3);
@@ -924,7 +949,7 @@ textarea,
   color: var(--text-muted);
   cursor: pointer;
   font-size: 11px;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'DM Mono', monospace;
   transition: color 0.12s, background 0.12s, border-color 0.12s;
   white-space: nowrap;
 }
@@ -955,7 +980,7 @@ textarea,
   align-items: center;
   gap: 4px;
   font-size: 10px;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'DM Mono', monospace;
   padding: 3px 8px;
   border-radius: 6px;
   background: rgba(210, 153, 34, 0.12);
@@ -972,7 +997,7 @@ textarea,
   color: var(--text-primary);
   font-size: 11px;
   font-weight: 700;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'DM Mono', monospace;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1111,7 +1136,7 @@ textarea,
   font-size: 12.5px;
   font-weight: 600;
   color: var(--text-primary);
-  font-family: 'Poppins', sans-serif;
+  font-family: 'DM Mono', monospace;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1120,7 +1145,7 @@ textarea,
 .sdbv2-team-tag {
   font-size: 9.5px;
   color: var(--text-muted);
-  font-family: 'Poppins', sans-serif;
+  font-family: 'DM Mono', monospace;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1173,7 +1198,7 @@ textarea,
 .sdbv2-nav-label {
   font-size: 12px;
   font-weight: 500;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'DM Mono', monospace;
   color: var(--text-secondary);
   flex: 1;
   transition: color 0.12s;
@@ -1222,7 +1247,7 @@ textarea,
   border: none;
   outline: none;
   font-size: 11px;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'DM Mono', monospace;
   color: var(--text-primary);
 }
 
@@ -1275,7 +1300,7 @@ textarea,
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--text-muted);
-  font-family: 'Poppins', sans-serif;
+  font-family: 'DM Mono', monospace;
 }
 
 .sdbv2-section-add {
@@ -1351,7 +1376,7 @@ textarea,
   justify-content: center;
   font-size: 9px;
   font-weight: 700;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'DM Mono', monospace;
   background: var(--surface-3);
   color: var(--text-secondary);
   flex-shrink: 0;
@@ -1367,7 +1392,7 @@ textarea,
 
 .sdbv2-tree-text {
   font-size: 11.5px;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'DM Mono', monospace;
   color: var(--text-secondary);
   flex: 1;
   overflow: hidden;
@@ -1388,7 +1413,7 @@ textarea,
   background: var(--surface-3);
   color: var(--text-muted);
   flex-shrink: 0;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'DM Mono', monospace;
 }
 
 .sdbv2-postman-badge {
@@ -1398,7 +1423,7 @@ textarea,
   background: rgba(210, 153, 34, 0.1);
   color: rgba(210, 153, 34, 0.7);
   flex-shrink: 0;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'DM Mono', monospace;
 }
 
 .sdbv2-chevron {
@@ -1423,7 +1448,7 @@ textarea,
 
 .sdbv2-empty-note {
   font-size: 10.5px;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'DM Mono', monospace;
   color: var(--text-muted);
   padding: 4px 6px;
   font-style: italic;
@@ -1436,7 +1461,7 @@ textarea,
 .sdbv2-method-badge {
   font-size: 9px;
   font-weight: 700;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'DM Mono', monospace;
   letter-spacing: 0.02em;
   padding: 2px 6px;
   border-radius: 4px;
@@ -1465,7 +1490,7 @@ textarea,
   border: none;
   cursor: pointer;
   font-size: 11px;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'DM Mono', monospace;
   color: var(--text-secondary);
   text-align: left;
   transition: color 0.12s, background 0.12s;
@@ -1511,7 +1536,7 @@ textarea,
   color: var(--text-primary);
   font-size: 10px;
   font-weight: 700;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'DM Mono', monospace;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1529,7 +1554,7 @@ textarea,
   font-size: 11px;
   font-weight: 600;
   color: var(--text-primary);
-  font-family: 'Poppins', sans-serif;
+  font-family: 'DM Mono', monospace;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1538,7 +1563,7 @@ textarea,
 .sdbv2-user-email {
   font-size: 10px;
   color: var(--text-muted);
-  font-family: 'Poppins', sans-serif;
+  font-family: 'DM Mono', monospace;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1571,7 +1596,7 @@ textarea,
 .sdbv2-logout-email {
   font-size: 10px;
   color: var(--text-muted);
-  font-family: 'Poppins', sans-serif;
+  font-family: 'DM Mono', monospace;
   padding: 8px 12px;
   border-bottom: 1px solid var(--border-1);
   white-space: nowrap;
@@ -1589,7 +1614,7 @@ textarea,
   border: none;
   cursor: pointer;
   font-size: 12px;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'DM Mono', monospace;
   color: var(--error);
   transition: background 0.12s;
   text-align: left;
@@ -1640,7 +1665,7 @@ textarea,
 
 .v2-breadcrumb-seg {
   font-size: 11.5px;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'DM Mono', monospace;
   color: var(--text-secondary);
   white-space: nowrap;
   overflow: hidden;
@@ -1705,7 +1730,7 @@ textarea,
   border-bottom: 1px solid var(--v2-card-border);
   font-size: 11px;
   font-weight: 600;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'DM Mono', monospace;
   color: var(--text-primary);
   text-transform: uppercase;
   letter-spacing: 0.03em;
@@ -1802,7 +1827,7 @@ textarea,
   color: var(--text-secondary);
   font-size: 12px;
   font-weight: 500;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'DM Mono', monospace;
   cursor: pointer;
   border-radius: 8px;
   text-align: left;
@@ -2260,7 +2285,7 @@ textarea,
 }
 
 .dash-title {
-  font-family: 'Poppins', sans-serif;
+  font-family: 'DM Mono', monospace;
   font-size: 26px;
   font-weight: 700;
   color: var(--text-primary);

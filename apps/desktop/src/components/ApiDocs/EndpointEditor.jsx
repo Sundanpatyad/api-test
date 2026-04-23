@@ -34,10 +34,10 @@ export default function EndpointEditor({ endpoint, docId }) {
   const prevEpIdRef = useRef(null);
   useEffect(() => {
     if (!endpoint.id || !currentTeam || !user) return;
-    
+
     // Close previous if changed
     if (prevEpIdRef.current && prevEpIdRef.current !== endpoint.id) {
-       socket?.emit('close_apidoc', { teamId: currentTeam._id, endpointId: prevEpIdRef.current });
+      socket?.emit('close_apidoc', { teamId: currentTeam._id, endpointId: prevEpIdRef.current });
     }
 
     // Open current
@@ -54,29 +54,29 @@ export default function EndpointEditor({ endpoint, docId }) {
   // Sync with prop changes if it's a different endpoint
   useEffect(() => {
     if (endpoint.id !== localEp.id) {
-       setLocalEp(endpoint);
-       setActiveTab('Info');
+      setLocalEp(endpoint);
+      setActiveTab('Info');
     }
   }, [endpoint.id]);
 
   // Auto-save logic
   const triggerSave = (newEp) => {
     setLocalEp(newEp);
-    
+
     // Clear previous timeout
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-    
+
     // Set new timeout for 1 second
     saveTimeoutRef.current = setTimeout(() => {
-       setIsSaving(true);
-       updateEndpoint(docId, newEp).finally(() => setIsSaving(false));
+      setIsSaving(true);
+      updateEndpoint(docId, newEp).finally(() => setIsSaving(false));
     }, 1000);
 
     // Emit typing indicator
     if (socket && currentTeam && user) {
       if (typingRef.current) clearTimeout(typingRef.current);
       socket.emit('apidoc_typing_start', { teamId: currentTeam._id, docId, endpointId: newEp.id, userId: user.id });
-      
+
       typingRef.current = setTimeout(() => {
         socket.emit('apidoc_typing_stop', { teamId: currentTeam._id, docId, endpointId: newEp.id, userId: user.id });
       }, 2000);
@@ -150,7 +150,7 @@ export default function EndpointEditor({ endpoint, docId }) {
               {METHODS.map(m => <option key={m} value={m} className="text-tx-primary bg-surface-1">{m}</option>)}
             </select>
             <div className="absolute inset-y-0 right-1 flex items-center pointer-events-none text-surface-400 group-hover:text-tx-secondary">
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
             </div>
           </div>
 
@@ -169,7 +169,7 @@ export default function EndpointEditor({ endpoint, docId }) {
           <div className="w-px h-4 bg-[var(--border-1)] mx-1"></div>
           {isSaving && <span className="text-[10px] text-surface-400 animate-pulse">Saving...</span>}
           <button onClick={handleDelete} title="Delete Endpoint" className="p-1.5 text-surface-500 hover:text-error hover:bg-error/10 rounded-md transition-colors">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
           </button>
         </div>
       </div>
@@ -180,11 +180,10 @@ export default function EndpointEditor({ endpoint, docId }) {
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 text-xs font-medium border-b-2 transition-colors ${
-              activeTab === tab
+            className={`px-4 py-2 text-xs font-medium border-b-2 transition-colors ${activeTab === tab
                 ? 'text-accent border-accent bg-accent/5'
                 : 'text-surface-500 border-transparent hover:text-tx-primary hover:border-surface-400'
-            }`}
+              }`}
           >
             {tab}
             {tab === 'Params' && localEp.queryParams?.length > 0 && <span className="ml-1.5 opacity-60">({localEp.queryParams.length})</span>}
@@ -196,7 +195,7 @@ export default function EndpointEditor({ endpoint, docId }) {
       {/* ── TAB CONTENT ── */}
       <div className="flex-1 overflow-y-auto w-full max-w-full">
         <div className="p-4 max-w-4xl max-w-[100%] w-full h-full flex flex-col">
-          
+
           {/* INFO TAB */}
           {activeTab === 'Info' && (
             <div className="flex flex-col gap-5">
@@ -227,11 +226,11 @@ export default function EndpointEditor({ endpoint, docId }) {
             <div className="flex flex-col gap-3">
               <div className="flex items-center justify-between">
                 <p className="text-xs text-surface-400">Query parameters passed in the URL.</p>
-                <button 
+                <button
                   onClick={() => addListItem('queryParams', { name: '', type: 'string', required: false, description: '' })}
                   className="px-2.5 py-1.5 bg-surface-3 hover:bg-surface-4 text-tx-primary rounded text-xs font-medium border border-[var(--border-1)] flex items-center gap-1.5"
                 >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M12 4v16m8-8H4"/></svg> Add Param
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M12 4v16m8-8H4" /></svg> Add Param
                 </button>
               </div>
 
@@ -252,7 +251,7 @@ export default function EndpointEditor({ endpoint, docId }) {
                       </div>
                       <input value={qp.description} onChange={(e) => updateListItem('queryParams', qp.id, 'description', e.target.value)} placeholder="description" className="bg-transparent border border-transparent focus:border-[var(--border-2)] rounded px-1.5 py-1 text-tx-secondary outline-none w-full" />
                       <button onClick={() => removeListItem('queryParams', qp.id)} className="opacity-0 group-hover:opacity-100 p-1 text-surface-500 hover:text-error rounded flex items-center justify-center">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M6 18L18 6M6 6l12 12"/></svg>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M6 18L18 6M6 6l12 12" /></svg>
                       </button>
                     </div>
                   ))}
@@ -268,11 +267,11 @@ export default function EndpointEditor({ endpoint, docId }) {
             <div className="flex flex-col gap-3">
               <div className="flex items-center justify-between">
                 <p className="text-xs text-surface-400">HTTP headers sent with the request.</p>
-                <button 
+                <button
                   onClick={() => addListItem('headers', { key: '', value: '' })}
                   className="px-2.5 py-1.5 bg-surface-3 hover:bg-surface-4 text-tx-primary rounded text-xs font-medium border border-[var(--border-1)] flex items-center gap-1.5"
                 >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M12 4v16m8-8H4"/></svg> Add Header
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M12 4v16m8-8H4" /></svg> Add Header
                 </button>
               </div>
 
@@ -286,7 +285,7 @@ export default function EndpointEditor({ endpoint, docId }) {
                       <input value={h.key} onChange={(e) => updateListItem('headers', h.id, 'key', e.target.value)} placeholder="Authorization" className="bg-transparent border border-transparent focus:border-[var(--border-2)] rounded px-1.5 py-1 text-tx-primary font-mono outline-none w-full" />
                       <input value={h.value} onChange={(e) => updateListItem('headers', h.id, 'value', e.target.value)} placeholder="Bearer <token>" className="bg-transparent border border-transparent focus:border-[var(--border-2)] rounded px-1.5 py-1 text-tx-secondary font-mono outline-none w-full" />
                       <button onClick={() => removeListItem('headers', h.id)} className="opacity-0 group-hover:opacity-100 p-1 text-surface-500 hover:text-error rounded flex items-center justify-center">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M6 18L18 6M6 6l12 12"/></svg>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M6 18L18 6M6 6l12 12" /></svg>
                       </button>
                     </div>
                   ))}
@@ -328,11 +327,11 @@ export default function EndpointEditor({ endpoint, docId }) {
             <div className="flex flex-col gap-4 h-full min-h-[300px]">
               <div className="flex items-center justify-between">
                 <p className="text-xs text-surface-400">Possible HTTP responses and their schemas.</p>
-                <button 
+                <button
                   onClick={addResponse}
                   className="px-2.5 py-1.5 bg-surface-3 hover:bg-surface-4 text-tx-primary rounded text-xs font-medium border border-[var(--border-1)] flex items-center gap-1.5"
                 >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M12 4v16m8-8H4"/></svg> Add Response
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M12 4v16m8-8H4" /></svg> Add Response
                 </button>
               </div>
 
@@ -341,8 +340,8 @@ export default function EndpointEditor({ endpoint, docId }) {
                   {localEp.responses.map((res) => (
                     <div key={res.id} className="border border-[var(--border-1)] rounded-lg bg-surface-2 flex flex-col h-64 overflow-hidden shadow-sm">
                       <div className="flex items-center gap-2 p-2 border-b border-[var(--border-1)] bg-surface-3">
-                        <select 
-                          value={res.statusCode} 
+                        <select
+                          value={res.statusCode}
                           onChange={(e) => updateResponse(res.id, 'statusCode', parseInt(e.target.value))}
                           className="bg-surface-1 border border-[var(--border-2)] focus:border-accent rounded px-2 py-1 text-xs font-mono outline-none font-bold"
                           style={{ color: res.statusCode >= 200 && res.statusCode < 300 ? '#3FB950' : res.statusCode >= 400 ? '#F85149' : '#58A6FF' }}
@@ -352,28 +351,28 @@ export default function EndpointEditor({ endpoint, docId }) {
                           <option value="401">401 Unauthorized</option><option value="403">403 Forbidden</option>
                           <option value="404">404 Not Found</option><option value="500">500 Server Error</option>
                         </select>
-                        <input 
-                          value={res.description} 
+                        <input
+                          value={res.description}
                           onChange={(e) => updateResponse(res.id, 'description', e.target.value)}
-                          placeholder="Response description" 
+                          placeholder="Response description"
                           className="flex-1 bg-transparent border border-transparent hover:border-[var(--border-2)] focus:border-[var(--border-2)] focus:bg-surface-1 rounded px-2 py-1 text-[13px] text-tx-primary outline-none"
                         />
                         <button onClick={() => removeResponse(res.id)} title="Delete response" className="p-1.5 text-surface-500 hover:text-error hover:bg-error/10 rounded-md transition-colors ml-auto mr-1">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
                         </button>
                       </div>
                       <div className="flex-1 bg-[#1e1e1e] relative">
-                         <div className="absolute top-0 right-4 z-10 bg-surface-3 text-[9px] px-2 py-0.5 rounded-b text-tx-secondary font-mono border-x border-b border-[var(--border-1)] opacity-70">
-                            body schema (JSON)
-                         </div>
-                         <Editor
-                            height="100%"
-                            defaultLanguage="json"
-                            theme={theme === 'dark' ? 'vs-dark' : 'light'}
-                            value={res.schema || '{}'}
-                            onChange={(val) => updateResponse(res.id, 'schema', val)}
-                            options={{ minimap: { enabled: false }, fontSize: 11, tabSize: 2, scrollBeyondLastLine: false, padding: { top: 12 } }}
-                          />
+                        <div className="absolute top-0 right-4 z-10 bg-surface-3 text-[9px] px-2 py-0.5 rounded-b text-tx-secondary font-mono border-x border-b border-[var(--border-1)] opacity-70">
+                          body schema (JSON)
+                        </div>
+                        <Editor
+                          height="100%"
+                          defaultLanguage="json"
+                          theme={theme === 'dark' ? 'vs-dark' : 'light'}
+                          value={res.schema || '{}'}
+                          onChange={(val) => updateResponse(res.id, 'schema', val)}
+                          options={{ minimap: { enabled: false }, fontSize: 11, tabSize: 2, scrollBeyondLastLine: false, padding: { top: 12 } }}
+                        />
                       </div>
                     </div>
                   ))}

@@ -62,7 +62,7 @@ export default function ContextSelector() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const filteredProjects = useMemo(() => 
+  const filteredProjects = useMemo(() =>
     currentTeam ? getFilteredProjects(currentTeam._id) : [],
     [currentTeam?._id, projects]
   );

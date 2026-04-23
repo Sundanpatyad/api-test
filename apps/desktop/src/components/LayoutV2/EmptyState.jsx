@@ -44,11 +44,11 @@ export default function EmptyState({ onShowTeamModal, onShowProjectModal }) {
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-white/[0.02] blur-[100px] rounded-full pointer-events-none" />
 
       <div className="relative z-10 w-full max-w-2xl flex flex-col items-center">
-        
+
         {/* The "Pock up" (Mockup) */}
         <div className="relative w-full h-[340px] mb-12 animate-fade-up">
           <div className="absolute -inset-4 bg-white/[0.01] blur-2xl rounded-[30px]" />
-          
+
           <div className="relative h-full bg-[#0d0d0d] rounded-2xl border border-white/[0.05] shadow-2xl overflow-hidden flex flex-col">
             {/* Mock Header */}
             <div className="h-10 border-b border-white/[0.03] bg-white/[0.01] flex items-center px-4 justify-between">
@@ -66,7 +66,7 @@ export default function EmptyState({ onShowTeamModal, onShowProjectModal }) {
             <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
               <div className="relative mb-6">
                 <div className="w-14 h-14 rounded-2xl bg-white/[0.02] border border-white/[0.08] flex items-center justify-center relative overflow-hidden">
-                   <img src={logoImg} alt="" className="w-8 h-8 opacity-40 grayscale" />
+                  <img src={logoImg} alt="" className="w-8 h-8 opacity-40 grayscale" />
                 </div>
                 <div className="absolute -inset-2 rounded-full bg-white/[0.01] blur-md -z-10 animate-pulse" />
               </div>
@@ -77,7 +77,7 @@ export default function EmptyState({ onShowTeamModal, onShowProjectModal }) {
               </p>
 
               {/* Action Button inside Mockup (User's "Open PayloadX" request) */}
-              <button 
+              <button
                 onClick={content.onClick}
                 className="h-10 px-8 bg-white/[0.04] border border-white/10 rounded-lg text-white text-[11px] font-bold uppercase tracking-widest hover:bg-white/[0.08] hover:border-white/20 transition-all active:scale-95 shadow-lg"
               >
@@ -87,18 +87,18 @@ export default function EmptyState({ onShowTeamModal, onShowProjectModal }) {
 
             {/* Mock Footer Status */}
             <div className="h-8 border-t border-white/[0.03] bg-black/20 flex items-center px-4 justify-between">
-               <div className="flex items-center gap-2">
-                 <div className="w-1.5 h-1.5 rounded-full bg-slate-700"></div>
-                 <span className="text-[8px] text-slate-600 font-bold uppercase tracking-widest">Ready to initialize</span>
-               </div>
-               <span className="text-[8px] text-slate-700 font-mono">v1.2.0</span>
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-slate-700"></div>
+                <span className="text-[8px] text-slate-600 font-bold uppercase tracking-widest">Ready to initialize</span>
+              </div>
+              <span className="text-[8px] text-slate-700 font-mono">v1.2.0</span>
             </div>
           </div>
         </div>
 
         {/* Minimal Bottom Attribution */}
         <p className="text-[9px] text-slate-700 font-bold uppercase tracking-[0.4em] opacity-40">
-           Engineered by <span className="text-slate-500">Sundan Sharma</span>
+          Engineered by <span className="text-slate-500">Sundan Sharma</span>
         </p>
       </div>
     </div>
