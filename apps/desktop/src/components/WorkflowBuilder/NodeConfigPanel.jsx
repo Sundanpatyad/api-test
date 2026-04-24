@@ -4,10 +4,11 @@ import { useCollectionStore } from '@/store/collectionStore';
 import { useProjectStore } from '@/store/projectStore';
 import { 
   X, Plus, Trash2, Settings2, Code2, Globe, Clock, Layers, 
-  Search, CheckCircle2, AlertCircle, ChevronDown 
+  Search, CheckCircle2, AlertCircle, ChevronDown, Database, ArrowRight
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { useEnvironmentStore } from '@/store/environmentStore';
+import VariableUrlInput from '@/components/RequestBuilder/VariableUrlInput';
 
 export default function NodeConfigPanel() {
   const { 
@@ -97,6 +98,23 @@ export default function NodeConfigPanel() {
     const validations = [...(node.data.validations || [])];
     validations.splice(index, 1);
     handleUpdate('validations', validations);
+  };
+
+  const addMapping = () => {
+    const mappings = node.data.data_mappings || [];
+    handleUpdate('data_mappings', [...mappings, { id: uuidv4(), source_expression: '', target_field: '', transform: '' }]);
+  };
+
+  const updateMapping = (index, field, value) => {
+    const mappings = [...(node.data.data_mappings || [])];
+    mappings[index] = { ...mappings[index], [field]: value };
+    handleUpdate('data_mappings', mappings);
+  };
+
+  const removeMapping = (index) => {
+    const mappings = [...(node.data.data_mappings || [])];
+    mappings.splice(index, 1);
+    handleUpdate('data_mappings', mappings);
   };
 
   const handlePickApi = (req) => {
@@ -292,13 +310,13 @@ export default function NodeConfigPanel() {
                 </select>
               </div>
               <div className="col-span-3">
-                <input
-                  type="text"
-                  value={node.data.url || ''}
-                  onChange={(e) => handleUpdate('url', e.target.value)}
-                  placeholder="https://api.example.com/..."
-                  className="w-full px-4 py-3 bg-surface-2 border border-[var(--border-2)] rounded-xl text-[12px] text-[var(--text-primary)] font-medium focus:outline-none focus:border-[var(--accent)] transition-all"
-                />
+                <div className="h-[46px] w-full bg-surface-2 border border-[var(--border-2)] rounded-xl focus-within:border-[var(--accent)] transition-all">
+                  <VariableUrlInput
+                    value={node.data.url || ''}
+                    onChange={(e) => handleUpdate('url', e.target.value)}
+                    placeholder="https://api.example.com/..."
+                  />
+                </div>
               </div>
             </div>
 
@@ -323,13 +341,13 @@ export default function NodeConfigPanel() {
                     placeholder="Key"
                     className="flex-1 px-3 py-2 bg-surface-2 border border-[var(--border-2)] rounded-xl text-[11px] font-bold text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
                   />
-                  <input
-                    type="text"
-                    value={header.value}
-                    onChange={(e) => updateHeader(index, 'value', e.target.value)}
-                    placeholder="Value"
-                    className="flex-1 px-3 py-2 bg-surface-2 border border-[var(--border-2)] rounded-xl text-[11px] font-medium text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
-                  />
+                  <div className="flex-1 bg-surface-2 border border-[var(--border-2)] rounded-xl focus-within:border-[var(--accent)] transition-all flex items-center min-w-[120px]">
+                    <VariableUrlInput
+                      value={header.value}
+                      onChange={(e) => updateHeader(index, 'value', e.target.value)}
+                      placeholder="Value"
+                    />
+                  </div>
                   <button
                     onClick={() => removeHeader(index)}
                     className="p-2 hover:bg-red-500/10 text-surface-600 hover:text-red-500 rounded-xl transition-all opacity-0 group-hover:opacity-100"
@@ -404,6 +422,165 @@ export default function NodeConfigPanel() {
                 }}
                 placeholder='{"key": "value"}'
                 rows={8}
+                className="w-full px-4 py-3 bg-transparent text-[var(--text-primary)] focus:outline-none font-mono text-[11px] leading-relaxed scrollbar-hide resize-none"
+              />
+            </div>
+
+            <div className="flex items-center justify-between mt-8 mb-2">
+              <SectionHeader icon={Database} title="Data Mappings" />
+              <button
+                onClick={addMapping}
+                className="flex items-center gap-1 text-[10px] font-black uppercase text-[var(--accent)] hover:brightness-110 px-2 py-1 rounded-lg bg-[var(--accent)]/10"
+              >
+                <Plus size={12} strokeWidth={3} />
+                Add Mapping
+              </button>
+            </div>
+            
+            <div className="space-y-3">
+              {(node.data.data_mappings || []).map((mapping, index) => (
+                <div key={mapping.id} className="p-3 bg-surface-2 border border-[var(--border-2)] rounded-xl relative group">
+                  <button
+                    onClick={() => removeMapping(index)}
+                    className="absolute top-2 right-2 p-1.5 hover:bg-red-500/10 text-surface-500 hover:text-red-500 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                  <div className="flex flex-col gap-3">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-bold text-surface-500 uppercase">Source Node</label>
+                        <select
+                          className="w-full px-3 py-1.5 bg-surface-3 border border-[var(--border-2)] rounded-lg text-[10px] font-bold text-[var(--text-primary)] focus:outline-none appearance-none"
+                          onChange={(e) => {
+                            const nodeId = e.target.value;
+                            if (nodeId) {
+                              const existing = mapping.source_expression || '';
+                              const parts = existing.split('.');
+                              const newExpr = parts.length > 1 ? [nodeId, ...parts.slice(1)].join('.') : `${nodeId}.body`;
+                              updateMapping(index, 'source_expression', newExpr);
+                            }
+                          }}
+                          value={mapping.source_expression?.split('.')[0] || ''}
+                        >
+                          <option value="">Select Node...</option>
+                          {currentWorkflow.nodes
+                            .filter(n => n.id !== selectedNode)
+                            .map(n => (
+                              <option key={n.id} value={n.id}>{n.data.name || n.id.slice(0, 8)}</option>
+                            ))
+                          }
+                        </select>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-bold text-surface-500 uppercase">Source Field Path</label>
+                        <input
+                          type="text"
+                          value={mapping.source_expression?.split('.').slice(1).join('.') || ''}
+                          onChange={(e) => {
+                            const nodeId = mapping.source_expression?.split('.')[0] || '';
+                            updateMapping(index, 'source_expression', `${nodeId}.${e.target.value}`);
+                          }}
+                          placeholder="response.body.id"
+                          className="w-full px-3 py-1.5 bg-surface-3 border border-[var(--border-2)] rounded-lg text-[10px] font-mono text-[var(--text-primary)] focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-center -my-1">
+                       <div className="flex flex-col items-center">
+                         <span className="text-[8px] font-bold text-surface-600 uppercase mb-1">Maps To Child</span>
+                         <ArrowRight size={14} className="text-surface-500" />
+                       </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-bold text-surface-500 uppercase">Target Field Type</label>
+                        <select
+                          className="w-full px-3 py-1.5 bg-surface-3 border border-[var(--border-2)] rounded-lg text-[10px] font-bold text-[var(--text-primary)] focus:outline-none appearance-none"
+                          onChange={(e) => {
+                            const type = e.target.value;
+                            const existing = mapping.target_field || '';
+                            const parts = existing.split('.');
+                            const newField = parts.length > 1 ? `${type}.${parts.slice(1).join('.')}` : `${type}.`;
+                            updateMapping(index, 'target_field', newField);
+                          }}
+                          value={mapping.target_field?.split('.')[0] || ''}
+                        >
+                          <option value="">Select Type...</option>
+                          <option value="params">Query Param</option>
+                          <option value="headers">Header</option>
+                          <option value="body">Body (Nested Path)</option>
+                          <option value="url">Entire URL</option>
+                        </select>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-bold text-surface-500 uppercase">Target Field Path</label>
+                        <input
+                          type="text"
+                          value={mapping.target_field?.split('.').slice(1).join('.') || ''}
+                          onChange={(e) => {
+                            const type = mapping.target_field?.split('.')[0] || 'body';
+                            updateMapping(index, 'target_field', `${type}.${e.target.value}`);
+                          }}
+                          placeholder="user.profile.id"
+                          className="w-full px-3 py-1.5 bg-surface-3 border border-[var(--border-2)] rounded-lg text-[10px] font-mono text-[var(--text-primary)] focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                       <label className="text-[9px] font-bold text-surface-500 uppercase">Final Source Expression</label>
+                       <input
+                         type="text"
+                         value={mapping.source_expression}
+                         onChange={(e) => updateMapping(index, 'source_expression', e.target.value)}
+                         className="w-full px-3 py-1.5 bg-surface-3 border border-[var(--border-2)] rounded-lg text-[10px] font-mono text-[var(--accent)] focus:outline-none focus:border-[var(--accent)]"
+                       />
+                       <p className="text-[8px] text-surface-600 italic">Format: node_id.response.body.path</p>
+                    </div>
+
+                    <div className="space-y-2">
+                       <label className="text-[9px] font-bold text-surface-500 uppercase">Final Target Field</label>
+                       <input
+                         type="text"
+                         value={mapping.target_field}
+                         onChange={(e) => updateMapping(index, 'target_field', e.target.value)}
+                         className="w-full px-3 py-1.5 bg-surface-3 border border-[var(--border-2)] rounded-lg text-[10px] font-mono text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
+                       />
+                       <p className="text-[8px] text-surface-600 italic">Format: params.key, headers.key, or body.path</p>
+                    </div>
+
+                    <div className="space-y-1">
+                       <label className="text-[9px] font-bold text-surface-500 uppercase">Transform (Optional)</label>
+                       <select
+                         value={mapping.transform || ''}
+                         onChange={(e) => updateMapping(index, 'transform', e.target.value)}
+                         className="w-full px-3 py-1.5 bg-surface-3 border border-[var(--border-2)] rounded-lg text-[10px] font-bold text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] appearance-none"
+                       >
+                         <option value="">None</option>
+                         <option value="uppercase">Uppercase</option>
+                         <option value="lowercase">Lowercase</option>
+                       </select>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {(!node.data.data_mappings || node.data.data_mappings.length === 0) && (
+                 <div className="text-[10px] text-surface-600 text-center py-4 border-2 border-dashed border-[var(--border-2)] rounded-xl font-medium italic">
+                   No data mappings configured
+                 </div>
+              )}
+            </div>
+
+            <SectionHeader icon={Code2} title="Expected Response Example" />
+            <div className="bg-surface-2 rounded-2xl border border-[var(--border-2)] p-1 overflow-hidden shadow-inner">
+              <textarea
+                value={node.data.expected_response || ''}
+                onChange={(e) => handleUpdate('expected_response', e.target.value)}
+                placeholder="Paste expected JSON response here for reference in downstream nodes..."
+                rows={6}
                 className="w-full px-4 py-3 bg-transparent text-[var(--text-primary)] focus:outline-none font-mono text-[11px] leading-relaxed scrollbar-hide resize-none"
               />
             </div>

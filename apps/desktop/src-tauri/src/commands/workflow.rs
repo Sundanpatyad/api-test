@@ -28,6 +28,45 @@ pub async fn execute_workflow(
 }
 
 #[tauri::command]
+pub async fn execute_single_node(
+    node_json: String,
+    context_json: String,
+    client: State<'_, Client>,
+    cookie_jar: State<'_, crate::AppCookieJar>,
+    window: Window,
+) -> Result<crate::workflow::NodeExecutionResult, String> {
+    let node: crate::workflow::WorkflowNode = serde_json::from_str(&node_json)
+        .map_err(|e| format!("Failed to parse node: {}", e))?;
+        
+    let context: std::collections::HashMap<String, serde_json::Value> = serde_json::from_str(&context_json)
+        .unwrap_or_default();
+
+    let dummy_workflow = Workflow {
+        id: "single".into(),
+        name: "Single Node".into(),
+        description: None,
+        team_id: None,
+        project_id: None,
+        nodes: vec![node.clone()],
+        edges: vec![],
+        created_at: chrono::Utc::now().to_rfc3339(),
+        updated_at: chrono::Utc::now().to_rfc3339(),
+    };
+
+    let executor = WorkflowExecutor::with_context(
+        dummy_workflow,
+        client.inner().clone(),
+        Some(cookie_jar.inner().clone()),
+        Some(window),
+        context,
+    );
+
+    executor.execute_node(&node)
+        .await
+        .map_err(|e| format!("Single node execution failed: {}", e))
+}
+
+#[tauri::command]
 pub async fn validate_workflow(workflow_json: String) -> Result<bool, String> {
     // Parse workflow
     let workflow: Workflow = serde_json::from_str(&workflow_json)

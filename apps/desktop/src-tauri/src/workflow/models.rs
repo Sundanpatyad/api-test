@@ -72,6 +72,10 @@ pub struct NodeData {
     pub retries: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub save_session: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expected_response: Option<String>,
+    #[serde(default)]
+    pub skipped: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

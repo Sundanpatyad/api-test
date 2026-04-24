@@ -44,12 +44,14 @@ function WorkflowCanvasInner() {
     setEdges: updateStoreEdges,
     deleteNode: deleteWorkflowNode,
     deleteEdge: deleteWorkflowEdge,
+    toggleNodeSkip,
+    toggleNodeSession,
   } = useWorkflowStore();
 
   const [nodes, setNodes] = useNodesState(currentWorkflow.nodes);
   const [edges, setEdges] = useEdgesState(currentWorkflow.edges);
   const [menu, setMenu] = useState(null);
-  const { showResultsLog, toggleNodeSession } = useWorkflowStore();
+  const { showResultsLog } = useWorkflowStore();
   const { currentProject } = useProjectStore();
   const { currentTeam } = useTeamStore();
   const isInternalUpdate = useRef(false);
@@ -95,15 +97,35 @@ function WorkflowCanvasInner() {
   // Handle execution events
   useEffect(() => {
     let unlistenProgress;
-    let unlistenNodeStart;
+    let unlistenLayerStart;
+    let unlistenLayerFinish;
 
     const setup = async () => {
       unlistenProgress = await listen('workflow_progress', (event) => {
         useWorkflowStore.getState().updateExecutionProgress(event.payload);
       });
 
-      unlistenNodeStart = await listen('node_execution_started', (event) => {
-        useWorkflowStore.setState({ executingNodeId: event.payload });
+      // When a parallel layer starts, mark ALL nodes in that layer as executing
+      unlistenLayerStart = await listen('layer_execution_started', (event) => {
+        const nodeIds = event.payload; // string[]
+        useWorkflowStore.setState({ executingNodeIds: new Set(nodeIds) });
+      });
+
+      // When a layer finishes, clear the executing set
+      unlistenLayerFinish = await listen('layer_execution_finished', () => {
+        useWorkflowStore.setState({ executingNodeIds: new Set() });
+      });
+
+      // Internal debugging logs
+      await listen('workflow_log', (event) => {
+        const { type, node_name, ...details } = event.payload;
+        const color = type === 'request' ? '#3b82f6' : '#10b981';
+        console.log(
+          `%c[Workflow ${type.toUpperCase()}] %c${node_name}`,
+          `color: ${color}; font-weight: bold;`,
+          'color: inherit; font-weight: bold;',
+          details
+        );
       });
     };
 
@@ -111,7 +133,8 @@ function WorkflowCanvasInner() {
 
     return () => {
       if (unlistenProgress) unlistenProgress();
-      if (unlistenNodeStart) unlistenNodeStart();
+      if (unlistenLayerStart) unlistenLayerStart();
+      if (unlistenLayerFinish) unlistenLayerFinish();
     };
   }, []);
 
@@ -214,11 +237,11 @@ function WorkflowCanvasInner() {
   // Handle adding node at specific position
   const handleAddNode = useCallback((nodeType) => {
     const reactFlowBounds = reactFlowWrapper.current?.getBoundingClientRect();
-    
+
     // Calculate center position of the viewport
     const centerX = reactFlowBounds ? reactFlowBounds.width / 2 : 250;
     const centerY = reactFlowBounds ? reactFlowBounds.height / 2 : 250;
-    
+
     // Convert screen coordinates to flow coordinates
     const position = reactFlowInstance.project({
       x: centerX,
@@ -236,7 +259,7 @@ function WorkflowCanvasInner() {
       const reactFlowBounds = reactFlowWrapper.current?.getBoundingClientRect();
       const type = event.dataTransfer.getData('application/reactflow');
       let requestData = event.dataTransfer.getData('application/json');
-      
+
       // Fallback to text/plain
       if (!requestData) {
         requestData = event.dataTransfer.getData('text/plain');
@@ -253,12 +276,21 @@ function WorkflowCanvasInner() {
         // Dropped an API request from sidebar
         try {
           const request = JSON.parse(requestData);
-          
+
           // Basic validation to ensure it's a request object
           if (!request.method && !request.protocol) {
             console.log('Dropped data is not a valid request:', request);
             return;
           }
+          let parsedBody = null;
+          if (request.body?.raw) {
+            try {
+              parsedBody = JSON.parse(request.body.raw);
+            } catch (e) {
+              parsedBody = request.body.raw;
+            }
+          }
+
           const newNode = {
             id: uuidv4(),
             type: 'api',
@@ -269,7 +301,7 @@ function WorkflowCanvasInner() {
               url: request.url || '',
               headers: request.headers || [],
               params: request.params || [],
-              body: request.body?.raw ? JSON.parse(request.body.raw) : null,
+              body: parsedBody,
               data_mappings: [],
               validations: [],
               timeout: 30,
@@ -299,7 +331,13 @@ function WorkflowCanvasInner() {
   }, []);
 
   return (
-    <div ref={reactFlowWrapper} className="h-full w-full relative" style={{ background: 'var(--bg-primary)' }}>
+    <div
+      ref={reactFlowWrapper}
+      className="h-full w-full relative"
+      style={{ background: 'var(--bg-primary)' }}
+      onDrop={onDrop}
+      onDragOver={onDragOver}
+    >
       {/* ── Workflow Toolbar ─────────────────────────────────────── */}
       <div className="absolute top-6 left-6 z-10 flex flex-col gap-3">
         {/* Workflow Name Input */}
@@ -320,10 +358,10 @@ function WorkflowCanvasInner() {
         <div className="flex gap-2.5 p-1.5 bg-surface-1/80 backdrop-blur-md border border-[var(--border-2)] rounded-xl shadow-glass">
           <button
             onClick={() => handleAddNode('api')}
-            className="flex items-center gap-2 px-3.5 py-1.5 bg-[var(--accent)] text-[var(--accent-text)] rounded-lg hover:brightness-110 transition-all shadow-sm font-bold text-[11px] uppercase tracking-wide"
+            className="btn-primary flex gap-2"
           >
             <Plus size={14} strokeWidth={3} />
-            API Node
+            <span className='text-[10px] font-bold uppercase tracking-wide'>API Node</span>
           </button>
           <button
             onClick={() => handleAddNode('delay')}
@@ -343,11 +381,10 @@ function WorkflowCanvasInner() {
           <button
             onClick={handleExecute}
             disabled={isExecuting}
-            className={`flex items-center gap-2 px-4 py-1.5 rounded-lg transition-all font-bold text-[11px] uppercase tracking-wide shadow-sm ${
-              isExecuting 
-                ? 'bg-surface-3 text-surface-500 cursor-not-allowed' 
-                : 'bg-green-600/20 text-green-500 border border-green-600/30 hover:bg-green-600/30'
-            }`}
+            className={`flex items-center gap-2 px-4 py-1.5 rounded-lg transition-all font-bold text-[11px] uppercase tracking-wide shadow-sm ${isExecuting
+              ? 'bg-surface-3 text-surface-500 cursor-not-allowed'
+              : 'bg-green-600/20 text-green-500 border border-green-600/30 hover:bg-green-600/30'
+              }`}
           >
             {isExecuting ? (
               <>
@@ -369,14 +406,13 @@ function WorkflowCanvasInner() {
         <div className="absolute top-6 right-6 z-10 bg-surface-1/90 backdrop-blur-xl border border-[var(--border-2)] rounded-2xl p-5 shadow-glass-heavy min-w-[280px] animate-in fade-in slide-in-from-right-4 duration-300">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-[12px] font-black uppercase tracking-widest text-surface-400">Execution Report</h3>
-            <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-tight ${
-              executionResult.status === 'success' ? 'bg-green-500/10 text-green-500' : 
+            <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-tight ${executionResult.status === 'success' ? 'bg-green-500/10 text-green-500' :
               executionResult.status === 'partial' ? 'bg-yellow-500/10 text-yellow-500' : 'bg-red-500/10 text-red-500'
-            }`}>
+              }`}>
               {executionResult.status}
             </span>
           </div>
-          
+
           <div className="grid grid-cols-2 gap-3 mb-4">
             <div className="bg-surface-2 rounded-xl p-3 border border-[var(--border-2)]">
               <div className="text-[10px] font-bold text-surface-500 uppercase mb-1">Time</div>
@@ -395,7 +431,7 @@ function WorkflowCanvasInner() {
             </span>
           </div>
 
-          <button 
+          <button
             onClick={() => useWorkflowStore.setState({ showResultsLog: !useWorkflowStore.getState().showResultsLog })}
             className="w-full mt-4 py-2 bg-surface-2 border border-[var(--border-2)] rounded-xl text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)] hover:bg-surface-3 transition-all flex items-center justify-center gap-2"
           >
@@ -414,19 +450,19 @@ function WorkflowCanvasInner() {
                     <span className="text-[9px] font-mono font-bold text-surface-500">{res.duration}ms</span>
                   </div>
                   <div className="flex items-center justify-between">
-                     <span className="text-[9px] font-black uppercase tracking-widest text-surface-600">
-                       {res.request?.method || (res.response ? 'API' : 'DELAY')}
-                     </span>
-                     <span className={`text-[10px] font-mono font-bold ${res.response?.status < 400 ? 'text-green-500' : 'text-red-500'}`}>
-                       {res.response?.status || (res.status === 'success' ? 'DONE' : 'FAIL')}
-                     </span>
+                    <span className="text-[9px] font-black uppercase tracking-widest text-surface-600">
+                      {res.request?.method || (res.response ? 'API' : 'DELAY')}
+                    </span>
+                    <span className={`text-[10px] font-mono font-bold ${res.response?.status < 400 ? 'text-green-500' : 'text-red-500'}`}>
+                      {res.response?.status || (res.status === 'success' ? 'DONE' : 'FAIL')}
+                    </span>
                   </div>
                 </div>
               ))}
             </div>
           )}
-          
-          <button 
+
+          <button
             onClick={() => useWorkflowStore.setState({ executionResult: null, showResultsLog: false })}
             className="w-full mt-4 py-2 text-[10px] font-bold uppercase tracking-widest text-surface-500 hover:text-[var(--text-primary)] transition-colors"
           >
@@ -445,8 +481,6 @@ function WorkflowCanvasInner() {
         onPaneClick={onPaneClick}
         onNodeContextMenu={onNodeContextMenu}
         onEdgeContextMenu={onEdgeContextMenu}
-        onDrop={onDrop}
-        onDragOver={onDragOver}
         nodeTypes={nodeTypes}
         fitView
         style={{ background: 'var(--bg-primary)' }}
@@ -465,10 +499,28 @@ function WorkflowCanvasInner() {
 
       {/* Context Menu */}
       {menu && (
-        <div 
+        <div
           className="fixed z-[9999] bg-[var(--surface-1)] border border-[var(--border-2)] rounded-2xl shadow-glass backdrop-blur-xl p-1.5 min-w-[180px] animate-in fade-in zoom-in-95 duration-150"
           style={{ top: menu.top, left: menu.left }}
         >
+          <button
+            onClick={() => {
+              toggleNodeSkip(menu.id);
+              const newState = !menu.data.skipped;
+              setMenu(null);
+              toast.success(newState ? 'Node will be skipped' : 'Node reactivated');
+            }}
+            className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-[11px] font-bold text-[var(--text-primary)] hover:bg-[var(--accent)] hover:text-black transition-all group"
+          >
+            <div className="flex items-center gap-2">
+              <ShieldOff size={14} className="opacity-70" />
+              {menu.data.skipped ? 'Reactivate Node' : 'Skip Node'}
+            </div>
+            {menu.data.skipped && (
+              <div className="w-1.5 h-1.5 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.5)]" />
+            )}
+          </button>
+
           {menu.type === 'api' && (
             <button
               onClick={() => {
@@ -480,7 +532,7 @@ function WorkflowCanvasInner() {
               className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-[11px] font-bold text-[var(--text-primary)] hover:bg-[var(--accent)] hover:text-black transition-all group"
             >
               <div className="flex items-center gap-2">
-                {menu.data.save_session ? <ShieldOff size={14} className="opacity-70" /> : <ShieldCheck size={14} className="opacity-70" />}
+                <ShieldCheck size={14} className="opacity-70" />
                 {menu.data.save_session ? 'Disable Session' : 'Save Session'}
               </div>
               {menu.data.save_session && (
@@ -491,7 +543,7 @@ function WorkflowCanvasInner() {
 
           <button
             onClick={async () => {
-              const confirmed = await confirm(`Are you sure you want to delete "${menu.data.name || 'this node'}"?`, { 
+              const confirmed = await confirm(`Are you sure you want to delete "${menu.data.name || 'this node'}"?`, {
                 title: 'Delete Node',
                 type: 'warning'
               });

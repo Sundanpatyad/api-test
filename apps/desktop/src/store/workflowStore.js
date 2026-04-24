@@ -5,6 +5,52 @@ import api from '@/lib/api';
 import { invoke } from '@tauri-apps/api/tauri';
 import toast from 'react-hot-toast';
 
+const calculateLayers = (nodes, edges) => {
+  const inDegree = {};
+  const graph = {};
+  
+  nodes.forEach(n => {
+    inDegree[n.id] = 0;
+    graph[n.id] = [];
+  });
+
+  edges.forEach(e => {
+    if (graph[e.source]) {
+      graph[e.source].push(e.target);
+      if (inDegree[e.target] !== undefined) {
+        inDegree[e.target]++;
+      }
+    }
+  });
+
+  let currentLayer = nodes.filter(n => inDegree[n.id] === 0).map(n => n.id);
+  let step = 1;
+  const layersMap = {};
+
+  while (currentLayer.length > 0) {
+    const nextLayer = [];
+    currentLayer.forEach(id => {
+      layersMap[id] = step;
+      graph[id].forEach(target => {
+        inDegree[target]--;
+        if (inDegree[target] === 0) {
+          nextLayer.push(target);
+        }
+      });
+    });
+    currentLayer = nextLayer;
+    step++;
+  }
+
+  return nodes.map(n => ({
+    ...n,
+    data: {
+      ...n.data,
+      step: layersMap[n.id] || 0
+    }
+  }));
+};
+
 const defaultWorkflow = () => ({
   id: null,
   name: 'Untitled Workflow',
@@ -25,7 +71,7 @@ export const useWorkflowStore = create(
       
       // Execution state
       isExecuting: false,
-      executingNodeId: null,
+      executingNodeIds: new Set(),
       executionResult: null,
       executionProgress: { completed: 0, total: 0, percentage: 0 },
       showConfigPanel: false,
@@ -86,29 +132,55 @@ export const useWorkflowStore = create(
           },
         };
 
-        set((state) => ({
-          currentWorkflow: {
-            ...state.currentWorkflow,
-            nodes: [...state.currentWorkflow.nodes, newNode],
-            updatedAt: new Date().toISOString(),
-          },
-          selectedNode: newNode.id,
-          showConfigPanel: true,
-        }));
+        set((state) => {
+          const newNodes = [...state.currentWorkflow.nodes, newNode];
+          return {
+            currentWorkflow: {
+              ...state.currentWorkflow,
+              nodes: calculateLayers(newNodes, state.currentWorkflow.edges),
+              updatedAt: new Date().toISOString(),
+            },
+            selectedNode: newNode.id,
+            showConfigPanel: true,
+          };
+        });
+      },
+
+      toggleNodeSkip: (nodeId) => {
+        const nodes = get().currentWorkflow.nodes.map(n => {
+          if (n.id === nodeId) {
+            return { ...n, data: { ...n.data, skipped: !n.data.skipped } };
+          }
+          return n;
+        });
+        get().updateWorkflowField('nodes', nodes);
+      },
+
+      toggleNodeSession: (nodeId) => {
+        const nodes = get().currentWorkflow.nodes.map(n => {
+          if (n.id === nodeId) {
+            return { ...n, data: { ...n.data, save_session: !n.data.save_session } };
+          }
+          return n;
+        });
+        get().updateWorkflowField('nodes', nodes);
       },
 
       updateNode: (nodeId, updates) => {
-        set((state) => ({
-          currentWorkflow: {
-            ...state.currentWorkflow,
-            nodes: state.currentWorkflow.nodes.map((node) =>
-              node.id === nodeId
-                ? { ...node, data: { ...node.data, ...updates } }
-                : node
-            ),
-            updatedAt: new Date().toISOString(),
-          },
-        }));
+        set((state) => {
+          const newNodes = state.currentWorkflow.nodes.map((node) =>
+            node.id === nodeId
+              ? { ...node, data: { ...node.data, ...updates } }
+              : node
+          );
+          return {
+            currentWorkflow: {
+              ...state.currentWorkflow,
+              nodes: newNodes, // Layer doesn't change on data update
+              updatedAt: new Date().toISOString(),
+            },
+          };
+        });
       },
 
       toggleNodeSession: (nodeId) => {
@@ -126,17 +198,21 @@ export const useWorkflowStore = create(
       },
 
       deleteNode: (nodeId) => {
-        set((state) => ({
-          currentWorkflow: {
-            ...state.currentWorkflow,
-            nodes: state.currentWorkflow.nodes.filter((n) => n.id !== nodeId),
-            edges: state.currentWorkflow.edges.filter(
-              (e) => e.source !== nodeId && e.target !== nodeId
-            ),
-            updatedAt: new Date().toISOString(),
-          },
-          selectedNode: state.selectedNode === nodeId ? null : state.selectedNode,
-        }));
+        set((state) => {
+          const newNodes = state.currentWorkflow.nodes.filter((n) => n.id !== nodeId);
+          const newEdges = state.currentWorkflow.edges.filter(
+            (e) => e.source !== nodeId && e.target !== nodeId
+          );
+          return {
+            currentWorkflow: {
+              ...state.currentWorkflow,
+              nodes: calculateLayers(newNodes, newEdges),
+              edges: newEdges,
+              updatedAt: new Date().toISOString(),
+            },
+            selectedNode: state.selectedNode === nodeId ? null : state.selectedNode,
+          };
+        });
       },
 
       setSelectedNode: (nodeId) => {
@@ -146,30 +222,38 @@ export const useWorkflowStore = create(
       // ─── Edge Management ───────────────────────────────────────
 
       addEdge: (edge) => {
-        set((state) => ({
-          currentWorkflow: {
-            ...state.currentWorkflow,
-            edges: [...state.currentWorkflow.edges, { ...edge, id: uuidv4() }],
-            updatedAt: new Date().toISOString(),
-          },
-        }));
+        set((state) => {
+          const newEdges = [...state.currentWorkflow.edges, { ...edge, id: uuidv4() }];
+          return {
+            currentWorkflow: {
+              ...state.currentWorkflow,
+              nodes: calculateLayers(state.currentWorkflow.nodes, newEdges),
+              edges: newEdges,
+              updatedAt: new Date().toISOString(),
+            },
+          };
+        });
       },
 
       deleteEdge: (edgeId) => {
-        set((state) => ({
-          currentWorkflow: {
-            ...state.currentWorkflow,
-            edges: state.currentWorkflow.edges.filter((e) => e.id !== edgeId),
-            updatedAt: new Date().toISOString(),
-          },
-        }));
+        set((state) => {
+          const newEdges = state.currentWorkflow.edges.filter((e) => e.id !== edgeId);
+          return {
+            currentWorkflow: {
+              ...state.currentWorkflow,
+              nodes: calculateLayers(state.currentWorkflow.nodes, newEdges),
+              edges: newEdges,
+              updatedAt: new Date().toISOString(),
+            },
+          };
+        });
       },
 
       setNodes: (nodes) => {
         set((state) => ({
           currentWorkflow: {
             ...state.currentWorkflow,
-            nodes,
+            nodes: calculateLayers(nodes, state.currentWorkflow.edges),
             updatedAt: new Date().toISOString(),
           },
         }));
@@ -179,6 +263,7 @@ export const useWorkflowStore = create(
         set((state) => ({
           currentWorkflow: {
             ...state.currentWorkflow,
+            nodes: calculateLayers(state.currentWorkflow.nodes, edges),
             edges,
             updatedAt: new Date().toISOString(),
           },
@@ -210,7 +295,7 @@ export const useWorkflowStore = create(
 
         set({ 
           isExecuting: true, 
-          executingNodeId: null,
+          executingNodeIds: new Set(),
           executionResult: null, 
           currentWorkflow: { ...workflow, nodes: clearedNodes },
           executionProgress: { completed: 0, total: workflow.nodes.length, percentage: 0 } 
@@ -263,7 +348,7 @@ export const useWorkflowStore = create(
             workflowJson: JSON.stringify(resolvedWorkflow),
           });
 
-          set({ executionResult: result, isExecuting: false, executingNodeId: null });
+          set({ executionResult: result, isExecuting: false, executingNodeIds: new Set() });
           
           if (result.status === 'success') {
             toast.success(`Workflow completed successfully! ${result.success_count}/${result.total_nodes} nodes passed`);
@@ -282,13 +367,111 @@ export const useWorkflowStore = create(
         } catch (error) {
           console.error('Workflow execution error:', error);
           toast.error(`Execution failed: ${error}`);
-          set({ isExecuting: false, executingNodeId: null });
+          set({ isExecuting: false, executingNodeIds: new Set() });
           throw error;
         }
       },
 
       updateExecutionProgress: (progress) => {
         set({ executionProgress: progress });
+      },
+
+      executeSingleNode: async (nodeId) => {
+        const workflow = { ...get().currentWorkflow };
+        const node = workflow.nodes.find(n => n.id === nodeId);
+        if (!node) return;
+
+        const { resolveVariables } = (await import('./environmentStore')).useEnvironmentStore.getState();
+
+        set({ executingNodeIds: new Set([nodeId]) });
+
+        try {
+          // Pre-resolve environment variables just for this node
+          const resolvedNode = {
+            ...node,
+            data: {
+              ...node.data,
+              timeout: typeof node.data.timeout === 'string' 
+                ? parseInt(resolveVariables(node.data.timeout)) 
+                : node.data.timeout
+            }
+          };
+
+          if (node.type === 'api') {
+            resolvedNode.data = {
+              ...resolvedNode.data,
+              url: resolveVariables(node.data.url),
+              headers: (node.data.headers || []).map(h => ({
+                ...h,
+                value: resolveVariables(h.value)
+              })),
+              body: node.data.body ? (
+                typeof node.data.body === 'string' 
+                  ? resolveVariables(node.data.body) 
+                  : JSON.parse(resolveVariables(JSON.stringify(node.data.body)))
+              ) : null
+            };
+          }
+
+          // Build context from current executionResult (if any)
+          const context = {};
+          const currentExecResult = get().executionResult;
+          if (currentExecResult && currentExecResult.node_results) {
+             currentExecResult.node_results.forEach(res => {
+               if (res.extracted_data) {
+                 context[res.node_id] = res.extracted_data;
+               }
+             });
+          }
+
+          const result = await invoke('execute_single_node', {
+            nodeJson: JSON.stringify(resolvedNode),
+            contextJson: JSON.stringify(context)
+          });
+
+          // Update execution result
+          set(state => {
+            let newResult = state.executionResult ? { ...state.executionResult } : {
+               id: `temp_${uuidv4()}`,
+               status: 'partial',
+               node_results: [],
+               success_count: 0,
+               failed_count: 0,
+               skipped_count: 0,
+               total_nodes: workflow.nodes.length,
+               duration: 0
+            };
+
+            const existingIdx = newResult.node_results.findIndex(r => r.node_id === nodeId);
+            if (existingIdx >= 0) {
+              newResult.node_results[existingIdx] = result;
+            } else {
+              newResult.node_results.push(result);
+            }
+
+            // Recalculate counts
+            newResult.success_count = newResult.node_results.filter(r => r.status === 'success').length;
+            newResult.failed_count = newResult.node_results.filter(r => r.status === 'failed').length;
+
+            return {
+              executingNodeIds: new Set(),
+              executionResult: newResult
+            };
+          });
+
+          if (result.status === 'success') {
+            toast.success(`Node executed successfully`);
+          } else {
+            toast.error(`Node execution failed`);
+          }
+
+          return result;
+        } catch (error) {
+          console.error('Node execution error:', error);
+          toast.error(`Execution failed: ${error}`);
+          set({ executingNodeIds: new Set() });
+          throw error;
+        }
       },
 
       cancelExecution: async () => {

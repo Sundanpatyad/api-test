@@ -55,9 +55,9 @@
   --scrollbar-thumb-hover: #2A3040;
 
   /* Gradients */
-  --grad-chrome: linear-gradient(175deg, #F0F2F5, #C4C8D4, #8A8F9E, #B8BCC8, #E4E6EC, #9CA3B0);
-  --grad-primary: linear-gradient(140deg, #C8CDD8, #7A8090, #A8ADB8, #D4D8E0);
-  --grad-logo: linear-gradient(145deg, #C8CDD8, #7A8090, #B0B5C0, #E0E3E8);
+  --grad-chrome: linear-gradient(175deg, #f5f7fa, #c9cdd4, #8e93a0, #b8bcc8, #e4e7ec, #9ca3b0);
+  --grad-primary: linear-gradient(140deg, #d6dce8, #888ea0, #b2b7c1, #D4D8E0);
+  --grad-logo: linear-gradient(145deg, #d6dce8, #888ea0, #b2b7c1, #D4D8E0);
 
   /* Terminal Colors */
   --term-bg: #05070A;

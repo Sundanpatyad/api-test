@@ -1,11 +1,17 @@
 import { memo } from 'react';
 import { Handle, Position } from 'reactflow';
 import { useWorkflowStore } from '@/store/workflowStore';
-import { Globe, CheckCircle, XCircle, Clock, Zap, Loader2, ShieldCheck } from 'lucide-react';
+import { Globe, CheckCircle, XCircle, Clock, Zap, Loader2, ShieldCheck, Play } from 'lucide-react';
 
 function ApiNode({ id, data, selected }) {
-  const executingNodeId = useWorkflowStore(state => state.executingNodeId);
-  const isExecuting = executingNodeId === id;
+  const executingNodeIds = useWorkflowStore(state => state.executingNodeIds);
+  const executeSingleNode = useWorkflowStore(state => state.executeSingleNode);
+  const isExecuting = executingNodeIds?.has?.(id) ?? false;
+
+  const handleRun = (e) => {
+    e.stopPropagation();
+    executeSingleNode(id);
+  };
 
   const getStatusBorder = () => {
     if (isExecuting) return 'border-[var(--accent)] shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)] animate-pulse';
@@ -35,7 +41,7 @@ function ApiNode({ id, data, selected }) {
 
   return (
     <div
-      className={`px-4 py-3.5 rounded-2xl border backdrop-blur-md transition-all duration-300 min-w-[220px] ${getStatusBorder()}`}
+      className={`group px-4 py-3.5 rounded-2xl border backdrop-blur-md transition-all duration-300 min-w-[240px] max-w-[320px] ${getStatusBorder()} ${data.skipped ? 'opacity-60 grayscale-[0.5]' : ''}`}
       style={{ background: 'var(--surface-1)' }}
     >
       <Handle 
@@ -45,23 +51,46 @@ function ApiNode({ id, data, selected }) {
       />
 
       <div className="flex items-start gap-3">
-        <div className="mt-1 p-2 rounded-xl bg-surface-2 border border-[var(--border-2)]">
-          {getStatusIcon()}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="text-[13px] font-bold text-[var(--text-primary)] truncate mb-1">{data.name}</div>
-          <div className="flex items-center gap-2">
-            <span className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter ${getMethodStyle()}`}>
-              {data.method}
-            </span>
-            {data.save_session && (
-              <span className="flex items-center gap-1 text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter bg-green-500/10 text-green-500 border border-green-500/20">
-                <ShieldCheck size={10} />
-                Session
-              </span>
-            )}
-            <span className="text-[10px] text-surface-500 font-mono truncate">{data.url || 'No endpoint'}</span>
+        <div className="flex flex-col items-center gap-1">
+          <div className="mt-1 p-2 rounded-xl bg-surface-2 border border-[var(--border-2)]">
+            {getStatusIcon()}
           </div>
+          {data.step > 0 && (
+            <div className="px-1.5 py-0.5 bg-surface-3 border border-[var(--border-2)] rounded text-[8px] font-black text-surface-500 uppercase">
+              Step {data.step}
+            </div>
+          )}
+        </div>
+        <div className="flex-1 min-w-0 flex justify-between items-start">
+          <div className="flex-1 min-w-0 pr-2">
+            <div className="text-[13px] font-bold text-[var(--text-primary)] truncate mb-1">{data.name}</div>
+            <div className="flex items-center gap-2">
+              <span className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter ${getMethodStyle()}`}>
+                {data.method}
+              </span>
+              {data.skipped && (
+                <span className="flex items-center gap-1 text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter bg-orange-500/10 text-orange-500 border border-orange-500/20">
+                  Skipped
+                </span>
+              )}
+              {data.save_session && (
+                <span className="flex items-center gap-1 text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter bg-green-500/10 text-green-500 border border-green-500/20">
+                  <ShieldCheck size={10} />
+                  Session
+                </span>
+              )}
+              <span className="text-[10px] text-surface-500 font-mono truncate">{data.url || 'No endpoint'}</span>
+            </div>
+          </div>
+          
+          <button
+            onClick={handleRun}
+            disabled={isExecuting}
+            className="p-1.5 rounded-lg bg-surface-2 border border-[var(--border-2)] text-surface-500 hover:text-[var(--accent)] hover:border-[var(--accent)] transition-all opacity-0 group-hover:opacity-100 disabled:opacity-50"
+            title="Run this node"
+          >
+            {isExecuting ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} fill="currentColor" />}
+          </button>
         </div>
       </div>
 

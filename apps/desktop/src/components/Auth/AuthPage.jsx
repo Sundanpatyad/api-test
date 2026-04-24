@@ -56,6 +56,7 @@ export default function AuthPage() {
     if (isLoading || isGoogleLoading) return;
 
     try {
+      setIsGoogleLoading(true);
       processingOAuth.current = false; // Reset for new attempt
       // 1. Start the local listener via Rust and get the port
       const port = await invoke('start_oauth_flow');
@@ -73,6 +74,7 @@ export default function AuthPage() {
     } catch (error) {
       console.error('[Google Auth] Initialiation Failed:', error);
       toast.error('Failed to start Google login');
+      setIsGoogleLoading(false);
     }
   };
 
@@ -169,7 +171,7 @@ export default function AuthPage() {
       <div className="w-full lg:w-[35%] flex flex-col bg-[#080808] relative border-r border-white/[0.03]">
         {/* App Logo */}
         <div className="absolute top-10 left-10 flex items-center gap-3 z-20">
-         <PayloadX />
+          <PayloadX />
           <span className="text-white font-bold text-sm tracking-tight">PayloadX</span>
         </div>
 
@@ -241,7 +243,7 @@ export default function AuthPage() {
 
               <button
                 type="submit"
-                className="w-full h-11 bg-white/[0.05] border border-white/10 text-white font-bold rounded-lg hover:bg-white/[0.08] hover:border-white/20 transition-all duration-200 active:scale-[0.98] mt-2 shadow-xl"
+                className="w-full h-11 btn-primary"
                 disabled={isLoading}
               >
                 {isLoading ? (
@@ -263,10 +265,19 @@ export default function AuthPage() {
               <button
                 onClick={() => handleGoogleLogin()}
                 className="w-full h-11 flex items-center justify-center gap-3 bg-transparent border border-white/5 rounded-lg text-slate-300 hover:bg-white/[0.02] hover:border-white/10 transition-all duration-200"
-                disabled={isLoading}
+                disabled={isLoading || isGoogleLoading}
               >
-                <GoogleIcon />
-                <span className="text-sm font-medium">Continue with Google</span>
+                {isGoogleLoading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span className="text-sm font-medium italic opacity-80">Check your browser...</span>
+                  </div>
+                ) : (
+                  <>
+                    <GoogleIcon />
+                    <span className="text-sm font-medium">Continue with Google</span>
+                  </>
+                )}
               </button>
             </div>
 

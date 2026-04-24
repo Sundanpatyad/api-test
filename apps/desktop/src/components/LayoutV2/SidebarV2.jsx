@@ -1015,19 +1015,20 @@ function SidebarRequest({ request, onSelect, isActive, onContextMenu }) {
   };
 
   return (
-    <button
+    <div
       onClick={() => onSelect(request)}
       onContextMenu={onContextMenu}
       draggable={true}
       onDragStart={onDragStart}
-      className={`sdbv2-tree-row sdbv2-req-row ${isActive ? 'sdbv2-tree-row--active' : ''} relative cursor-move`}
+      className={`sdbv2-tree-row sdbv2-req-row ${isActive ? 'sdbv2-tree-row--active' : ''} relative cursor-move select-none`}
       title="Drag to workflow canvas"
+      role="button"
+      tabIndex={0}
     >
       <span className="sdbv2-method-badge" style={{
         color,
         background: `${color}18`,
         fontSize: (isWs || isSio) ? '9px' : '10px',
-        // Hide if accidental GET is present on socket protocols
         visibility: (isWs || isSio) || request.method ? 'visible' : 'hidden'
       }}>
         {isWs ? 'WS' : isSio ? 'SIO' : (request.method || 'GET')}
@@ -1036,6 +1037,6 @@ function SidebarRequest({ request, onSelect, isActive, onContextMenu }) {
       <span className="text-[10px] text-[var(--text-muted)] ml-auto opacity-0 group-hover:opacity-100">
         ⋮⋮
       </span>
-    </button>
+    </div>
   );
 }

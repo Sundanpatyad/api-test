@@ -4,12 +4,10 @@ use super::parser::WorkflowParser;
 use super::validator::ResponseValidator;
 use anyhow::{Context, Result};
 use chrono::Utc;
-use petgraph::graph::NodeIndex;
 use reqwest::Client;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use std::collections::HashMap;
 use std::time::Instant;
-use std::sync::Arc;
 use std::str::FromStr;
 use tauri::Window;
 use crate::AppCookieJar;
@@ -33,6 +31,16 @@ impl WorkflowExecutor {
         }
     }
 
+    pub fn with_context(workflow: Workflow, client: Client, cookie_jar: Option<AppCookieJar>, window: Option<Window>, context: HashMap<String, serde_json::Value>) -> Self {
+        Self {
+            workflow,
+            client,
+            cookie_jar,
+            data_mapper: DataMapper::with_context(context),
+            window,
+        }
+    }
+
     /// Execute the entire workflow
     pub async fn execute(&mut self) -> Result<WorkflowExecution> {
         let execution_start = Instant::now();
@@ -41,63 +49,76 @@ impl WorkflowExecutor {
         // Parse workflow and build execution graph
         let mut parser = WorkflowParser::new(self.workflow.clone());
         let graph = parser.parse()?;
-        let execution_order = parser.get_execution_order(&graph)?;
+        let execution_layers = parser.get_execution_layers(&graph)?;
 
-        // Execute nodes in order
+        // Execute nodes in parallel layers
         let mut node_results = Vec::new();
         let mut success_count = 0;
         let mut failed_count = 0;
         let mut skipped_count = 0;
+        let mut completed_nodes = 0;
 
-        for node_idx in execution_order {
-            let node = &graph[node_idx];
-            
-            // Emit progress event
-            self.emit_progress(node_results.len(), graph.node_count()).await;
-            
-            // Emit node started event
+        for layer in &execution_layers {
+            // Emit all node IDs in this layer at once so the frontend can show loading on all simultaneously
+            let layer_node_ids: Vec<String> = layer.iter().map(|&idx| graph[idx].id.clone()).collect();
             if let Some(window) = &self.window {
-                let _ = window.emit("node_execution_started", node.id.clone());
+                let _ = window.emit("layer_execution_started", &layer_node_ids);
             }
 
-            match self.execute_node(node).await {
-                Ok(result) => {
-                    if result.status == NodeStatus::Success {
-                        success_count += 1;
-                    } else if result.status == NodeStatus::Failed {
-                        failed_count += 1;
-                    } else {
-                        skipped_count += 1;
+            let mut futures: Vec<std::pin::Pin<Box<dyn futures::Future<Output = NodeExecutionResult> + Send>>> = Vec::new();
+
+            for &node_idx in layer {
+                let node = &graph[node_idx];
+                let executor_ref = &*self;
+
+                futures.push(Box::pin(async move {
+                    match executor_ref.execute_node(node).await {
+                        Ok(result) => result,
+                        Err(e) => NodeExecutionResult {
+                            node_id: node.id.clone(),
+                            node_name: node.data.name.clone(),
+                            start_time: Utc::now().to_rfc3339(),
+                            end_time: Utc::now().to_rfc3339(),
+                            duration: 0,
+                            status: NodeStatus::Failed,
+                            request: None,
+                            response: None,
+                            validations: vec![],
+                            error: Some(ErrorDetails {
+                                message: e.to_string(),
+                                error_type: "execution".to_string(),
+                                stack: None,
+                            }),
+                            extracted_data: HashMap::new(),
+                        },
                     }
+                }));
+            }
 
-                    // Store result for data mapping
-                    self.data_mapper.store_node_result(&node.id, result.extracted_data.clone());
+            // Execute all nodes in this layer concurrently
+            let layer_results = futures::future::join_all(futures).await;
 
-                    node_results.push(result);
-                }
-                Err(e) => {
+            // Emit layer finished so frontend clears those loaders
+            if let Some(window) = &self.window {
+                let _ = window.emit("layer_execution_finished", &layer_node_ids);
+            }
+
+            // Process results and update data mapper
+            for result in layer_results {
+                completed_nodes += 1;
+                self.emit_progress(completed_nodes, graph.node_count()).await;
+
+                if result.status == NodeStatus::Success {
+                    success_count += 1;
+                } else if result.status == NodeStatus::Failed {
                     failed_count += 1;
-                    node_results.push(NodeExecutionResult {
-                        node_id: node.id.clone(),
-                        node_name: node.data.name.clone(),
-                        start_time: Utc::now().to_rfc3339(),
-                        end_time: Utc::now().to_rfc3339(),
-                        duration: 0,
-                        status: NodeStatus::Failed,
-                        request: None,
-                        response: None,
-                        validations: vec![],
-                        error: Some(ErrorDetails {
-                            message: e.to_string(),
-                            error_type: "execution".to_string(),
-                            stack: None,
-                        }),
-                        extracted_data: HashMap::new(),
-                    });
-
-                    // Optionally stop on first error
-                    // break;
+                } else {
+                    skipped_count += 1;
                 }
+
+                // Store result for data mapping for subsequent layers
+                self.data_mapper.store_node_result(&result.node_id, result.extracted_data.clone());
+                node_results.push(result);
             }
         }
 
@@ -129,7 +150,24 @@ impl WorkflowExecutor {
     }
 
     /// Execute a single node
-    async fn execute_node(&self, node: &WorkflowNode) -> Result<NodeExecutionResult> {
+    pub async fn execute_node(&self, node: &WorkflowNode) -> Result<NodeExecutionResult> {
+        if node.data.skipped {
+            println!("DEBUG: Skipping node {}", node.data.name);
+            return Ok(NodeExecutionResult {
+                node_id: node.id.clone(),
+                node_name: node.data.name.clone(),
+                start_time: Utc::now().to_rfc3339(),
+                end_time: Utc::now().to_rfc3339(),
+                duration: 0,
+                status: NodeStatus::Skipped,
+                request: None,
+                response: None,
+                validations: Vec::new(),
+                error: None,
+                extracted_data: HashMap::new(),
+            });
+        }
+
         let node_start = Instant::now();
         let start_time = Utc::now().to_rfc3339();
 
@@ -203,9 +241,53 @@ impl WorkflowExecutor {
             }
         }
 
-        request = request.headers(header_map);
+        // Add query parameters
+        if let Some(params) = &mapped_node.data.params {
+            let mut query_params = Vec::new();
+            for param in params {
+                if param.enabled {
+                    query_params.push((&param.key, &param.value));
+                }
+            }
+            if !query_params.is_empty() {
+                request = request.query(&query_params);
+            }
+        }
 
-        // Add body
+        request = request.headers(header_map.clone());
+
+        // Logging Request
+        println!("--- WORKFLOW API REQUEST ---");
+        println!("Node: {} ({})", mapped_node.data.name, mapped_node.id);
+        println!("Method: {}", method);
+        println!("URL: {}", url);
+        println!("Headers: {:?}", header_map);
+        if let Some(params) = &mapped_node.data.params {
+            let enabled: Vec<_> = params.iter().filter(|p| p.enabled).collect();
+            if !enabled.is_empty() {
+                println!("Query Params: {:?}", enabled);
+            }
+        }
+        if let Some(body) = &mapped_node.data.body {
+            println!("Body: {}", serde_json::to_string_pretty(body).unwrap_or_else(|_| "Invalid JSON".to_string()));
+        }
+        println!("---------------------------");
+
+        // Emit to frontend for console.log
+        if let Some(window) = &self.window {
+            let _ = window.emit("workflow_log", serde_json::json!({
+                "type": "request",
+                "node_name": mapped_node.data.name,
+                "node_id": mapped_node.id,
+                "method": method,
+                "url": url,
+                "headers": header_map.iter().map(|(k, v)| (k.to_string(), v.to_str().unwrap_or("").to_string())).collect::<HashMap<String, String>>(),
+                "params": mapped_node.data.params.as_ref().map(|p| p.iter().filter(|i| i.enabled).collect::<Vec<_>>()),
+                "body": mapped_node.data.body
+            }));
+        }
+
+        // Set body
         if let Some(body) = &mapped_node.data.body {
             request = request.json(body);
         }
@@ -263,6 +345,26 @@ impl WorkflowExecutor {
             body: body.clone(),
             size: body_size,
         };
+
+        // Logging Response
+        println!("--- WORKFLOW API RESPONSE ---");
+        println!("Node: {}", mapped_node.data.name);
+        println!("Status: {} {}", status, status_text);
+        println!("Headers: {:?}", headers);
+        // println!("Body: {}", serde_json::to_string_pretty(&body).unwrap_or_else(|_| "Binary or invalid JSON".to_string()));
+        println!("----------------------------");
+
+        // Emit to frontend for console.log
+        if let Some(window) = &self.window {
+            let _ = window.emit("workflow_log", serde_json::json!({
+                "type": "response",
+                "node_name": mapped_node.data.name,
+                "status": status,
+                "status_text": status_text,
+                "headers": headers,
+                "body": body
+            }));
+        }
 
         // Run validations
         let validations = ResponseValidator::validate(
