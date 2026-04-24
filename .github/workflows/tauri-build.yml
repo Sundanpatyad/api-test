@@ -5,12 +5,14 @@ on:
     branches:
       - main
       - dev
+      - expressjs
     tags:
       - '*'
   pull_request:
     branches:
       - main
       - dev
+      - expressjs
 
 jobs:
   publish-tauri:
