@@ -5,9 +5,106 @@ import User from '../../models/User.js';
 
 const router = express.Router();
 
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     Workflow:
+ *       type: object
+ *       required:
+ *         - name
+ *         - teamId
+ *       properties:
+ *         id:
+ *           type: string
+ *           description: The auto-generated id of the workflow
+ *         name:
+ *           type: string
+ *           description: The name of the workflow
+ *         description:
+ *           type: string
+ *           description: Brief description of the workflow
+ *         teamId:
+ *           type: string
+ *           description: The team ID this workflow belongs to
+ *         projectId:
+ *           type: string
+ *           description: The project ID this workflow belongs to (optional)
+ *         nodes:
+ *           type: array
+ *           items:
+ *             type: object
+ *           description: ReactFlow nodes configuration
+ *         edges:
+ *           type: array
+ *           items:
+ *             type: object
+ *           description: ReactFlow edges configuration with branching logic
+ *         createdBy:
+ *           type: object
+ *           properties:
+ *             _id:
+ *               type: string
+ *             name:
+ *               type: string
+ *             email:
+ *               type: string
+ *         version:
+ *           type: number
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *         updatedAt:
+ *           type: string
+ *           format: date-time
+ */
+
+/**
+ * @swagger
+ * tags:
+ *   name: Workflows
+ *   description: Workflow management API
+ */
+
 // ─── Workflow Routes ────────────────────────────────────────────────────────
 
-// GET /api/workflow - List workflows
+/**
+ * @swagger
+ * /api/workflow:
+ *   get:
+ *     summary: Returns the list of all the workflows
+ *     tags: [Workflows]
+ *     parameters:
+ *       - in: query
+ *         name: teamId
+ *         schema:
+ *           type: string
+ *         description: Filter by team ID
+ *       - in: query
+ *         name: projectId
+ *         schema:
+ *           type: string
+ *         description: Filter by project ID
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Search by workflow name
+ *     responses:
+ *       200:
+ *         description: The list of workflows
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 workflows:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Workflow'
+ *       500:
+ *         description: Server error
+ */
 router.get('/', authenticate, async (req, res) => {
   try {
     const { teamId, projectId, search } = req.query;
@@ -59,7 +156,31 @@ router.get('/', authenticate, async (req, res) => {
   }
 });
 
-// GET /api/workflow/:id - Get single workflow
+/**
+ * @swagger
+ * /api/workflow/{id}:
+ *   get:
+ *     summary: Get a workflow by id
+ *     tags: [Workflows]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The workflow id
+ *     responses:
+ *       200:
+ *         description: The workflow description by id
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Workflow'
+ *       404:
+ *         description: Workflow not found
+ *       500:
+ *         description: Server error
+ */
 router.get('/:id', authenticate, async (req, res) => {
   try {
     const doc = await db.collection('workflows').doc(req.params.id).get();
@@ -88,7 +209,50 @@ router.get('/:id', authenticate, async (req, res) => {
   }
 });
 
-// POST /api/workflow - Create workflow
+/**
+ * @swagger
+ * /api/workflow:
+ *   post:
+ *     summary: Create a new workflow
+ *     tags: [Workflows]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *               - teamId
+ *             properties:
+ *               name:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               teamId:
+ *                 type: string
+ *               projectId:
+ *                 type: string
+ *               nodes:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *               edges:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *     responses:
+ *       201:
+ *         description: The workflow was successfully created
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Workflow'
+ *       400:
+ *         description: Missing required fields
+ *       500:
+ *         description: Server error
+ */
 router.post('/', authenticate, async (req, res) => {
   try {
     const { name, description, teamId, projectId, nodes, edges } = req.body;
@@ -129,7 +293,49 @@ router.post('/', authenticate, async (req, res) => {
   }
 });
 
-// PUT /api/workflow/:id - Update workflow
+/**
+ * @swagger
+ * /api/workflow/{id}:
+ *   put:
+ *     summary: Update a workflow
+ *     tags: [Workflows]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The workflow id
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               nodes:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *               edges:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *     responses:
+ *       200:
+ *         description: The workflow was updated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Workflow'
+ *       404:
+ *         description: Workflow not found
+ *       500:
+ *         description: Server error
+ */
 router.put('/:id', authenticate, async (req, res) => {
   try {
     const { name, description, nodes, edges } = req.body;
@@ -173,7 +379,27 @@ router.put('/:id', authenticate, async (req, res) => {
   }
 });
 
-// DELETE /api/workflow/:id - Delete workflow
+/**
+ * @swagger
+ * /api/workflow/{id}:
+ *   delete:
+ *     summary: Delete a workflow
+ *     tags: [Workflows]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The workflow id
+ *     responses:
+ *       200:
+ *         description: The workflow was deleted
+ *       404:
+ *         description: Workflow not found
+ *       500:
+ *         description: Server error
+ */
 router.delete('/:id', authenticate, async (req, res) => {
   try {
     const docRef = db.collection('workflows').doc(req.params.id);

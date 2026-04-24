@@ -1,19 +1,92 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useRequestStore } from '@/store/requestStore';
 import { useUIStore } from '@/store/uiStore';
 import { useAuthStore } from '@/store/authStore';
 import { getStatusClass, formatSize, formatTime, formatBody, isJson } from '@/utils/helpers';
 import PostmanJsonViewer from './PostmanJsonViewer';
 import JsonFormatter from './JsonFormatter';
+import SwaggerUI from 'swagger-ui-react';
+import 'swagger-ui-react/swagger-ui.css';
+import './swagger-theme.css';
 
-const RESPONSE_TABS = ['Pretty', 'Raw', 'Headers', 'Cookies', 'User'];
+const RESPONSE_TABS = ['Pretty', 'Raw', 'Headers', 'Cookies', 'Docs', 'User'];
 
 export default function ResponseViewer() {
-  const { response, isExecuting } = useRequestStore();
+  const { response, isExecuting, currentRequest } = useRequestStore();
   const { theme } = useUIStore();
   const { user } = useAuthStore();
   const [activeTab, setActiveTab] = useState('Pretty');
   const [copied, setCopied] = useState(false);
+
+  const contentType = response?.headers?.['content-type'] || '';
+
+  // ── Construct Swagger Spec ──────────────────────────────────────────────
+  const swaggerPreview = useMemo(() => {
+    if (!currentRequest) return null;
+
+    return {
+      openapi: "3.0.0",
+      info: {
+        title: currentRequest.name || "API Request",
+        description: currentRequest.description || "Auto-generated documentation from PayloadX",
+        version: "1.0.0"
+      },
+      servers: [
+        { url: "/", description: "Relative Path" }
+      ],
+      paths: {
+        [currentRequest.url?.split('?')[0] || '/']: {
+          [(currentRequest.method || 'GET').toLowerCase()]: {
+            summary: currentRequest.name,
+            parameters: [
+              ...(currentRequest.params?.filter(p => p.enabled && p.key).map(p => ({
+                name: p.key,
+                in: "query",
+                schema: { type: "string", default: p.value }
+              })) || []),
+              ...(currentRequest.headers?.filter(h => h.enabled && h.key).map(h => ({
+                name: h.key,
+                in: "header",
+                schema: { type: "string", default: h.value }
+              })) || [])
+            ],
+            requestBody: ['POST', 'PUT', 'PATCH'].includes(currentRequest.method) ? {
+              content: {
+                "application/json": {
+                  schema: currentRequest.body?.mode === 'raw' ? (() => { 
+                    try { return JSON.parse(currentRequest.body.raw || '{}') } catch { return { type: 'string', example: currentRequest.body.raw } }
+                  })() : 
+                  (currentRequest.body?.mode === 'formdata' || currentRequest.body?.mode === 'urlencoded') ? {
+                    type: 'object',
+                    properties: (currentRequest.body[currentRequest.body.mode] || []).filter(i => i.enabled && i.key).reduce((acc, i) => ({
+                      ...acc, [i.key]: { type: 'string', example: i.value }
+                    }), {})
+                  } : {}
+                }
+              }
+            } : undefined,
+            responses: {
+              [response?.status || '200']: {
+                description: response?.statusText || "Success",
+                content: {
+                  [contentType || "application/json"]: {
+                    schema: response?.body ? (() => {
+                      try {
+                        const parsed = typeof response.body === 'string' ? JSON.parse(response.body) : response.body;
+                        return { type: 'object', example: parsed };
+                      } catch {
+                        return { type: 'string', example: response.body };
+                      }
+                    })() : {}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    };
+  }, [currentRequest, response, contentType]);
 
   if (isExecuting) {
     return <LoadingState />;
@@ -27,7 +100,7 @@ export default function ResponseViewer() {
     return <ErrorState error={response.error} />;
   }
 
-  const contentType = response.headers?.['content-type'] || '';
+
   const prettyBody = formatBody(response.body, contentType);
   const statusClass = getStatusClass(response.status);
   const lang = contentType.includes('json') ? 'json' : contentType.includes('xml') ? 'xml' : contentType.includes('html') ? 'html' : 'plaintext';
@@ -87,76 +160,77 @@ export default function ResponseViewer() {
 
   const responseCookies = parseCookies(response.headers?.['set-cookie'] || response.headers?.['Set-Cookie'] || '');
 
+
+
   return (
     <div className="flex flex-col h-full">
       {/* Status bar */}
-      <div className="flex items-center gap-3 px-3 py-1.5 border-b border-[var(--border-1)] bg-[var(--surface-2)]">
-        <span className={statusClass}>{response.status} {response.statusText}</span>
-        <div className="w-px h-3.5 bg-surface-700" />
-        <span className="text-surface-400 text-xs flex items-center gap-1">
-          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-          {formatTime(response.responseTimeMs)}
-        </span>
-        <div className="w-px h-3.5 bg-surface-700" />
-        <span className="text-surface-400 text-xs flex items-center gap-1">
-          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582 4 8 4" /></svg>
-          {formatSize(response.sizeBytes)}
-        </span>
+      <div className="flex flex-wrap items-center gap-y-2 gap-x-3 px-3 py-2 border-b border-[var(--border-1)] bg-[var(--surface-2)]">
+        <div className="flex items-center gap-2">
+          <span className={`${statusClass} text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-tight`}>
+            {response.status} {response.statusText}
+          </span>
+          
+          <div className="flex items-center gap-2.5 ml-1">
+            <span className="text-surface-500 text-[10px] font-mono flex items-center gap-1">
+              <svg className="w-3 h-3 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              {formatTime(response.responseTimeMs)}
+            </span>
+            <span className="text-surface-500 text-[10px] font-mono flex items-center gap-1">
+              <svg className="w-3 h-3 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582 4 8 4" /></svg>
+              {formatSize(response.sizeBytes)}
+            </span>
+          </div>
+        </div>
 
         {/* Copy button + Tabs */}
-        <div className="ml-auto flex items-center gap-1.5">
+        <div className="ml-auto flex items-center gap-1">
           {/* Copy response */}
           <button
             onClick={handleCopy}
             title="Copy response"
+            className="btn-ghost"
             style={{
+              padding: '3px 8px',
+              fontSize: '9px',
+              height: '22px',
               display: 'flex',
               alignItems: 'center',
-              gap: '5px',
-              padding: '3px 9px',
-              borderRadius: '6px',
-              fontSize: '11px',
-              fontFamily: 'Poppins, sans-serif',
-              fontWeight: 500,
-              border: `1px solid ${copied ? 'var(--success)' : 'var(--border-1)'}`,
-              background: copied ? 'rgba(63,185,80,0.1)' : 'var(--surface-3)',
-              color: copied ? 'var(--success)' : 'var(--text-secondary)',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
-              whiteSpace: 'nowrap',
+              gap: '4px',
+              border: copied ? '1px solid var(--success)' : undefined,
+              color: copied ? 'var(--success)' : undefined,
             }}
           >
             {copied ? (
-              /* Checkmark */
-              <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+              <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
               </svg>
             ) : (
-              /* Copy icon */
-              <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+              <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5}
                   d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
               </svg>
             )}
-            {copied ? 'Copied!' : 'Copy'}
+            {copied ? 'COPIED' : 'COPY'}
           </button>
 
-          {/* Divider */}
-          <div style={{ width: 1, height: 14, background: 'var(--border-1)' }} />
+          <div className="w-px h-3 bg-border-1 mx-1" />
 
           {/* Tabs */}
-          {RESPONSE_TABS.map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-2 py-0.5 rounded text-[11px] font-medium transition-all ${activeTab === tab
-                  ? 'bg-surface-700 text-tx-primary'
-                  : 'text-surface-500 hover:text-tx-primary'
-                }`}
-            >
-              {tab}
-            </button>
-          ))}
+          <div className="flex bg-surface-3 rounded-md p-0.5 border border-border-1">
+            {RESPONSE_TABS.map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-2 py-0.5 rounded text-[9px] font-bold transition-all uppercase tracking-tight ${activeTab === tab
+                    ? 'bg-surface-1 text-tx-primary shadow-sm'
+                    : 'text-surface-500 hover:text-tx-secondary'
+                  }`}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -245,20 +319,28 @@ export default function ResponseViewer() {
           </div>
         )}
 
+        {activeTab === 'Docs' && (
+          <div className="h-full overflow-hidden flex flex-col swagger-container-v2">
+             <div className="flex-1 overflow-auto">
+                <SwaggerUI spec={swaggerPreview} />
+             </div>
+          </div>
+        )}
+
         {activeTab === 'User' && (
           <div className="overflow-auto h-full p-6 flex flex-col items-center justify-center gap-4 text-center">
-             <div className="w-16 h-16 rounded-full bg-surface-800 border border-surface-700 flex items-center justify-center text-2xl overflow-hidden">
-                {user?.avatar ? (
-                  <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-tx-secondary font-bold">
-                    {user?.name?.charAt(0).toUpperCase() || '👤'}
-                  </span>
-                )}
+             <div className="w-20 h-20 rounded-full border-2 border-[var(--border-1)] flex items-center justify-center shadow-2xl relative" style={{ background: 'var(--grad-primary)' }}>
+                <span className="text-[var(--accent-text)] text-2xl font-black tracking-tighter" style={{ fontFamily: 'Syne, sans-serif' }}>
+                  {user?.name 
+                    ? user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) 
+                    : 'US'
+                  }
+                </span>
+                <div className="absolute bottom-0.5 right-0.5 w-4 h-4 bg-success border-4 border-[var(--bg-primary)] rounded-full shadow-lg" />
              </div>
-             <div>
-                <p className="text-tx-primary font-semibold">{user?.name || 'Guest'}</p>
-                <p className="text-tx-muted text-xs mt-1">{user?.email || 'Not logged in'}</p>
+             <div className="space-y-1">
+                <p className="text-lg font-bold text-tx-primary tracking-tight" style={{ fontFamily: 'Syne, sans-serif' }}>{user?.name || 'SyncNest User'}</p>
+                <p className="text-xs text-tx-muted font-mono">{user?.email || 'Not logged in'}</p>
              </div>
              
              <div className="w-full max-w-sm mt-4 space-y-3">

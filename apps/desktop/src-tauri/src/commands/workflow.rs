@@ -7,6 +7,7 @@ pub async fn execute_workflow(
     workflow_json: String,
     client: State<'_, Client>,
     cookie_jar: State<'_, crate::AppCookieJar>,
+    workflow_state: State<'_, crate::WorkflowState>,
     window: Window,
 ) -> Result<WorkflowExecution, String> {
     // Parse workflow from JSON
@@ -19,7 +20,7 @@ pub async fn execute_workflow(
         client.inner().clone(),
         Some(cookie_jar.inner().clone()),
         Some(window),
-    );
+    ).with_state(workflow_state.inner().clone());
 
     // Execute workflow
     executor.execute()
@@ -80,8 +81,8 @@ pub async fn validate_workflow(workflow_json: String) -> Result<bool, String> {
 }
 
 #[tauri::command]
-pub async fn cancel_workflow_execution() -> Result<(), String> {
-    // TODO: Implement cancellation logic
-    // This would require storing execution state and checking cancellation flag
+pub async fn cancel_workflow_execution(workflow_state: State<'_, crate::WorkflowState>) -> Result<(), String> {
+    workflow_state.is_cancelled.store(true, std::sync::atomic::Ordering::SeqCst);
+    workflow_state.is_paused.store(false, std::sync::atomic::Ordering::SeqCst);
     Ok(())
 }

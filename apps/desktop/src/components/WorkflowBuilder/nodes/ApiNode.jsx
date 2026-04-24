@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { Handle, Position } from 'reactflow';
 import { useWorkflowStore } from '@/store/workflowStore';
-import { Globe, CheckCircle, XCircle, Clock, Zap, Loader2, ShieldCheck, Play } from 'lucide-react';
+import { Globe, CheckCircle, XCircle, Clock, Zap, Loader2, ShieldCheck, Play, ShieldOff } from 'lucide-react';
 
 function ApiNode({ id, data, selected }) {
   const executingNodeIds = useWorkflowStore(state => state.executingNodeIds);
@@ -17,6 +17,7 @@ function ApiNode({ id, data, selected }) {
     if (isExecuting) return 'border-[var(--accent)] shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)] animate-pulse';
     if (data.executionStatus === 'success') return 'border-green-500/50 shadow-[0_0_15px_rgba(34,197,94,0.1)]';
     if (data.executionStatus === 'failed') return 'border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.1)]';
+    if (data.executionStatus === 'skipped') return 'border-surface-400/30 opacity-60';
     return selected ? 'border-[var(--accent)] shadow-glass' : 'border-[var(--border-2)]';
   };
 
@@ -24,6 +25,7 @@ function ApiNode({ id, data, selected }) {
     if (isExecuting) return <Loader2 size={14} className="text-[var(--accent)] animate-spin" />;
     if (data.executionStatus === 'success') return <CheckCircle size={14} className="text-green-500" />;
     if (data.executionStatus === 'failed') return <XCircle size={14} className="text-red-500" />;
+    if (data.executionStatus === 'skipped') return <ShieldOff size={14} className="text-surface-400" />;
     return <Zap size={14} className="text-[var(--accent)]" />;
   };
 
@@ -106,10 +108,39 @@ function ApiNode({ id, data, selected }) {
         </div>
       )}
 
+      {/* Branching Output Handles */}
+      <div className="absolute -bottom-6 left-0 right-0 flex justify-between px-4 pointer-events-none">
+        <div className="flex flex-col items-center gap-1">
+          <div className="text-[7px] font-black uppercase text-green-500 tracking-tighter bg-green-500/10 px-1 rounded border border-green-500/20">Success</div>
+        </div>
+        <div className="flex flex-col items-center gap-1">
+          <div className="text-[7px] font-black uppercase text-surface-500 tracking-tighter bg-surface-2 px-1 rounded border border-[var(--border-2)]">Always</div>
+        </div>
+        <div className="flex flex-col items-center gap-1">
+          <div className="text-[7px] font-black uppercase text-red-500 tracking-tighter bg-red-500/10 px-1 rounded border border-red-500/20">Failure</div>
+        </div>
+      </div>
+
       <Handle 
         type="source" 
         position={Position.Bottom} 
-        className="!w-2.5 !h-2.5 !bg-[var(--border-2)] !border-none hover:!bg-[var(--accent)] transition-colors" 
+        id="success"
+        style={{ left: '15%', background: '#10b981' }}
+        className="!w-3 !h-3 !border-none hover:!scale-150 transition-transform shadow-sm" 
+      />
+      <Handle 
+        type="source" 
+        position={Position.Bottom} 
+        id="always"
+        style={{ left: '50%', background: 'var(--border-2)' }}
+        className="!w-3 !h-3 !border-none hover:!scale-150 transition-transform shadow-sm" 
+      />
+      <Handle 
+        type="source" 
+        position={Position.Bottom} 
+        id="failure"
+        style={{ left: '85%', background: '#ef4444' }}
+        className="!w-3 !h-3 !border-none hover:!scale-150 transition-transform shadow-sm" 
       />
     </div>
   );

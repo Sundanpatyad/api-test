@@ -10,6 +10,8 @@ import http from 'http';
 import cors from 'cors';
 import mongoose from 'mongoose';
 import { Server } from 'socket.io';
+import swaggerJsdoc from 'swagger-jsdoc';
+import swaggerUi from 'swagger-ui-express';
 
 const app = express();
 const server = http.createServer(app);
@@ -63,6 +65,31 @@ app.use(async (req, res, next) => {
     res.status(500).json({ error: 'Database connection failed' });
   }
 });
+
+// ── Swagger Configuration ──────────────────────────────────────────────────
+const swaggerOptions = {
+  definition: {
+    openapi: '3.0.0',
+    info: {
+      title: 'PayloadX API',
+      version: '1.0.0',
+      description: 'The internal API for PayloadX - Unified API Studio and Workflow Engine',
+      contact: {
+        name: 'PayloadX Support',
+      },
+    },
+    servers: [
+      {
+        url: `http://localhost:${PORT}`,
+        description: 'Local development server',
+      },
+    ],
+  },
+  apis: ['./src/routes/*.js'], // Path to the API docs
+};
+
+const swaggerDocs = swaggerJsdoc(swaggerOptions);
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
 // ── Routes ──────────────────────────────────────────────────────────────────
 import authRoutes from './routes/auth.js';

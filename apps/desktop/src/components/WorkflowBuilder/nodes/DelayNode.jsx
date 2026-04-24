@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { Handle, Position } from 'reactflow';
 import { useWorkflowStore } from '@/store/workflowStore';
-import { Hourglass, Loader2, Play } from 'lucide-react';
+import { Hourglass, Loader2, Play, ShieldOff, CheckCircle } from 'lucide-react';
 
 function DelayNode({ id, data, selected }) {
   const executingNodeIds = useWorkflowStore(state => state.executingNodeIds);
@@ -18,6 +18,9 @@ function DelayNode({ id, data, selected }) {
       className={`group px-4 py-3.5 rounded-2xl border backdrop-blur-md transition-all duration-300 min-w-[200px] ${
         isExecuting 
           ? 'border-[var(--accent)] shadow-[0_0_15px_rgba(var(--accent-rgb),0.2)] animate-pulse'
+          : data.executionStatus === 'success' ? 'border-green-500/50 shadow-[0_0_15px_rgba(34,197,94,0.1)]'
+          : data.executionStatus === 'failed' ? 'border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.1)]'
+          : data.executionStatus === 'skipped' ? 'border-surface-400/30 opacity-60'
           : selected ? 'border-[var(--accent)] shadow-glass' : 'border-[var(--border-2)]'
       } ${data.skipped ? 'opacity-60 grayscale-[0.5]' : ''}`}
       style={{ background: 'var(--surface-1)' }}
@@ -33,6 +36,10 @@ function DelayNode({ id, data, selected }) {
           <div className="p-2 rounded-xl bg-surface-2 border border-[var(--border-2)]">
             {isExecuting ? (
               <Loader2 size={14} className="text-[var(--accent)] animate-spin" />
+            ) : data.executionStatus === 'success' ? (
+              <CheckCircle size={14} className="text-green-500" />
+            ) : data.executionStatus === 'skipped' ? (
+              <ShieldOff size={14} className="text-surface-400" />
             ) : (
               <Hourglass size={14} className="text-surface-500" />
             )}
@@ -68,10 +75,16 @@ function DelayNode({ id, data, selected }) {
         </div>
       </div>
 
+      {/* Output Handle */}
+      <div className="absolute -bottom-6 left-0 right-0 flex justify-center pointer-events-none">
+        <div className="text-[7px] font-black uppercase text-surface-500 tracking-tighter bg-surface-2 px-1 rounded border border-[var(--border-2)]">Always</div>
+      </div>
+
       <Handle 
         type="source" 
         position={Position.Bottom} 
-        className="!w-2.5 !h-2.5 !bg-[var(--border-2)] !border-none hover:!bg-[var(--accent)] transition-colors" 
+        id="always"
+        className="!w-3 !h-3 !bg-[var(--border-2)] !border-none hover:!scale-150 transition-transform shadow-sm" 
       />
     </div>
   );

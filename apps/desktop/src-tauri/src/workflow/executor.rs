@@ -11,6 +11,9 @@ use std::time::Instant;
 use std::str::FromStr;
 use tauri::Window;
 use crate::AppCookieJar;
+use petgraph::graph::NodeIndex;
+use petgraph::visit::EdgeRef;
+use petgraph::Direction;
 
 pub struct WorkflowExecutor {
     workflow: Workflow,
@@ -18,6 +21,7 @@ pub struct WorkflowExecutor {
     cookie_jar: Option<AppCookieJar>,
     data_mapper: DataMapper,
     window: Option<Window>,
+    state: Option<crate::WorkflowState>,
 }
 
 impl WorkflowExecutor {
@@ -28,7 +32,13 @@ impl WorkflowExecutor {
             cookie_jar,
             data_mapper: DataMapper::new(),
             window,
+            state: None,
         }
+    }
+
+    pub fn with_state(mut self, state: crate::WorkflowState) -> Self {
+        self.state = Some(state);
+        self
     }
 
     pub fn with_context(workflow: Workflow, client: Client, cookie_jar: Option<AppCookieJar>, window: Option<Window>, context: HashMap<String, serde_json::Value>) -> Self {
@@ -38,6 +48,7 @@ impl WorkflowExecutor {
             cookie_jar,
             data_mapper: DataMapper::with_context(context),
             window,
+            state: None,
         }
     }
 
@@ -51,6 +62,11 @@ impl WorkflowExecutor {
         let graph = parser.parse()?;
         let execution_layers = parser.get_execution_layers(&graph)?;
 
+        if let Some(state) = &self.state {
+            state.is_cancelled.store(false, std::sync::atomic::Ordering::SeqCst);
+            state.is_paused.store(false, std::sync::atomic::Ordering::SeqCst);
+        }
+
         // Execute nodes in parallel layers
         let mut node_results = Vec::new();
         let mut success_count = 0;
@@ -59,6 +75,20 @@ impl WorkflowExecutor {
         let mut completed_nodes = 0;
 
         for layer in &execution_layers {
+            // Check for pause/cancel between layers
+            if let Some(state) = &self.state {
+                while state.is_paused.load(std::sync::atomic::Ordering::SeqCst) {
+                    if state.is_cancelled.load(std::sync::atomic::Ordering::SeqCst) {
+                        break;
+                    }
+                    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+                }
+
+                if state.is_cancelled.load(std::sync::atomic::Ordering::SeqCst) {
+                    break;
+                }
+            }
+
             // Emit all node IDs in this layer at once so the frontend can show loading on all simultaneously
             let layer_node_ids: Vec<String> = layer.iter().map(|&idx| graph[idx].id.clone()).collect();
             if let Some(window) = &self.window {
@@ -70,8 +100,27 @@ impl WorkflowExecutor {
             for &node_idx in layer {
                 let node = &graph[node_idx];
                 let executor_ref = &*self;
+                
+                // Check if this node should be executed based on conditions
+                let is_satisfied = self.is_node_satisfied(&node.id, &graph, &node_results);
 
                 futures.push(Box::pin(async move {
+                    if !is_satisfied {
+                        return NodeExecutionResult {
+                            node_id: node.id.clone(),
+                            node_name: node.data.name.clone(),
+                            start_time: Utc::now().to_rfc3339(),
+                            end_time: Utc::now().to_rfc3339(),
+                            duration: 0,
+                            status: NodeStatus::Skipped,
+                            request: None,
+                            response: None,
+                            validations: vec![],
+                            error: None,
+                            extracted_data: HashMap::new(),
+                        };
+                    }
+
                     match executor_ref.execute_node(node).await {
                         Ok(result) => result,
                         Err(e) => NodeExecutionResult {
@@ -457,5 +506,49 @@ impl WorkflowExecutor {
                 "percentage": (completed as f64 / total as f64 * 100.0) as u32,
             }));
         }
+    }
+
+    /// Check if a node should be executed based on its incoming edge conditions
+    fn is_node_satisfied(&self, node_id: &str, graph: &petgraph::graph::DiGraph<WorkflowNode, WorkflowEdge>, node_results: &[NodeExecutionResult]) -> bool {
+        let node_idx = match graph.node_indices().find(|&i| graph[i].id == node_id) {
+            Some(idx) => idx,
+            None => return true,
+        };
+
+        let mut incoming_edges = graph.edges_directed(node_idx, Direction::Incoming);
+        
+        // If no incoming edges, it's a starting node
+        let first_edge = incoming_edges.next();
+        if first_edge.is_none() {
+            return true;
+        }
+
+        // Re-iterate (since we consumed one)
+        let incoming_edges = graph.edges_directed(node_idx, Direction::Incoming);
+        let mut any_satisfied = false;
+
+        for edge_ref in incoming_edges {
+            let parent_idx = edge_ref.source();
+            let edge = edge_ref.weight();
+            let parent_node = &graph[parent_idx];
+            
+            // Find parent result
+            let parent_result = node_results.iter().find(|r| r.node_id == parent_node.id);
+            
+            if let Some(res) = parent_result {
+                let satisfied = match edge.condition.as_deref() {
+                    Some("success") => res.status == NodeStatus::Success,
+                    Some("failure") => res.status == NodeStatus::Failed,
+                    _ => res.status != NodeStatus::Skipped, // "always" or None
+                };
+                
+                if satisfied {
+                    any_satisfied = true;
+                    break; // OR logic: if any incoming path is satisfied, run it
+                }
+            }
+        }
+
+        any_satisfied
     }
 }

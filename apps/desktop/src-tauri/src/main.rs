@@ -18,6 +18,43 @@ use std::collections::HashMap;
 #[derive(Default, Clone)]
 pub struct AppCookieJar(pub std::sync::Arc<Mutex<HashMap<String, HashMap<String, String>>>>);
 
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+pub struct WorkflowState {
+    pub is_paused: Arc<AtomicBool>,
+    pub is_cancelled: Arc<AtomicBool>,
+}
+
+impl Default for WorkflowState {
+    fn default() -> Self {
+        Self {
+            is_paused: Arc::new(AtomicBool::new(false)),
+            is_cancelled: Arc::new(AtomicBool::new(false)),
+        }
+    }
+}
+
+impl Clone for WorkflowState {
+    fn clone(&self) -> Self {
+        Self {
+            is_paused: self.is_paused.clone(),
+            is_cancelled: self.is_cancelled.clone(),
+        }
+    }
+}
+
+#[tauri::command]
+async fn pause_workflow_execution(state: tauri::State<'_, WorkflowState>) -> Result<(), String> {
+    state.is_paused.store(true, Ordering::SeqCst);
+    Ok(())
+}
+
+#[tauri::command]
+async fn resume_workflow_execution(state: tauri::State<'_, WorkflowState>) -> Result<(), String> {
+    state.is_paused.store(false, Ordering::SeqCst);
+    Ok(())
+}
+
 #[tauri::command]
 async fn system_open(app_handle: tauri::AppHandle, url: String) -> Result<(), String> {
     tauri::api::shell::open(&app_handle.shell_scope(), url, None)
@@ -305,6 +342,7 @@ fn main() {
     tauri::Builder::default()
         .manage(http_client)
         .manage(AppCookieJar::default())
+        .manage(WorkflowState::default())
         .plugin(tauri_plugin_oauth::init())
         .setup(|app| {
             #[cfg(debug_assertions)]
@@ -331,6 +369,8 @@ fn main() {
             execute_single_node,
             validate_workflow,
             cancel_workflow_execution,
+            pause_workflow_execution,
+            resume_workflow_execution,
         ])
         .run(tauri::generate_context!())
         .expect("error while running PayloadX API Studio");

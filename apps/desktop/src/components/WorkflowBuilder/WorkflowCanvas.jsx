@@ -18,7 +18,10 @@ import { useProjectStore } from '@/store/projectStore';
 import { useTeamStore } from '@/store/teamStore';
 import ApiNode from './nodes/ApiNode';
 import DelayNode from './nodes/DelayNode';
-import { Plus, Play, Save, Loader2, Trash2, ShieldCheck, ShieldOff, MoreVertical } from 'lucide-react';
+import { 
+  Plus, Play, Save, Loader2, Trash2, ShieldCheck, 
+  ShieldOff, MoreVertical, RefreshCw, Square, Pause 
+} from 'lucide-react';
 import toast from 'react-hot-toast';
 import { v4 as uuidv4 } from 'uuid';
 import { listen } from '@tauri-apps/api/event';
@@ -44,13 +47,22 @@ function WorkflowCanvasInner() {
     setEdges: updateStoreEdges,
     deleteNode: deleteWorkflowNode,
     deleteEdge: deleteWorkflowEdge,
+    updateEdge: updateWorkflowEdge,
     toggleNodeSkip,
     toggleNodeSession,
+    isSaving,
+    isLoadingWorkflows,
+    fetchWorkflows,
+    cancelExecution,
+    isPaused,
+    pauseExecution,
+    resumeExecution,
   } = useWorkflowStore();
 
   const [nodes, setNodes] = useNodesState(currentWorkflow.nodes);
   const [edges, setEdges] = useEdgesState(currentWorkflow.edges);
   const [menu, setMenu] = useState(null);
+  const [edgeMenu, setEdgeMenu] = useState(null);
   const { showResultsLog } = useWorkflowStore();
   const { currentProject } = useProjectStore();
   const { currentTeam } = useTeamStore();
@@ -140,10 +152,17 @@ function WorkflowCanvasInner() {
 
   const onConnect = useCallback(
     (params) => {
+      const { sourceHandle } = params;
+      let condition = 'always';
+      
+      if (sourceHandle === 'success') condition = 'success';
+      if (sourceHandle === 'failure') condition = 'failure';
+
       const newEdge = {
         ...params,
+        condition,
         type: 'smoothstep',
-        animated: true,
+        animated: condition !== 'always',
         markerEnd: {
           type: MarkerType.ArrowClosed,
         },
@@ -164,6 +183,7 @@ function WorkflowCanvasInner() {
   const onPaneClick = useCallback(() => {
     setSelectedNode(null);
     setMenu(null);
+    setEdgeMenu(null);
   }, [setSelectedNode]);
 
   const onNodeContextMenu = useCallback(
@@ -183,15 +203,44 @@ function WorkflowCanvasInner() {
   const onEdgeContextMenu = useCallback(
     (event, edge) => {
       event.preventDefault();
-      if (window.confirm('Remove this connection?')) {
-        deleteWorkflowEdge(edge.id);
-        toast.success('Connection removed');
-      }
+      setEdgeMenu({
+        id: edge.id,
+        top: event.clientY,
+        left: event.clientX,
+        condition: edge.condition || 'always',
+      });
     },
-    [deleteWorkflowEdge]
+    [setEdgeMenu]
   );
 
-  // Highlight nodes based on execution result
+  const edgesWithConditions = edges.map((edge) => {
+    let color = 'var(--border-2)';
+    let label = null;
+    let labelBgColor = 'transparent';
+    let labelStyle = { fontSize: '9px', fontWeight: 'bold', textTransform: 'uppercase' };
+
+    if (edge.condition === 'success') {
+      color = '#10b981';
+      label = 'Success';
+      labelBgColor = 'rgba(16, 185, 129, 0.1)';
+    } else if (edge.condition === 'failure') {
+      color = '#ef4444';
+      label = 'Failure';
+      labelBgColor = 'rgba(239, 68, 68, 0.1)';
+    }
+
+    return {
+      ...edge,
+      label,
+      labelStyle: { ...labelStyle, fill: color },
+      labelBgPadding: [4, 4],
+      labelBgBorderRadius: 4,
+      labelBgStyle: { fill: labelBgColor, stroke: color, strokeWidth: 0.5 },
+      style: { ...edge.style, stroke: color, strokeWidth: edge.condition && edge.condition !== 'always' ? 2 : 1.5 },
+      animated: (edge.condition && edge.condition !== 'always') ? true : edge.animated,
+    };
+  });
+
   const nodesWithStatus = nodes.map((node) => {
     if (!executionResult) return node;
 
@@ -229,6 +278,13 @@ function WorkflowCanvasInner() {
     }
 
     await saveWorkflow();
+  };
+
+  const handleRefresh = async () => {
+    if (currentTeam?._id) {
+      await fetchWorkflows(currentTeam._id, currentProject?._id);
+      toast.success('Workflows refreshed');
+    }
   };
 
   const reactFlowInstance = useReactFlow();
@@ -370,36 +426,77 @@ function WorkflowCanvasInner() {
             <Plus size={14} strokeWidth={3} />
             Delay
           </button>
-          <div className="w-px h-5 bg-[var(--border-2)] self-center mx-1" />
           <button
             onClick={handleSave}
-            className="flex items-center gap-2 px-3.5 py-1.5 bg-surface-2 text-[var(--text-primary)] hover:bg-surface-3 rounded-lg transition-all font-bold text-[11px] uppercase tracking-wide border border-transparent hover:border-[var(--border-2)]"
+            disabled={isSaving}
+            className="flex items-center gap-2 px-3.5 py-1.5 bg-surface-2 text-[var(--text-primary)] hover:bg-surface-3 rounded-lg transition-all font-bold text-[11px] uppercase tracking-wide border border-transparent hover:border-[var(--border-2)] disabled:opacity-50"
           >
-            <Save size={14} />
-            Save
+            {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+            {isSaving ? 'Saving...' : 'Save'}
           </button>
+          
           <button
-            onClick={handleExecute}
-            disabled={isExecuting}
-            className={`flex items-center gap-2 px-4 py-1.5 rounded-lg transition-all font-bold text-[11px] uppercase tracking-wide shadow-sm ${isExecuting
-              ? 'bg-surface-3 text-surface-500 cursor-not-allowed'
-              : 'bg-green-600/20 text-green-500 border border-green-600/30 hover:bg-green-600/30'
-              }`}
+            onClick={handleRefresh}
+            disabled={isLoadingWorkflows}
+            className="flex items-center gap-2 px-3.5 py-1.5 bg-surface-2 text-[var(--text-primary)] hover:bg-surface-3 rounded-lg transition-all font-bold text-[11px] uppercase tracking-wide border border-transparent hover:border-[var(--border-2)] disabled:opacity-50"
           >
-            {isExecuting ? (
-              <>
-                <Loader2 size={14} className="animate-spin" />
-                Running...
-              </>
-            ) : (
-              <>
-                <Play size={14} fill="currentColor" />
-                Run Workflow
-              </>
-            )}
+            <RefreshCw size={14} className={isLoadingWorkflows ? 'animate-spin' : ''} />
           </button>
+
+          <div className="w-px h-5 bg-[var(--border-2)] self-center mx-1" />
+          
+          {isExecuting ? (
+            <div className="flex gap-1 bg-black/20 rounded-lg p-0.5">
+              {isPaused ? (
+                <button
+                  onClick={resumeExecution}
+                  className="p-1.5 text-green-500 hover:bg-green-500/10 rounded-md transition-all"
+                  title="Resume Execution"
+                >
+                  <Play size={14} fill="currentColor" />
+                </button>
+              ) : (
+                <button
+                  onClick={pauseExecution}
+                  className="p-1.5 text-yellow-500 hover:bg-yellow-500/10 rounded-md transition-all"
+                  title="Pause Execution"
+                >
+                  <Pause size={14} fill="currentColor" />
+                </button>
+              )}
+              <button
+                onClick={cancelExecution}
+                className="p-1.5 text-red-500 hover:bg-red-500/10 rounded-md transition-all"
+                title="Stop Execution"
+              >
+                <Square size={14} fill="currentColor" />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={handleExecute}
+              disabled={isExecuting}
+              className={`flex items-center gap-2 px-4 py-1.5 rounded-lg transition-all font-bold text-[11px] uppercase tracking-wide shadow-sm ${isExecuting
+                ? 'bg-surface-3 text-surface-500 cursor-not-allowed'
+                : 'bg-green-600/20 text-green-500 border border-green-600/30 hover:bg-green-600/30'
+                }`}
+            >
+              <Play size={14} fill="currentColor" />
+              Run Workflow
+            </button>
+          )}
         </div>
       </div>
+
+      {/* Global Loaders */}
+      {isLoadingWorkflows && (
+        <div className="absolute inset-0 z-[100] bg-black/5 flex items-center justify-center backdrop-blur-[1px]">
+          <div className="bg-surface-1/90 border border-[var(--border-2)] rounded-2xl px-6 py-4 shadow-glass-heavy flex items-center gap-3">
+             <Loader2 size={18} className="animate-spin text-[var(--accent)]" />
+             <span className="text-[12px] font-bold text-[var(--text-primary)] uppercase tracking-widest">Refreshing...</span>
+          </div>
+        </div>
+      )}
 
       {/* ── Execution Dashboard ──────────────────────────────────── */}
       {executionResult && (
@@ -473,7 +570,7 @@ function WorkflowCanvasInner() {
 
       <ReactFlow
         nodes={nodesWithStatus}
-        edges={edges}
+        edges={edgesWithConditions}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
@@ -557,6 +654,76 @@ function WorkflowCanvasInner() {
           >
             <Trash2 size={14} className="opacity-70" />
             Delete Node
+          </button>
+        </div>
+      )}
+
+      {/* Edge Context Menu */}
+      {edgeMenu && (
+        <div
+          className="fixed z-[9999] bg-[var(--surface-1)] border border-[var(--border-2)] rounded-2xl shadow-glass backdrop-blur-xl p-1.5 min-w-[180px] animate-in fade-in zoom-in-95 duration-150"
+          style={{ top: edgeMenu.top, left: edgeMenu.left }}
+        >
+          <div className="px-3 py-2 text-[9px] font-black uppercase tracking-widest text-surface-500 border-b border-[var(--border-2)] mb-1">
+            Execution Condition
+          </div>
+          
+          <button
+            onClick={() => {
+              updateWorkflowEdge(edgeMenu.id, { condition: 'always' });
+              setEdgeMenu(null);
+              toast.success('Condition set to Always');
+            }}
+            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-[11px] font-bold transition-all ${
+              edgeMenu.condition === 'always' ? 'bg-surface-3 text-[var(--accent)]' : 'text-[var(--text-primary)] hover:bg-surface-2'
+            }`}
+          >
+            Always Run
+          </button>
+
+          <button
+            onClick={() => {
+              updateWorkflowEdge(edgeMenu.id, { condition: 'success' });
+              setEdgeMenu(null);
+              toast.success('Condition set to On Success');
+            }}
+            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-[11px] font-bold transition-all ${
+              edgeMenu.condition === 'success' ? 'bg-green-500/10 text-green-500' : 'text-[var(--text-primary)] hover:bg-surface-2'
+            }`}
+          >
+            On Success
+            <div className="w-2 h-2 rounded-full bg-green-500" />
+          </button>
+
+          <button
+            onClick={() => {
+              updateWorkflowEdge(edgeMenu.id, { condition: 'failure' });
+              setEdgeMenu(null);
+              toast.success('Condition set to On Failure');
+            }}
+            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-[11px] font-bold transition-all ${
+              edgeMenu.condition === 'failure' ? 'bg-red-500/10 text-red-500' : 'text-[var(--text-primary)] hover:bg-surface-2'
+            }`}
+          >
+            On Failure
+            <div className="w-2 h-2 rounded-full bg-red-500" />
+          </button>
+
+          <div className="h-px bg-[var(--border-2)] my-1" />
+
+          <button
+            onClick={async () => {
+              const confirmed = await confirm('Remove this connection?', { title: 'Delete Connection', type: 'warning' });
+              if (confirmed) {
+                deleteWorkflowEdge(edgeMenu.id);
+                setEdgeMenu(null);
+                toast.success('Connection removed');
+              }
+            }}
+            className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-[11px] font-bold text-red-400 hover:bg-red-500 hover:text-white transition-all"
+          >
+            <Trash2 size={14} className="opacity-70" />
+            Remove Edge
           </button>
         </div>
       )}

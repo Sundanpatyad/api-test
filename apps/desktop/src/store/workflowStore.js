@@ -71,6 +71,7 @@ export const useWorkflowStore = create(
       
       // Execution state
       isExecuting: false,
+      isPaused: false,
       executingNodeIds: new Set(),
       executionResult: null,
       executionProgress: { completed: 0, total: 0, percentage: 0 },
@@ -82,6 +83,8 @@ export const useWorkflowStore = create(
       
       // UI state
       selectedNode: null,
+      isSaving: false,
+      isLoadingWorkflows: false,
 
       // ─── Workflow Management ───────────────────────────────────
       
@@ -249,6 +252,21 @@ export const useWorkflowStore = create(
         });
       },
 
+      updateEdge: (edgeId, updates) => {
+        set((state) => {
+          const newEdges = state.currentWorkflow.edges.map((edge) =>
+            edge.id === edgeId ? { ...edge, ...updates } : edge
+          );
+          return {
+            currentWorkflow: {
+              ...state.currentWorkflow,
+              edges: newEdges,
+              updatedAt: new Date().toISOString(),
+            },
+          };
+        });
+      },
+
       setNodes: (nodes) => {
         set((state) => ({
           currentWorkflow: {
@@ -295,6 +313,7 @@ export const useWorkflowStore = create(
 
         set({ 
           isExecuting: true, 
+          isPaused: false,
           executingNodeIds: new Set(),
           executionResult: null, 
           currentWorkflow: { ...workflow, nodes: clearedNodes },
@@ -477,10 +496,32 @@ export const useWorkflowStore = create(
       cancelExecution: async () => {
         try {
           await invoke('cancel_workflow_execution');
-          set({ isExecuting: false });
+          set({ isExecuting: false, isPaused: false, executingNodeIds: new Set() });
           toast.success('Execution cancelled');
         } catch (error) {
           console.error('Failed to cancel execution:', error);
+        }
+      },
+
+      pauseExecution: async () => {
+        try {
+          await invoke('pause_workflow_execution');
+          set({ isPaused: true });
+          toast.success('Execution paused');
+        } catch (error) {
+          console.error('Failed to pause execution:', error);
+          toast.error('Failed to pause execution');
+        }
+      },
+
+      resumeExecution: async () => {
+        try {
+          await invoke('resume_workflow_execution');
+          set({ isPaused: false });
+          toast.success('Execution resumed');
+        } catch (error) {
+          console.error('Failed to resume execution:', error);
+          toast.error('Failed to resume execution');
         }
       },
 
@@ -494,12 +535,13 @@ export const useWorkflowStore = create(
           return { success: false };
         }
 
+        set({ isSaving: true });
         try {
           if (workflow.id) {
             try {
               // Update existing
               const { data } = await api.put(`/api/workflow/${workflow.id}`, workflow);
-              set({ currentWorkflow: data.workflow });
+              set({ currentWorkflow: data.workflow, isSaving: false });
               toast.success('Workflow saved');
               return { success: true, workflow: data.workflow };
             } catch (putError) {
@@ -507,7 +549,7 @@ export const useWorkflowStore = create(
               if (putError.response?.status === 404) {
                 console.log('Workflow not found for update, attempting to create new...');
                 const { data } = await api.post('/api/workflow', workflow);
-                set({ currentWorkflow: data.workflow });
+                set({ currentWorkflow: data.workflow, isSaving: false });
                 toast.success('Workflow saved (as new)');
                 return { success: true, workflow: data.workflow };
               }
@@ -516,13 +558,14 @@ export const useWorkflowStore = create(
           } else {
             // Create new
             const { data } = await api.post('/api/workflow', workflow);
-            set({ currentWorkflow: data.workflow });
+            set({ currentWorkflow: data.workflow, isSaving: false });
             toast.success('Workflow created');
             return { success: true, workflow: data.workflow };
           }
         } catch (error) {
           console.error('Failed to save workflow:', error);
           toast.error(`Failed to save: ${error.response?.data?.error || error.message}`);
+          set({ isSaving: false });
           return { success: false, error };
         }
       },
@@ -530,15 +573,17 @@ export const useWorkflowStore = create(
       fetchWorkflows: async (teamId, projectId) => {
         if (!navigator.onLine) return;
 
+        set({ isLoadingWorkflows: true });
         try {
           const params = new URLSearchParams();
           if (teamId) params.append('teamId', teamId);
           if (projectId) params.append('projectId', projectId);
 
           const { data } = await api.get(`/api/workflow?${params.toString()}`);
-          set({ workflows: data.workflows || [] });
+          set({ workflows: data.workflows || [], isLoadingWorkflows: false });
         } catch (error) {
           console.error('Failed to fetch workflows:', error);
+          set({ isLoadingWorkflows: false });
         }
       },
 
