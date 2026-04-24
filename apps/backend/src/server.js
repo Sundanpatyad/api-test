@@ -3,8 +3,7 @@
  * Replaces Next.js App Router with Express.js
  */
 
-import dotenv from 'dotenv';
-dotenv.config({ path: '.env' });
+import 'dotenv/config';
 
 import express from 'express';
 import http from 'http';
