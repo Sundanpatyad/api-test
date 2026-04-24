@@ -9,6 +9,9 @@ import { useAuthStore } from '@/store/authStore';
 import { useSocketStore } from '@/store/socketStore';
 import { getMethodClass, truncate } from '@/utils/helpers';
 import toast from 'react-hot-toast';
+import { save } from '@tauri-apps/api/dialog';
+import { writeTextFile } from '@tauri-apps/api/fs';
+import { exportToPostman } from '@/utils/postmanExporter';
 
 export default function Sidebar() {
   const { user, logout } = useAuthStore();
@@ -27,6 +30,7 @@ export default function Sidebar() {
     theme,
     toggleTheme,
     toggleLayout,
+    setContextMenu,
   } = useUIStore();
 
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -84,6 +88,59 @@ export default function Sidebar() {
     const next = new Set(expandedFolders);
     next.has(folderId) ? next.delete(folderId) : next.add(folderId);
     setExpandedFolders(next);
+  };
+
+  const handleExportCollection = async (e, col) => {
+    if (e) e.stopPropagation(); // Prevent toggling the collection
+    
+    const toastId = toast.loading(`Preparing ${col.name} for export...`);
+    try {
+      // 1. Ensure we have all requests for this collection
+      // If not initialized, fetch them first
+      if (!initializedCollections.has(col._id)) {
+        setInitializedCollections(prev => new Set(prev).add(col._id));
+        await fetchCollectionRequests(col._id);
+      }
+
+      // 2. Filter requests belonging to this collection
+      const colRequests = filteredRequests(col._id);
+      
+      // 3. Convert to Postman format
+      const postmanData = exportToPostman(col, colRequests);
+      const jsonString = JSON.stringify(postmanData, null, 2);
+
+      // 4. Save file using Tauri dialog
+      const filePath = await save({
+        filters: [{ name: 'Postman Collection', extensions: ['json'] }],
+        defaultPath: `${col.name.replace(/[^a-z0-9]/gi, '_')}.postman_collection.json`,
+      });
+
+      if (filePath) {
+        await writeTextFile(filePath, jsonString);
+        toast.success(`${col.name} exported successfully`, { id: toastId });
+      } else {
+        toast.dismiss(toastId);
+      }
+    } catch (err) {
+      console.error('Export failed:', err);
+      toast.error('Failed to export collection', { id: toastId });
+    }
+  };
+
+  const showCollectionContextMenu = (e, col) => {
+    e.preventDefault();
+    setContextMenu({
+      x: e.clientX,
+      y: e.clientY,
+      items: [
+        {
+          id: 'export',
+          label: 'Export as Postman',
+          icon: <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>,
+          onClick: () => handleExportCollection(null, col)
+        }
+      ]
+    });
   };
 
   const filteredRequests = (collectionId) =>
@@ -232,7 +289,8 @@ export default function Sidebar() {
                 <div key={col._id}>
                   <button
                     onClick={() => toggleCollection(col)}
-                    className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs transition-all w-full text-left ${
+                    onContextMenu={(e) => showCollectionContextMenu(e, col)}
+                    className={`group flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs transition-all w-full text-left ${
                       currentCollection?._id === col._id
                         ? 'bg-surface-750 text-tx-primary'
                         : 'text-surface-400 hover:text-tx-primary hover:bg-surface-800'
@@ -248,9 +306,20 @@ export default function Sidebar() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
                     </svg>
                     <span className="truncate flex-1">{col.name}</span>
-                    {col.isImported && (
-                      <span className="text-[9px] bg-warning/20 text-warning px-1 py-0.5 rounded">Postman</span>
-                    )}
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={(e) => handleExportCollection(e, col)}
+                        className="p-1 hover:text-tx-primary hover:bg-surface-3 rounded transition-colors"
+                        title="Export as Postman JSON"
+                      >
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                        </svg>
+                      </button>
+                      {col.isImported && (
+                        <span className="text-[9px] bg-warning/20 text-warning px-1 py-0.5 rounded">Postman</span>
+                      )}
+                    </div>
                   </button>
 
                   {isExpanded && (

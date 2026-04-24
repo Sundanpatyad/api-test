@@ -511,6 +511,13 @@ export default function SidebarV2({
         },
         { id: 'divider', divider: true },
         {
+          id: 'export',
+          label: 'Export as Postman',
+          icon: <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>,
+          onClick: () => handleExportCollection(null, collection)
+        },
+        { id: 'divider', divider: true },
+        {
           id: 'delete',
           label: 'Delete Collection',
           danger: true,
@@ -623,6 +630,46 @@ export default function SidebarV2({
       }
       // Ensure it becomes current
       setCurrentCollection(col);
+    }
+  };
+
+  const handleExportCollection = async (e, col) => {
+    if (e) e.stopPropagation();
+    
+    const toastId = toast.loading(`Preparing ${col.name} for export...`);
+    try {
+      // 1. Ensure we have all requests for this collection
+      if (!initializedCollections.has(col._id)) {
+        setInitializedCollections(prev => new Set(prev).add(col._id));
+        await fetchCollectionRequests(col._id);
+      }
+
+      // 2. Get requests belonging to this collection
+      const colRequests = requests.filter(r => r.collectionId === col._id);
+      
+      // 3. Convert to Postman format
+      const { exportToPostman } = await import('@/utils/postmanExporter');
+      const postmanData = exportToPostman(col, colRequests);
+      const jsonString = JSON.stringify(postmanData, null, 2);
+
+      // 4. Save file using Tauri dialog
+      const { save } = await import('@tauri-apps/api/dialog');
+      const { writeTextFile } = await import('@tauri-apps/api/fs');
+      
+      const filePath = await save({
+        filters: [{ name: 'Postman Collection', extensions: ['json'] }],
+        defaultPath: `${col.name.replace(/[^a-z0-9]/gi, '_')}.postman_collection.json`,
+      });
+
+      if (filePath) {
+        await writeTextFile(filePath, jsonString);
+        toast.success(`${col.name} exported successfully`, { id: toastId });
+      } else {
+        toast.dismiss(toastId);
+      }
+    } catch (err) {
+      console.error('Export failed:', err);
+      toast.error('Failed to export collection', { id: toastId });
     }
   };
 
