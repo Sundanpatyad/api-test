@@ -137,6 +137,61 @@ export const useAuthStore = create(
           set({ user: null, token: null });
         }
       },
+
+      forgotPassword: async (email) => {
+        set({ isLoading: true, error: null });
+        try {
+          await api.post('/api/auth/forgot-password', { email });
+          set({ isLoading: false });
+          return { success: true };
+        } catch (err) {
+          const error = err.response?.data?.error || 'Failed to send OTP';
+          set({ isLoading: false, error });
+          return { success: false, error };
+        }
+      },
+
+      resetPasswordOtp: async (email, otp, newPassword) => {
+        set({ isLoading: true, error: null });
+        try {
+          await api.post('/api/auth/reset-password-otp', { email, otp, newPassword });
+          set({ isLoading: false });
+          return { success: true };
+        } catch (err) {
+          const error = err.response?.data?.error || 'Failed to reset password';
+          set({ isLoading: false, error });
+          return { success: false, error };
+        }
+      },
+
+      verifyOtp: async (email, otp) => {
+        set({ isLoading: true, error: null });
+        try {
+          await api.post('/api/auth/verify-otp', { email, otp });
+          set({ isLoading: false });
+          return { success: true };
+        } catch (err) {
+          const error = err.response?.data?.error || 'Invalid or expired code';
+          set({ isLoading: false, error });
+          return { success: false, error };
+        }
+      },
+
+      verifySignup: async (email, otp) => {
+        set({ isLoading: true, error: null });
+        try {
+          const { data } = await api.post('/api/auth/verify-signup', { email, otp });
+          const { user, token } = data;
+          
+          localStorage.setItem('payloadx_token', token);
+          set({ user, token, isLoading: false });
+          return { success: true };
+        } catch (err) {
+          const error = err.response?.data?.error || 'Invalid or expired verification code';
+          set({ isLoading: false, error });
+          return { success: false, error };
+        }
+      },
     }),
     {
       name: 'syncnest-auth',

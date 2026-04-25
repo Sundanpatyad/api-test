@@ -10,6 +10,7 @@ export const useProjectStore = create((set, get) => ({
   currentProject: localStorageService.get(localStorageService.KEYS.CURRENT_PROJECT) || null,
   isLoading: false,
   isRefreshing: false,
+  isDeleting: false,
 
   initFromStorage: () => {
     const stored = localStorageService.get(localStorageService.KEYS.PROJECTS);
@@ -245,6 +246,7 @@ export const useProjectStore = create((set, get) => ({
 
     const isNotFound = (err) => err.response?.status === 404 || err.response?.data?.error?.includes('not found');
 
+    set({ isDeleting: true });
     try {
       await api.delete(`/api/project/${id}`);
       
@@ -274,6 +276,7 @@ export const useProjectStore = create((set, get) => ({
       return {
         projects: updated,
         currentProject: updatedCurrent,
+        isDeleting: false,
       };
     });
     
@@ -285,7 +288,8 @@ export const useProjectStore = create((set, get) => ({
       projects: [],
       currentProject: null,
       isLoading: false,
-      isRefreshing: false
+      isRefreshing: false,
+      isDeleting: false
     });
   }
 }));

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useUIStore } from '@/store/uiStore';
 
 export default function ConfirmDialog() {
@@ -5,11 +6,19 @@ export default function ConfirmDialog() {
 
   if (!showConfirmDialog || !confirmDialogConfig) return null;
 
+  const [loading, setLoading] = useState(false);
   const { title, message, itemName, onConfirm, onCancel, confirmText = 'Delete', danger = true } = confirmDialogConfig;
 
-  const handleConfirm = () => {
-    onConfirm();
-    setShowConfirmDialog(false, null);
+  const handleConfirm = async () => {
+    setLoading(true);
+    try {
+      await onConfirm();
+      setShowConfirmDialog(false, null);
+    } catch (err) {
+      console.error('Confirm action failed:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCancel = () => {
@@ -53,12 +62,23 @@ export default function ConfirmDialog() {
             </button>
             <button
               onClick={handleConfirm}
-              className={`flex-1 py-2 px-4 rounded-xl font-medium text-sm transition-all ${danger
-                  ? 'bg-danger text-white hover:bg-danger/90'
-                  : 'btn-primary'
-                }`}
+              disabled={loading}
+              className={`flex-1 py-2 px-4 rounded-xl font-medium text-sm transition-all flex items-center justify-center gap-2 ${danger
+                ? 'bg-danger text-white hover:bg-danger/90'
+                : 'btn-primary'
+                } ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
             >
-              {confirmText}
+              {loading ? (
+                <>
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                  </svg>
+                  {confirmText === 'Delete' ? 'Deleting...' : 'Processing...'}
+                </>
+              ) : (
+                confirmText
+              )}
             </button>
           </div>
         </div>

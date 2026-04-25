@@ -56,7 +56,7 @@ router.get('/', authenticate, async (req, res) => {
 
     if (teamId) query = query.where('teamId', '==', teamId);
     if (projectId) query = query.where('projectId', '==', projectId);
-    
+
     const snapshot = await query.get();
     let workflows = snapshot.docs.map(doc => ({
       _id: doc.id,
@@ -155,7 +155,7 @@ router.post('/', authenticate, async (req, res) => {
     };
 
     const docRef = await db.collection('workflows').add(workflowPayload);
-    
+
     // Fetch and return populated
     const user = await User.findById(req.user.id).select('name email').lean();
     const workflow = {
