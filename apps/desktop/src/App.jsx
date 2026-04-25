@@ -20,7 +20,7 @@ import CreateTeamModal, {
   CreateCollectionModal,
   InviteModal,
 } from '@/components/Modals/Modals';
-import CookieModal from '@/components/Modals/CookieModal';
+import SessionManagerModal from '@/components/Modals/SessionManagerModal';
 import EnvironmentSelector from '@/components/EnvironmentSelector/EnvironmentSelector';
 import LayoutV2 from '@/components/LayoutV2/LayoutV2';
 import ContextMenu from '@/components/ContextMenu/ContextMenu';
@@ -29,7 +29,7 @@ import EditNameModal from '@/components/EditNameModal/EditNameModal';
 import SyncStatusTag from '@/components/SyncStatusTag/SyncStatusTag';
 import OfflineSyncManager from '@/components/OfflineSyncManager/OfflineSyncManager';
 import { useProjectStore } from '@/store/projectStore';
-import { useWorkflowStore } from '@/store/workflowStore';
+import { useWorkflowStore, defaultWorkflow } from '@/store/workflowStore';
 
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
@@ -51,7 +51,10 @@ export default function App() {
     onProjectDeleted,
     onCollectionDeleted,
     onRequestDeleted,
-    onRequestCreated
+    onRequestCreated,
+    onWorkflowCreated,
+    onWorkflowUpdated,
+    onWorkflowDeleted
   } = useSocketStore();
   const { workflows, fetchWorkflows } = useWorkflowStore();
   const { currentTeam, initFromStorage: initTeams, updateTeamName, deleteTeam, fetchTeams, teams } = useTeamStore();
@@ -70,7 +73,7 @@ export default function App() {
     showInviteModal,
     showConfirmDialog,
     showEditNameModal,
-    showCookieModal,
+    showSessionModal,
     theme,
     layoutVersion,
     toggleLayout,
@@ -209,13 +212,50 @@ export default function App() {
     const offCollectionDeleted = onCollectionDeleted(({ collectionId }) => {
       deleteCollection(collectionId);
     });
-    const offRequestDeleted = onRequestDeleted(({ requestId }) => {
-      // Request is removed from collection store
+    const offRequestDeleted = onRequestDeleted(({ requestId, collectionId }) => {
+      // Correctly remove from collection store
+      useCollectionStore.getState().removeRequest(requestId, collectionId);
+      
+      // If it was open in requestStore, handle closing it
+      const reqStore = useRequestStore.getState();
+      if (reqStore.currentRequest?._id === requestId) {
+        reqStore.setNoActiveRequest(true);
+      }
     });
     const offRequestCreated = onRequestCreated(({ request, userId }) => {
       // Don't add if we are the creator (already handled locally)
       if (userId === user._id || userId === user.id) return;
       addRequest(request);
+    });
+
+    const offWorkflowCreated = onWorkflowCreated(({ workflow, userId }) => {
+      if (userId === user._id || userId === user.id) return;
+      const { workflows } = useWorkflowStore.getState();
+      if (!workflows.find(w => w.id === workflow.id)) {
+        useWorkflowStore.setState({ workflows: [...workflows, workflow] });
+      }
+    });
+
+    const offWorkflowUpdated = onWorkflowUpdated(({ workflow, userId }) => {
+      if (userId === user._id || userId === user.id) return;
+      const { workflows, currentWorkflow } = useWorkflowStore.getState();
+      const updatedWorkflows = workflows.map(w => w.id === workflow.id ? workflow : w);
+      const newState = { workflows: updatedWorkflows };
+      if (currentWorkflow?.id === workflow.id) {
+        newState.currentWorkflow = workflow;
+      }
+      useWorkflowStore.setState(newState);
+    });
+
+    const offWorkflowDeleted = onWorkflowDeleted(({ workflowId, userId }) => {
+      if (userId === user._id || userId === user.id) return;
+      const { workflows, currentWorkflow } = useWorkflowStore.getState();
+      const updatedWorkflows = workflows.filter(w => w.id !== workflowId);
+      const newState = { workflows: updatedWorkflows };
+      if (currentWorkflow?.id === workflowId) {
+        newState.currentWorkflow = defaultWorkflow(); // Need to import or define this, but useWorkflowStore has it
+      }
+      useWorkflowStore.setState(newState);
     });
 
     return () => {
@@ -226,6 +266,9 @@ export default function App() {
       offCollectionDeleted?.();
       offRequestDeleted?.();
       offRequestCreated?.();
+      offWorkflowCreated?.();
+      offWorkflowUpdated?.();
+      offWorkflowDeleted?.();
     };
   }, [isConnected]);
 
@@ -276,6 +319,7 @@ export default function App() {
         <ContextMenu />
         <ConfirmDialog />
         <EditNameModal />
+        {showSessionModal && <SessionManagerModal />}
 
 
 
@@ -402,7 +446,7 @@ export default function App() {
         {showProjectModal && <CreateProjectModal />}
         {showCollectionModal && <CreateCollectionModal />}
         {showInviteModal && <InviteModal />}
-        {showCookieModal && <CookieModal />}
+        {showSessionModal && <SessionManagerModal />}
         <ContextMenu />
         <ConfirmDialog />
         <EditNameModal />

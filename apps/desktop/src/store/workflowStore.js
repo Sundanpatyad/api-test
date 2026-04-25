@@ -4,54 +4,11 @@ import { v4 as uuidv4 } from 'uuid';
 import api from '@/lib/api';
 import { invoke } from '@tauri-apps/api/tauri';
 import toast from 'react-hot-toast';
+import { calculateLayers, deepClone } from '@/utils/perf';
 
-const calculateLayers = (nodes, edges) => {
-  const inDegree = {};
-  const graph = {};
-  
-  nodes.forEach(n => {
-    inDegree[n.id] = 0;
-    graph[n.id] = [];
-  });
+// calculateLayers is imported from @/utils/perf (memoized BFS)
 
-  edges.forEach(e => {
-    if (graph[e.source]) {
-      graph[e.source].push(e.target);
-      if (inDegree[e.target] !== undefined) {
-        inDegree[e.target]++;
-      }
-    }
-  });
-
-  let currentLayer = nodes.filter(n => inDegree[n.id] === 0).map(n => n.id);
-  let step = 1;
-  const layersMap = {};
-
-  while (currentLayer.length > 0) {
-    const nextLayer = [];
-    currentLayer.forEach(id => {
-      layersMap[id] = step;
-      graph[id].forEach(target => {
-        inDegree[target]--;
-        if (inDegree[target] === 0) {
-          nextLayer.push(target);
-        }
-      });
-    });
-    currentLayer = nextLayer;
-    step++;
-  }
-
-  return nodes.map(n => ({
-    ...n,
-    data: {
-      ...n.data,
-      step: layersMap[n.id] || 0
-    }
-  }));
-};
-
-const defaultWorkflow = () => ({
+export const defaultWorkflow = () => ({
   id: null,
   name: 'Untitled Workflow',
   description: '',
@@ -96,22 +53,43 @@ export const useWorkflowStore = create(
       },
 
       updateWorkflowField: (field, value) => {
-        set((state) => ({
-          currentWorkflow: {
+        set((state) => {
+          const updatedWorkflow = {
             ...state.currentWorkflow,
             [field]: value,
             updatedAt: new Date().toISOString(),
-          },
-        }));
-      },
+          };
 
-      newWorkflow: () => {
-        set({
-          currentWorkflow: defaultWorkflow(),
-          selectedNode: null,
-          executionResult: null,
+          // If updating name, sync it with the workflows list for live sidebar updates
+          let newWorkflows = state.workflows;
+          if (field === 'name') {
+            newWorkflows = state.workflows.map((w) =>
+              w.id === state.currentWorkflow.id ? { ...w, name: value } : w
+            );
+          }
+
+          return {
+            currentWorkflow: updatedWorkflow,
+            workflows: newWorkflows,
+          };
         });
       },
+
+      newWorkflow: (teamId, projectId) => {
+        const nw = defaultWorkflow();
+        nw.id = uuidv4();
+        nw.teamId = teamId || null;
+        nw.projectId = projectId || null;
+        set((state) => ({
+          currentWorkflow: nw,
+          workflows: [...state.workflows, nw],
+          selectedNode: null,
+          executionResult: null,
+        }));
+        return nw;
+      },
+
+      setWorkflows: (workflows) => set({ workflows }),
 
       // ─── Node Management ───────────────────────────────────────
 
@@ -150,23 +128,31 @@ export const useWorkflowStore = create(
       },
 
       toggleNodeSkip: (nodeId) => {
-        const nodes = get().currentWorkflow.nodes.map(n => {
-          if (n.id === nodeId) {
-            return { ...n, data: { ...n.data, skipped: !n.data.skipped } };
-          }
-          return n;
-        });
-        get().updateWorkflowField('nodes', nodes);
+        set((state) => ({
+          currentWorkflow: {
+            ...state.currentWorkflow,
+            nodes: state.currentWorkflow.nodes.map((n) =>
+              n.id === nodeId
+                ? { ...n, data: { ...n.data, skipped: !n.data.skipped } }
+                : n
+            ),
+            updatedAt: new Date().toISOString(),
+          },
+        }));
       },
 
       toggleNodeSession: (nodeId) => {
-        const nodes = get().currentWorkflow.nodes.map(n => {
-          if (n.id === nodeId) {
-            return { ...n, data: { ...n.data, save_session: !n.data.save_session } };
-          }
-          return n;
-        });
-        get().updateWorkflowField('nodes', nodes);
+        set((state) => ({
+          currentWorkflow: {
+            ...state.currentWorkflow,
+            nodes: state.currentWorkflow.nodes.map((n) =>
+              n.id === nodeId
+                ? { ...n, data: { ...n.data, save_session: !n.data.save_session } }
+                : n
+            ),
+            updatedAt: new Date().toISOString(),
+          },
+        }));
       },
 
       updateNode: (nodeId, updates) => {
@@ -186,19 +172,7 @@ export const useWorkflowStore = create(
         });
       },
 
-      toggleNodeSession: (nodeId) => {
-        set((state) => ({
-          currentWorkflow: {
-            ...state.currentWorkflow,
-            nodes: state.currentWorkflow.nodes.map((node) =>
-              node.id === nodeId
-                ? { ...node, data: { ...node.data, save_session: !node.data.save_session } }
-                : node
-            ),
-            updatedAt: new Date().toISOString(),
-          },
-        }));
-      },
+      // toggleNodeSession (deduplicated — canonical version is above)
 
       deleteNode: (nodeId) => {
         set((state) => {
@@ -448,34 +422,40 @@ export const useWorkflowStore = create(
             contextJson: JSON.stringify(context)
           });
 
-          // Update execution result
-          set(state => {
-            let newResult = state.executionResult ? { ...state.executionResult } : {
-               id: `temp_${uuidv4()}`,
-               status: 'partial',
-               node_results: [],
-               success_count: 0,
-               failed_count: 0,
-               skipped_count: 0,
-               total_nodes: workflow.nodes.length,
-               duration: 0
-            };
+          // Update execution result — O(n) single pass, no double filter
+          set((state) => {
+            const prev = state.executionResult;
+            const nodeResults = prev ? [...prev.node_results] : [];
 
-            const existingIdx = newResult.node_results.findIndex(r => r.node_id === nodeId);
+            const existingIdx = nodeResults.findIndex((r) => r.node_id === nodeId);
             if (existingIdx >= 0) {
-              newResult.node_results[existingIdx] = result;
+              nodeResults[existingIdx] = result;
             } else {
-              newResult.node_results.push(result);
+              nodeResults.push(result);
             }
 
-            // Recalculate counts
-            newResult.success_count = newResult.node_results.filter(r => r.status === 'success').length;
-            newResult.failed_count = newResult.node_results.filter(r => r.status === 'failed').length;
+            // Single-pass accumulator — O(n) instead of two O(n) filter passes
+            let successCount = 0, failedCount = 0, skippedCount = 0;
+            for (const r of nodeResults) {
+              if (r.status === 'success') successCount++;
+              else if (r.status === 'failed') failedCount++;
+              else if (r.status === 'skipped') skippedCount++;
+            }
 
-            return {
-              executingNodeIds: new Set(),
-              executionResult: newResult
+            const newResult = {
+              ...(prev ?? {
+                id: `temp_${uuidv4()}`,
+                status: 'partial',
+                total_nodes: workflow.nodes.length,
+                duration: 0,
+              }),
+              node_results: nodeResults,
+              success_count: successCount,
+              failed_count: failedCount,
+              skipped_count: skippedCount,
             };
+
+            return { executingNodeIds: new Set(), executionResult: newResult };
           });
 
           if (result.status === 'success') {
@@ -542,6 +522,17 @@ export const useWorkflowStore = create(
               // Update existing
               const { data } = await api.put(`/api/workflow/${workflow.id}`, workflow);
               set({ currentWorkflow: data.workflow, isSaving: false });
+
+              // Emit real-time update
+              const { useSocketStore } = await import('@/store/socketStore');
+              const { useAuthStore } = await import('@/store/authStore');
+              const { useTeamStore } = await import('@/store/teamStore');
+              useSocketStore.getState().emitWorkflowUpdated(
+                useTeamStore.getState().currentTeam?._id,
+                data.workflow,
+                useAuthStore.getState().user?._id
+              );
+
               toast.success('Workflow saved');
               return { success: true, workflow: data.workflow };
             } catch (putError) {
@@ -559,6 +550,17 @@ export const useWorkflowStore = create(
             // Create new
             const { data } = await api.post('/api/workflow', workflow);
             set({ currentWorkflow: data.workflow, isSaving: false });
+            
+            // Emit real-time update
+            const { useSocketStore } = await import('@/store/socketStore');
+            const { useAuthStore } = await import('@/store/authStore');
+            const { useTeamStore } = await import('@/store/teamStore');
+            useSocketStore.getState().emitWorkflowCreated(
+              useTeamStore.getState().currentTeam?._id,
+              data.workflow,
+              useAuthStore.getState().user?._id
+            );
+
             toast.success('Workflow created');
             return { success: true, workflow: data.workflow };
           }
@@ -598,6 +600,17 @@ export const useWorkflowStore = create(
           set((state) => ({
             workflows: state.workflows.filter((w) => w.id !== workflowId),
           }));
+
+          // Emit real-time update
+          const { useSocketStore } = await import('@/store/socketStore');
+          const { useAuthStore } = await import('@/store/authStore');
+          const { useTeamStore } = await import('@/store/teamStore');
+          useSocketStore.getState().emitWorkflowDeleted(
+            useTeamStore.getState().currentTeam?._id,
+            workflowId,
+            useAuthStore.getState().user?._id
+          );
+
           toast.success('Workflow deleted');
           return { success: true };
         } catch (error) {

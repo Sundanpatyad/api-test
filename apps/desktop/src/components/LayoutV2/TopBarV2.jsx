@@ -11,6 +11,8 @@ import api from '@/lib/api';
 import EnvironmentSelector from '@/components/EnvironmentSelector/EnvironmentSelector';
 import SyncStatusTag from '@/components/SyncStatusTag/SyncStatusTag';
 import ContextSelector from './ContextSelector';
+import TeamPresence from './TeamPresence';
+
 
 export default function TopBarV2({ onToggleSidebar, sidebarOpen, orientation, onToggleOrientation }) {
   const { theme, toggleTheme, toggleLayout, setActiveV2Nav, rightSidebarOpen, rightSidebarActiveTab, openRightSidebarTab, toggleRightSidebar } = useUIStore();
@@ -167,6 +169,9 @@ export default function TopBarV2({ onToggleSidebar, sidebarOpen, orientation, on
         {/* Environment selector */}
         <EnvironmentSelector />
 
+        {/* Team Presence */}
+        <TeamPresence />
+
         {/* Connection dot */}
         {currentTeam && (
           <div
@@ -217,9 +222,9 @@ export default function TopBarV2({ onToggleSidebar, sidebarOpen, orientation, on
         </button>
 
         <button
-          onClick={() => openRightSidebarTab('cookies')}
-          className={`v2-header-icon-btn ${rightSidebarOpen && rightSidebarActiveTab === 'cookies' ? 'text-[color:var(--accent)]' : ''}`}
-          title="Cookies"
+          onClick={() => openRightSidebarTab('sessions')}
+          className={`v2-header-icon-btn ${rightSidebarOpen && rightSidebarActiveTab === 'sessions' ? 'text-[color:var(--accent)]' : ''}`}
+          title="Sessions"
         >
           <Cookie size={15} />
         </button>

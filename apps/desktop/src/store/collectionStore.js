@@ -5,11 +5,14 @@ import { syncService } from '@/services/syncService';
 import { useConnectivityStore } from '@/store/connectivityStore';
 import toast from 'react-hot-toast';
 import { v4 as uuidv4 } from 'uuid';
+import { buildIndexMap } from '@/utils/perf';
 
 export const useCollectionStore = create((set, get) => ({
   collections: localStorageService.get(localStorageService.KEYS.COLLECTIONS) || [],
   currentCollection: localStorageService.get(localStorageService.KEYS.CURRENT_COLLECTION) || null,
   requests: [],
+  // O(1) request lookup Map — mirrors the requests array
+  _requestsById: new Map(),
   isLoading: false,
   isLoadingRequests: false,
   loadingCollections: {}, // Track loading state per collectionId
@@ -397,37 +400,53 @@ export const useCollectionStore = create((set, get) => ({
   addRequest: (data) => {
     set((state) => {
       const request = data.request || data;
-      // Prevent duplicates
-      if (state.requests.find(r => r._id === request._id)) {
-        return state;
-      }
+      // O(1) duplicate check via Map instead of O(n) find
+      if (state._requestsById.has(request._id)) return state;
+
       const updated = [...state.requests, request];
+      const newMap = new Map(state._requestsById);
+      newMap.set(request._id, request);
+
       const collectionRequests = updated.filter(r => r.collectionId === request.collectionId);
       localStorageService.saveRequests(request.collectionId, collectionRequests);
-      return { requests: updated };
+      return { requests: updated, _requestsById: newMap };
     });
   },
 
   updateRequest: (request) => {
     set((state) => {
+      // O(1) update: only rebuild the affected item
+      if (!state._requestsById.has(request._id)) {
+        // Not tracked yet — fall back to full replace
+        const updated = [...state.requests, request];
+        const newMap = new Map(state._requestsById);
+        newMap.set(request._id, request);
+        const collectionRequests = updated.filter(r => r.collectionId === request.collectionId);
+        localStorageService.saveRequests(request.collectionId, collectionRequests);
+        return { requests: updated, _requestsById: newMap };
+      }
+
       const updated = state.requests.map((r) => (r._id === request._id ? request : r));
-      // Only save requests for THIS specific collection
+      const newMap = new Map(state._requestsById);
+      newMap.set(request._id, request);
       const collectionRequests = updated.filter(r => r.collectionId === request.collectionId);
       localStorageService.saveRequests(request.collectionId, collectionRequests);
-      return { requests: updated };
+      return { requests: updated, _requestsById: newMap };
     });
   },
 
   removeRequest: (requestId, collectionId) => {
     set((state) => {
+      // O(1) delete from Map
+      const newMap = new Map(state._requestsById);
+      newMap.delete(requestId);
+
       const updated = state.requests.filter((r) => r._id !== requestId);
-      // Update localStorage for this specific collection
-      const collId = collectionId;
-      if (collId) {
-        const remainingForColl = updated.filter(r => r.collectionId === collId);
-        localStorageService.saveRequests(collId, remainingForColl);
+      if (collectionId) {
+        const remainingForColl = updated.filter(r => r.collectionId === collectionId);
+        localStorageService.saveRequests(collectionId, remainingForColl);
       }
-      return { requests: updated };
+      return { requests: updated, _requestsById: newMap };
     });
   },
 

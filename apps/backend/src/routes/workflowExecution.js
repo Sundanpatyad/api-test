@@ -8,6 +8,10 @@ const router = express.Router();
 // GET /api/workflow-execution - List executions
 router.get('/', authenticate, async (req, res) => {
   try {
+    if (!db) {
+      return res.status(503).json({ error: 'Firestore not initialized' });
+    }
+
     const { workflowId, teamId, status, limit = 50 } = req.query;
     let query = db.collection('workflow_executions');
 
@@ -59,6 +63,10 @@ router.get('/', authenticate, async (req, res) => {
 // GET /api/workflow-execution/:id - Get execution details
 router.get('/:id', authenticate, async (req, res) => {
   try {
+    if (!db) {
+      return res.status(503).json({ error: 'Firestore not initialized' });
+    }
+
     const doc = await db.collection('workflow_executions').doc(req.params.id).get();
 
     if (!doc.exists) {
@@ -96,6 +104,10 @@ router.get('/:id', authenticate, async (req, res) => {
 // POST /api/workflow-execution - Save execution result
 router.post('/', authenticate, async (req, res) => {
   try {
+    if (!db) {
+      return res.status(503).json({ error: 'Firestore not initialized' });
+    }
+
     const {
       workflow_id,
       workflow_name,

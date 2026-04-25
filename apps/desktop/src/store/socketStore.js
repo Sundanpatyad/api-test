@@ -52,6 +52,12 @@ export const useSocketStore = create((set, get) => ({
       }));
     });
 
+    socket.on('request_viewers_bulk', ({ presence }) => {
+      set((state) => ({
+        requestViewers: { ...state.requestViewers, ...presence },
+      }));
+    });
+
     socket.on('apidoc_viewers_updated', ({ endpointId, viewers }) => {
       set((state) => ({
         apiDocViewers: { ...state.apiDocViewers, [endpointId]: viewers },
@@ -165,6 +171,24 @@ export const useSocketStore = create((set, get) => ({
     const socket = get().socket;
     if (!socket || !teamId) return;
     socket.emit('delete_project', { teamId, projectId, userId });
+  },
+
+  emitWorkflowCreated: (teamId, workflow, userId) => {
+    const socket = get().socket;
+    if (!socket || !teamId) return;
+    socket.emit('create_workflow', { teamId, workflow, userId });
+  },
+
+  emitWorkflowUpdated: (teamId, workflow, userId) => {
+    const socket = get().socket;
+    if (!socket || !teamId) return;
+    socket.emit('update_workflow', { teamId, workflow, userId });
+  },
+
+  emitWorkflowDeleted: (teamId, workflowId, userId) => {
+    const socket = get().socket;
+    if (!socket || !teamId) return;
+    socket.emit('delete_workflow', { teamId, workflowId, userId });
   },
   // ────────────────────────────────────────────────────────────────
 
@@ -326,6 +350,27 @@ export const useSocketStore = create((set, get) => ({
       callback(data);
     });
     return () => socket.off('request_created', callback);
+  },
+
+  onWorkflowUpdated: (callback) => {
+    const socket = get().socket;
+    if (!socket) return () => { };
+    socket.on('workflow_updated', callback);
+    return () => socket.off('workflow_updated', callback);
+  },
+
+  onWorkflowCreated: (callback) => {
+    const socket = get().socket;
+    if (!socket) return () => { };
+    socket.on('workflow_created', callback);
+    return () => socket.off('workflow_created', callback);
+  },
+
+  onWorkflowDeleted: (callback) => {
+    const socket = get().socket;
+    if (!socket) return () => { };
+    socket.on('workflow_deleted', callback);
+    return () => socket.off('workflow_deleted', callback);
   },
 
   disconnect: () => {

@@ -5,6 +5,7 @@ import { useAuthStore } from '@/store/authStore';
 import toast from 'react-hot-toast';
 import RequestPresence from './RequestPresence';
 import { useUIStore } from '@/store/uiStore';
+import { useSocketStore } from '@/store/socketStore';
 import { Cookie } from 'lucide-react';
 
 // Specialized Builders
@@ -23,15 +24,7 @@ export default function RequestBuilder() {
 
   const { currentTeam } = useTeamStore();
   const { user } = useAuthStore();
-  const { emitOpenRequest, emitCloseRequest } = (function () {
-    // Lazy import or check if available to avoid circular dependencies
-    try {
-      const { useSocketStore } = require('@/store/socketStore');
-      return useSocketStore.getState();
-    } catch {
-      return { emitOpenRequest: () => { }, emitCloseRequest: () => { } };
-    }
-  })();
+  const { emitOpenRequest, emitCloseRequest } = useSocketStore();
 
   const [showProtocolDropdown, setShowProtocolDropdown] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);

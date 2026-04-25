@@ -115,7 +115,16 @@ export default function SidebarV2({
     setCurrentCollection
   } = useCollectionStore();
 
-  const { workflows, currentWorkflow, openWorkflow, fetchWorkflows } = useWorkflowStore();
+  const { 
+    workflows, 
+    currentWorkflow, 
+    openWorkflow, 
+    fetchWorkflows,
+    newWorkflow,
+    saveWorkflow,
+    deleteWorkflow,
+    updateWorkflowField,
+  } = useWorkflowStore();
 
   const { disconnect } = useSocketStore();
   const { isConnected } = useSocketStore();
@@ -158,6 +167,50 @@ export default function SidebarV2({
     const saved = localStorage.getItem('sidebar_expanded_projects');
     return saved ? new Set(JSON.parse(saved)) : new Set();
   });
+
+  // ── Workflow inline-rename state ──────────────────────────────
+  const [renamingWorkflowId, setRenamingWorkflowId] = useState(null);
+  const [renameValue, setRenameValue] = useState('');
+  const renameInputRef = useRef(null);
+
+  const startRename = (wf, e) => {
+    e.stopPropagation();
+    setRenamingWorkflowId(wf.id);
+    setRenameValue(wf.name || 'Untitled Workflow');
+    setTimeout(() => renameInputRef.current?.select(), 30);
+  };
+
+  const commitRename = async (wf) => {
+    const trimmed = renameValue.trim();
+    setRenamingWorkflowId(null);
+    if (!trimmed || trimmed === wf.name) return;
+    // If it's the currently open workflow, update via store field
+    if (currentWorkflow?.id === wf.id) {
+      updateWorkflowField('name', trimmed);
+      await saveWorkflow();
+    } else {
+      // Update in workflows list optimistically then save via API
+      const updated = { ...wf, name: trimmed };
+      openWorkflow(updated);
+      await saveWorkflow();
+      // Re-fetch to sync list
+      if (currentTeam) fetchWorkflows(currentTeam._id, currentProject?._id);
+    }
+    toast.success('Workflow renamed');
+  };
+
+  const handleDeleteWorkflow = async (wf, e) => {
+    e.stopPropagation();
+    if (!window.confirm(`Delete "${wf.name || 'Untitled Workflow'}"? This cannot be undone.`)) return;
+    await deleteWorkflow(wf.id);
+    // If we deleted the active workflow, clear canvas
+    if (currentWorkflow?.id === wf.id) newWorkflow(currentTeam?._id, currentProject?._id);
+  };
+
+  const handleCreateWorkflow = () => {
+    newWorkflow(currentTeam?._id, currentProject?._id);
+    toast.success('New workflow created — drag APIs onto the canvas');
+  };
 
   // Load section expansion state from localStorage
   const [showTeamsSection, setShowTeamsSection] = useState(() => {
@@ -537,6 +590,60 @@ export default function SidebarV2({
     });
   };
 
+
+
+  const showWorkflowContextMenu = (e, wf) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    setContextMenu({
+      x: e.clientX,
+      y: e.clientY,
+      items: [
+        {
+          id: 'rename',
+          label: 'Rename Workflow',
+          icon: <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>,
+          onClick: () => setShowEditNameModal(true, {
+            title: 'Rename Workflow',
+            itemType: 'Workflow',
+            currentName: wf.name || 'Untitled Workflow',
+            onSave: async (name) => {
+              if (currentWorkflow?.id === wf.id) {
+                updateWorkflowField('name', name);
+                await saveWorkflow();
+              } else {
+                const updated = { ...wf, name };
+                openWorkflow(updated);
+                await saveWorkflow();
+                if (currentTeam) fetchWorkflows(currentTeam._id, currentProject?._id);
+              }
+              toast.success('Workflow renamed');
+            }
+          })
+        },
+        { id: 'divider', divider: true },
+        {
+          id: 'delete',
+          label: 'Delete Workflow',
+          danger: true,
+          icon: <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>,
+          onClick: () => setShowConfirmDialog(true, {
+            title: 'Delete Workflow?',
+            message: 'This will permanently delete this workflow. This action cannot be undone.',
+            itemName: wf.name || 'Untitled Workflow',
+            onConfirm: async () => {
+              const result = await deleteWorkflow(wf.id);
+              if (result.success) {
+                if (currentWorkflow?.id === wf.id) newWorkflow(currentTeam?._id, currentProject?._id);
+              }
+            }
+          })
+        }
+      ]
+    });
+  };
+
   const showRequestContextMenu = (e, request) => {
     e.preventDefault();
     e.stopPropagation();
@@ -820,6 +927,16 @@ export default function SidebarV2({
                       tooltip="Refresh Workflows"
                       size={12}
                     />
+                    {/* New Workflow */}
+                    <button
+                      className="sdbv2-section-add"
+                      onClick={handleCreateWorkflow}
+                      title="New Workflow"
+                    >
+                      <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                    </button>
                   </div>
                 </div>
                 <div className="flex flex-col gap-1 mt-1 overflow-y-auto pr-1">
@@ -827,19 +944,38 @@ export default function SidebarV2({
                     workflows
                       .filter(w => !currentProject || w.projectId === currentProject._id)
                       .map((wf) => (
-                        <button
+                        <div
                           key={wf.id}
+                          className={`sdbv2-tree-row w-full group relative ${currentWorkflow?.id === wf.id ? 'sdbv2-tree-row--active' : ''}`}
+                          style={{ cursor: 'pointer', userSelect: 'none' }}
                           onClick={() => openWorkflow(wf)}
-                          className={`sdbv2-tree-row w-full ${currentWorkflow?.id === wf.id ? 'sdbv2-tree-row--active' : ''}`}
+                          onContextMenu={(e) => showWorkflowContextMenu(e, wf)}
                         >
-                          <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ color: 'var(--brand-500)', flexShrink: 0 }}>
+                          {/* Bolt icon */}
+                          <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ color: 'var(--accent)', flexShrink: 0 }}>
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                           </svg>
-                          <span className="sdbv2-tree-text flex-1 text-left">{wf.name || 'Untitled Workflow'}</span>
-                        </button>
+
+                          <span
+                            className="sdbv2-tree-text flex-1 text-left"
+                            title={wf.name || 'Untitled Workflow'}
+                          >
+                            {wf.name || 'Untitled Workflow'}
+                          </span>
+                        </div>
                       ))
                   ) : (
-                    <p className="sdbv2-empty-note p-2">No workflows found</p>
+                    <div
+                      className="sdbv2-empty-cta"
+                      onClick={handleCreateWorkflow}
+                      style={{ cursor: 'pointer', textAlign: 'center', padding: '12px 8px' }}
+                    >
+                      <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ color: 'var(--text-muted)', margin: '0 auto 4px' }}>
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                      <p className="sdbv2-empty-note" style={{ textAlign: 'center' }}>No workflows yet</p>
+                      <p style={{ fontSize: '10px', color: 'var(--accent)', marginTop: '2px' }}>Click to create one</p>
+                    </div>
                   )}
                 </div>
               </div>
@@ -1050,6 +1186,24 @@ export default function SidebarV2({
 }
 
 function SidebarRequest({ request, onSelect, isActive, onContextMenu }) {
+  const { requestViewers } = useSocketStore();
+  const { user: currentUser } = useAuthStore();
+
+  const viewers = (requestViewers[request._id] || []).filter(v => 
+    (v._id || v.id) !== currentUser?._id && (v._id || v.id) !== currentUser?.id
+  );
+  
+  // Unique by user ID
+  const uniqueViewers = [];
+  const seenIds = new Set();
+  viewers.forEach(v => {
+    const id = v._id || v.id;
+    if (id && !seenIds.has(id)) {
+      seenIds.add(id);
+      uniqueViewers.push(v);
+    }
+  });
+
   const isWs = request.protocol === 'ws';
   const isSio = request.protocol === 'socketio';
   const color = isWs ? '#38bdf8' : isSio ? '#f0883e' : (METHOD_COLORS[request.method] || '#9A9A9A');
@@ -1057,19 +1211,11 @@ function SidebarRequest({ request, onSelect, isActive, onContextMenu }) {
   const onDragStart = (event) => {
     try {
       const data = JSON.stringify(request);
-      // Standard types for maximum compatibility across Windows, Mac, Linux
       event.dataTransfer.setData('application/json', data);
       event.dataTransfer.setData('application/reactflow', 'api');
       event.dataTransfer.setData('text/plain', data);
-      event.dataTransfer.setData('text', data); // Legacy fallback for some OS/Browsers
-      
-      // 'all' is safest for cross-platform
+      event.dataTransfer.setData('text', data);
       event.dataTransfer.effectAllowed = 'all';
-      
-      // Some platforms need a drag image to show correctly
-      if (event.currentTarget && event.dataTransfer.setDragImage) {
-        // We use the default, but ensuring we don't block it
-      }
     } catch (e) {
       console.error('Error in onDragStart:', e);
     }
@@ -1094,10 +1240,44 @@ function SidebarRequest({ request, onSelect, isActive, onContextMenu }) {
       }}>
         {isWs ? 'WS' : isSio ? 'SIO' : (request.method || 'GET')}
       </span>
-      <span className="sdbv2-tree-text">{request.name}</span>
-      <span className="text-[10px] text-[var(--text-muted)] ml-auto opacity-0 group-hover:opacity-100">
+      <span className="sdbv2-tree-text flex-1 truncate">{request.name}</span>
+      
+      {/* Real-time Viewers */}
+      {uniqueViewers.length > 0 && (
+        <div className="flex items-center -space-x-1 ml-auto mr-1 animate-in fade-in zoom-in-75 duration-300">
+          {uniqueViewers.slice(0, 2).map((v, i) => (
+            <div
+              key={v.socketId || i}
+              title={`${v.name || v.email} is viewing`}
+              className="w-3.5 h-3.5 rounded-full border border-[var(--bg-primary)] flex items-center justify-center text-[6px] font-bold text-white shadow-sm"
+              style={{ background: stringToColor(v.name || v.email || '?') }}
+            >
+              {(v.name || v.email || '?')[0].toUpperCase()}
+            </div>
+          ))}
+          {uniqueViewers.length > 2 && (
+            <div className="w-3.5 h-3.5 rounded-full border border-[var(--bg-primary)] bg-[var(--surface-3)] flex items-center justify-center text-[6px] font-bold text-[var(--text-muted)]">
+              +{uniqueViewers.length - 2}
+            </div>
+          )}
+        </div>
+      )}
+
+      <span className={`text-[10px] text-[var(--text-muted)] opacity-0 group-hover:opacity-100 ${uniqueViewers.length > 0 ? 'hidden' : ''}`}>
         ⋮⋮
       </span>
     </div>
   );
+}
+
+function stringToColor(str) {
+  const PALETTE = [
+    '#7c3aed', '#2563eb', '#db2777', '#d97706',
+    '#059669', '#dc2626', '#0891b2', '#9333ea',
+  ];
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return PALETTE[Math.abs(hash) % PALETTE.length];
 }

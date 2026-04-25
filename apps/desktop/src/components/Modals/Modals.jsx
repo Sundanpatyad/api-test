@@ -4,6 +4,7 @@ import { useProjectStore } from '@/store/projectStore';
 import { useCollectionStore } from '@/store/collectionStore';
 import { useUIStore } from '@/store/uiStore';
 import { useAuthStore } from '@/store/authStore';
+import { useSocketStore } from '@/store/socketStore';
 import toast from 'react-hot-toast';
 
 export default function CreateTeamModal() {
@@ -164,6 +165,7 @@ export function InviteModal() {
   const { currentTeam, inviteMember, removeMember, fetchTeamDetails } = useTeamStore();
   const { user } = useAuthStore();
   const { setShowInviteModal } = useUIStore();
+  const { roomMembers } = useSocketStore();
   const [email, setEmail] = useState('');
   const [role, setRole] = useState('developer');
   const [loading, setLoading] = useState(false);
@@ -239,6 +241,9 @@ export function InviteModal() {
                       {(currentTeam.ownerId?._id || currentTeam.ownerId) === user?._id && (
                         <span className="text-surface-500 ml-1">(you)</span>
                       )}
+                      {roomMembers.some(rm => (rm._id === (currentTeam.ownerId?._id || currentTeam.ownerId) || rm.id === (currentTeam.ownerId?._id || currentTeam.ownerId))) && (
+                        <span className="ml-1.5 w-1.5 h-1.5 rounded-full bg-success inline-block shadow-[0_0_5px_var(--success)]" />
+                      )}
                     </p>
                     <p className="text-[10px] text-surface-500 truncate">{currentTeam.ownerId?.email || ''}</p>
                   </div>
@@ -264,6 +269,9 @@ export function InviteModal() {
                       <p className="text-xs text-tx-primary truncate">
                         {memberName}
                         {isYou && <span className="text-surface-500 ml-1">(you)</span>}
+                        {roomMembers.some(rm => (rm._id === memberId || rm.id === memberId)) && (
+                          <span className="ml-1.5 w-1.5 h-1.5 rounded-full bg-success inline-block shadow-[0_0_5px_var(--success)]" />
+                        )}
                       </p>
                       <p className="text-[10px] text-surface-500 truncate">{memberEmail}</p>
                     </div>

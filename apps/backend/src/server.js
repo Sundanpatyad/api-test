@@ -26,23 +26,24 @@ if (!MONGODB_URI) {
 }
 
 // ── Database Connection ───────────────────────────────────────────────────
-let cachedConnection = null;
+let cachedPromise = null;
 
 async function connectDB() {
-  if (cachedConnection) return cachedConnection;
+  if (cachedPromise) return cachedPromise;
 
-  try {
-    const conn = await mongoose.connect(MONGODB_URI, {
-      bufferCommands: false,
-      maxPoolSize: 10,
-    });
-    cachedConnection = conn;
+  cachedPromise = mongoose.connect(MONGODB_URI, {
+    bufferCommands: true,
+    maxPoolSize: 10,
+  }).then((conn) => {
     console.log('✅ MongoDB connected');
     return conn;
-  } catch (error) {
+  }).catch((error) => {
+    cachedPromise = null;
     console.error('❌ MongoDB connection error:', error.message);
     throw error;
-  }
+  });
+
+  return cachedPromise;
 }
 
 // ── Middleware ──────────────────────────────────────────────────────────────

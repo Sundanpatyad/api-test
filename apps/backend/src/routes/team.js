@@ -73,6 +73,52 @@ router.get('/:id', authenticate, async (req, res) => {
   }
 });
 
+// POST /api/team/:id/invite
+router.post('/:id/invite', authenticate, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { email, role = 'developer' } = req.body;
+
+    if (!email) return res.status(400).json({ error: 'Email is required' });
+
+    const team = await Team.findById(req.params.id);
+    if (!team) return res.status(404).json({ error: 'Team not found' });
+
+    // Permission check: only admin or owner
+    const isAdmin = team.members.some(
+      (m) => m.userId.toString() === userId && m.role === 'admin'
+    ) || team.ownerId.toString() === userId;
+
+    if (!isAdmin) return res.status(403).json({ error: 'Only admins can invite members' });
+
+    // Find the user to invite
+    const invitedUser = await User.findOne({ email: email.toLowerCase().trim() });
+    if (!invitedUser) {
+      return res.status(404).json({ error: 'User not found. They must sign up first.' });
+    }
+
+    // Check if already a member
+    const alreadyMember = team.members.some(
+      (m) => m.userId.toString() === invitedUser._id.toString()
+    );
+    if (alreadyMember) return res.status(409).json({ error: 'User is already a member' });
+
+    // Add member
+    team.members.push({ userId: invitedUser._id, role });
+    await team.save();
+
+    // Populate for response
+    const updatedTeam = await Team.findById(team._id)
+      .populate('ownerId', 'name email avatar')
+      .populate('members.userId', 'name email avatar');
+
+    res.json({ message: 'Member invited successfully', team: updatedTeam });
+  } catch (err) {
+    console.error('[POST /api/team/:id/invite] Error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // PUT /api/team/:id
 router.put('/:id', authenticate, async (req, res) => {
   try {

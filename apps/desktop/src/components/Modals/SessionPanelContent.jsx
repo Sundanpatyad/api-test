@@ -12,7 +12,7 @@ import {
   MoreVertical,
 } from 'lucide-react';
 
-export default function CookiePanelContent() {
+export default function SessionPanelContent() {
   const {
     domains,
     fetchDomains,
@@ -70,7 +70,7 @@ export default function CookiePanelContent() {
         <div className="flex items-center justify-between px-4 py-3 border-b border-[color:var(--border-1)] bg-[color:var(--bg-primary)]">
           <div className="flex items-center gap-2">
             <Cookie size={16} className="text-[color:var(--accent)]" />
-            <span className="text-xs font-semibold text-[color:var(--text-primary)]">Cookie Domains</span>
+            <span className="text-xs font-semibold text-[color:var(--text-primary)]">Session Domains</span>
             <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[color:var(--surface-2)] text-[color:var(--text-muted)]">
               {domains.length}
             </span>

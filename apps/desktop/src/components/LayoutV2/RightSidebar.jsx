@@ -1,11 +1,11 @@
 import { useUIStore } from '@/store/uiStore';
 import { Cookie, Variable, X, PanelRight } from 'lucide-react';
 import EnvironmentPanelContent from '@/components/EnvironmentPanel/EnvironmentPanelContent';
-import CookiePanelContent from '@/components/Modals/CookiePanelContent';
+import SessionPanelContent from '@/components/Modals/SessionPanelContent';
 
 const TABS = [
-  { id: 'environment', label: 'Environment', icon: Variable },
-  { id: 'cookies', label: 'Cookies', icon: Cookie },
+  { id: 'environment', label: 'Env', icon: Variable },
+  { id: 'sessions', label: 'Sessions', icon: Cookie },
 ];
 
 export default function RightSidebar() {
@@ -83,7 +83,7 @@ export default function RightSidebar() {
         {/* Content area */}
         <div className="flex-1 overflow-hidden">
           {rightSidebarActiveTab === 'environment' && <EnvironmentPanelContent />}
-          {rightSidebarActiveTab === 'cookies' && <CookiePanelContent />}
+          {rightSidebarActiveTab === 'sessions' && <SessionPanelContent />}
         </div>
       </div>
 

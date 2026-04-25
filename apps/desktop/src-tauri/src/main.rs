@@ -11,6 +11,9 @@ use commands::http::{execute_request, get_cookies, set_cookie, delete_cookie, li
 use commands::files::{save_local_file, read_local_file, list_local_files};
 use commands::json::parse_json;
 use commands::workflow::{execute_workflow, execute_single_node, validate_workflow, cancel_workflow_execution};
+use commands::url_tools::{url_parse_params, url_build_from_params};
+use commands::env_tools::{resolve_env_variables, resolve_env_in_object};
+use commands::postman::parse_postman_collection;
 
 use std::sync::Mutex;
 use std::collections::HashMap;
@@ -371,6 +374,11 @@ fn main() {
             cancel_workflow_execution,
             pause_workflow_execution,
             resume_workflow_execution,
+            url_parse_params,
+            url_build_from_params,
+            resolve_env_variables,
+            resolve_env_in_object,
+            parse_postman_collection,
         ])
         .run(tauri::generate_context!())
         .expect("error while running PayloadX API Studio");

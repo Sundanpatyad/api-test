@@ -13,8 +13,8 @@ import {
   AlertCircle,
 } from 'lucide-react';
 
-export default function CookieModal() {
-  const { setShowCookieModal } = useUIStore();
+export default function SessionManagerModal() {
+  const { setShowSessionModal } = useUIStore();
   const {
     domains,
     fetchDomains,
@@ -43,7 +43,7 @@ export default function CookieModal() {
 
   const handleClose = () => {
     setVisible(false);
-    setTimeout(() => setShowCookieModal(false), 300);
+    setTimeout(() => setShowSessionModal(false), 300);
   };
 
   const handleAddDomain = (e) => {
@@ -110,7 +110,7 @@ export default function CookieModal() {
             </div>
             <div>
               <h2 style={{ fontFamily: 'Syne, sans-serif', fontWeight: 900, fontSize: '14px', color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                {view === 'allowlist' ? 'Domain Allowlist' : 'Cookie Manager'}
+                {view === 'allowlist' ? 'Domain Allowlist' : 'Session Manager'}
               </h2>
               <p style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '1px' }}>
                 {view === 'allowlist' ? 'Control cookie access per domain' : 'Manage per-domain cookies for requests'}

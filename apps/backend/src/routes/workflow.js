@@ -17,105 +17,45 @@ const router = express.Router();
  *       properties:
  *         id:
  *           type: string
- *           description: The auto-generated id of the workflow
  *         name:
  *           type: string
- *           description: The name of the workflow
  *         description:
  *           type: string
- *           description: Brief description of the workflow
  *         teamId:
  *           type: string
- *           description: The team ID this workflow belongs to
  *         projectId:
  *           type: string
- *           description: The project ID this workflow belongs to (optional)
  *         nodes:
  *           type: array
  *           items:
  *             type: object
- *           description: ReactFlow nodes configuration
  *         edges:
  *           type: array
  *           items:
  *             type: object
- *           description: ReactFlow edges configuration with branching logic
  *         createdBy:
  *           type: object
- *           properties:
- *             _id:
- *               type: string
- *             name:
- *               type: string
- *             email:
- *               type: string
  *         version:
  *           type: number
  *         createdAt:
  *           type: string
- *           format: date-time
  *         updatedAt:
  *           type: string
- *           format: date-time
- */
-
-/**
- * @swagger
- * tags:
- *   name: Workflows
- *   description: Workflow management API
  */
 
 // ─── Workflow Routes ────────────────────────────────────────────────────────
 
-/**
- * @swagger
- * /api/workflow:
- *   get:
- *     summary: Returns the list of all the workflows
- *     tags: [Workflows]
- *     parameters:
- *       - in: query
- *         name: teamId
- *         schema:
- *           type: string
- *         description: Filter by team ID
- *       - in: query
- *         name: projectId
- *         schema:
- *           type: string
- *         description: Filter by project ID
- *       - in: query
- *         name: search
- *         schema:
- *           type: string
- *         description: Search by workflow name
- *     responses:
- *       200:
- *         description: The list of workflows
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 workflows:
- *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/Workflow'
- *       500:
- *         description: Server error
- */
 router.get('/', authenticate, async (req, res) => {
   try {
+    if (!db) {
+      return res.status(503).json({ error: 'Firestore not initialized. Check backend environment variables.' });
+    }
+
     const { teamId, projectId, search } = req.query;
     let query = db.collection('workflows');
 
     if (teamId) query = query.where('teamId', '==', teamId);
     if (projectId) query = query.where('projectId', '==', projectId);
-    
-    // Firestore doesn't support easy case-insensitive partial match like MongoDB
-    // For simple search, we fetch and filter in memory if needed, 
-    // but better to use proper Firestore queries if possible.
     
     const snapshot = await query.get();
     let workflows = snapshot.docs.map(doc => ({
@@ -124,7 +64,7 @@ router.get('/', authenticate, async (req, res) => {
       ...doc.data()
     }));
 
-    // Sort in memory to avoid "index required" error
+    // Sort in memory to avoid index requirements for now
     workflows.sort((a, b) => {
       const dateA = new Date(a.updatedAt || 0);
       const dateB = new Date(b.updatedAt || 0);
@@ -136,7 +76,7 @@ router.get('/', authenticate, async (req, res) => {
       workflows = workflows.filter(w => w.name.toLowerCase().includes(searchLower));
     }
 
-    // Manual populate for createdBy (User is still in MongoDB)
+    // Manual populate for createdBy (User is in MongoDB)
     const userIds = [...new Set(workflows.map(w => w.createdBy))].filter(id => id);
     const users = await User.find({ _id: { $in: userIds } }).select('name email').lean();
     const userMap = users.reduce((acc, user) => {
@@ -156,33 +96,12 @@ router.get('/', authenticate, async (req, res) => {
   }
 });
 
-/**
- * @swagger
- * /api/workflow/{id}:
- *   get:
- *     summary: Get a workflow by id
- *     tags: [Workflows]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: The workflow id
- *     responses:
- *       200:
- *         description: The workflow description by id
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Workflow'
- *       404:
- *         description: Workflow not found
- *       500:
- *         description: Server error
- */
 router.get('/:id', authenticate, async (req, res) => {
   try {
+    if (!db) {
+      return res.status(503).json({ error: 'Firestore not initialized' });
+    }
+
     const doc = await db.collection('workflows').doc(req.params.id).get();
 
     if (!doc.exists) {
@@ -209,56 +128,16 @@ router.get('/:id', authenticate, async (req, res) => {
   }
 });
 
-/**
- * @swagger
- * /api/workflow:
- *   post:
- *     summary: Create a new workflow
- *     tags: [Workflows]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - name
- *               - teamId
- *             properties:
- *               name:
- *                 type: string
- *               description:
- *                 type: string
- *               teamId:
- *                 type: string
- *               projectId:
- *                 type: string
- *               nodes:
- *                 type: array
- *                 items:
- *                   type: object
- *               edges:
- *                 type: array
- *                 items:
- *                   type: object
- *     responses:
- *       201:
- *         description: The workflow was successfully created
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Workflow'
- *       400:
- *         description: Missing required fields
- *       500:
- *         description: Server error
- */
 router.post('/', authenticate, async (req, res) => {
   try {
     const { name, description, teamId, projectId, nodes, edges } = req.body;
 
     if (!name || !teamId) {
       return res.status(400).json({ error: 'Name and teamId are required' });
+    }
+
+    if (!db) {
+      return res.status(503).json({ error: 'Firestore not initialized' });
     }
 
     const now = new Date().toISOString();
@@ -293,51 +172,12 @@ router.post('/', authenticate, async (req, res) => {
   }
 });
 
-/**
- * @swagger
- * /api/workflow/{id}:
- *   put:
- *     summary: Update a workflow
- *     tags: [Workflows]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: The workflow id
- *     requestBody:
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               name:
- *                 type: string
- *               description:
- *                 type: string
- *               nodes:
- *                 type: array
- *                 items:
- *                   type: object
- *               edges:
- *                 type: array
- *                 items:
- *                   type: object
- *     responses:
- *       200:
- *         description: The workflow was updated
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Workflow'
- *       404:
- *         description: Workflow not found
- *       500:
- *         description: Server error
- */
 router.put('/:id', authenticate, async (req, res) => {
   try {
+    if (!db) {
+      return res.status(503).json({ error: 'Firestore not initialized' });
+    }
+
     const { name, description, nodes, edges } = req.body;
     const docRef = db.collection('workflows').doc(req.params.id);
     const doc = await docRef.get();
@@ -379,29 +219,12 @@ router.put('/:id', authenticate, async (req, res) => {
   }
 });
 
-/**
- * @swagger
- * /api/workflow/{id}:
- *   delete:
- *     summary: Delete a workflow
- *     tags: [Workflows]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: The workflow id
- *     responses:
- *       200:
- *         description: The workflow was deleted
- *       404:
- *         description: Workflow not found
- *       500:
- *         description: Server error
- */
 router.delete('/:id', authenticate, async (req, res) => {
   try {
+    if (!db) {
+      return res.status(503).json({ error: 'Firestore not initialized' });
+    }
+
     const docRef = db.collection('workflows').doc(req.params.id);
     const doc = await docRef.get();
 
