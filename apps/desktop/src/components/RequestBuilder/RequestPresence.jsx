@@ -13,10 +13,19 @@ export default function RequestPresence({ requestId }) {
 
   if (!requestId) return null;
 
-  // Filter out the current user from the viewer list
-  const viewers = (requestViewers[requestId] || []).filter(
-    (v) => v._id !== user?._id && v.id !== user?._id
-  );
+  // Unique viewers by ID (one user might have multiple tabs/sockets)
+  const uniqueViewers = [];
+  const seenIds = new Set();
+  
+  (requestViewers[requestId] || []).forEach(v => {
+    const userId = v._id || v.id;
+    if (userId && userId !== user?._id && userId !== user?.id && !seenIds.has(userId)) {
+      seenIds.add(userId);
+      uniqueViewers.push(v);
+    }
+  });
+
+  const viewers = uniqueViewers;
 
   if (viewers.length === 0) return null;
 

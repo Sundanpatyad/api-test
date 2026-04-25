@@ -4,6 +4,9 @@ import { useTeamStore } from '@/store/teamStore';
 import { useAuthStore } from '@/store/authStore';
 import toast from 'react-hot-toast';
 import RequestPresence from './RequestPresence';
+import { useUIStore } from '@/store/uiStore';
+import { useSocketStore } from '@/store/socketStore';
+import { Cookie } from 'lucide-react';
 
 // Specialized Builders
 import RESTRequestBuilder from './RESTRequestBuilder';
@@ -11,25 +14,17 @@ import WSRequestBuilder from './WSRequestBuilder';
 import SIORequestBuilder from './SIORequestBuilder';
 
 export default function RequestBuilder() {
-  const { 
-    currentRequest, 
-    updateField, 
-    saveRequest, 
-    noActiveRequest, 
-    newRequest 
+  const {
+    currentRequest,
+    updateField,
+    saveRequest,
+    noActiveRequest,
+    newRequest
   } = useRequestStore();
-  
+
   const { currentTeam } = useTeamStore();
   const { user } = useAuthStore();
-  const { emitOpenRequest, emitCloseRequest } = (function() {
-    // Lazy import or check if available to avoid circular dependencies
-    try {
-      const { useSocketStore } = require('@/store/socketStore');
-      return useSocketStore.getState();
-    } catch {
-      return { emitOpenRequest: () => {}, emitCloseRequest: () => {} };
-    }
-  })();
+  const { emitOpenRequest, emitCloseRequest } = useSocketStore();
 
   const [showProtocolDropdown, setShowProtocolDropdown] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
@@ -66,7 +61,7 @@ export default function RequestBuilder() {
     if ((e.metaKey || e.ctrlKey) && e.key === 's') {
       e.preventDefault();
       if (isSaving) return;
-      
+
       setIsSaving(true);
       try {
         const r = await saveRequest();
@@ -78,7 +73,7 @@ export default function RequestBuilder() {
     }
   }, [saveRequest, isSaving]);
 
-  if (noActiveRequest) {
+  if (noActiveRequest || !currentRequest) {
     return <EmptyState onNewRequest={newRequest} />;
   }
 
@@ -116,8 +111,8 @@ export default function RequestBuilder() {
                 {PROTOCOLS.map((p) => (
                   <button
                     key={p.id}
-                    onClick={() => { 
-                      updateField('protocol', p.id); 
+                    onClick={() => {
+                      updateField('protocol', p.id);
                       // If switching to ws/sio, ensure method is cleared so it doesn't show in sidebars inadvertently
                       if (p.id !== 'http') {
                         updateField('method', undefined);
@@ -129,7 +124,7 @@ export default function RequestBuilder() {
                       } else {
                         updateField('method', 'GET');
                       }
-                      setShowProtocolDropdown(false); 
+                      setShowProtocolDropdown(false);
                     }}
                     className={`flex items-center justify-between w-full px-3 py-1.5 text-[11px] font-medium hover:bg-surface-700 transition-colors ${currentRequest.protocol === p.id ? 'text-[color:var(--accent)] bg-surface-800' : 'text-[color:var(--text-muted)]'}`}
                   >
@@ -165,7 +160,7 @@ export default function RequestBuilder() {
 
         <div className="flex items-center gap-2 flex-shrink-0">
           <RequestPresence requestId={currentRequest?._id} />
-          
+
           {currentRequest.creatorId?.name && (
             <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-[var(--surface-2)] border border-[var(--border-1)]">
               <div className="w-4 h-4 rounded-full bg-[var(--accent)] flex items-center justify-center text-[9px] font-bold text-white">
@@ -174,6 +169,14 @@ export default function RequestBuilder() {
               <span className="text-[11px] text-[var(--text-muted)]">{currentRequest.creatorId.name}</span>
             </div>
           )}
+
+          <button
+            title="Manage Cookies"
+            onClick={() => useUIStore.getState().openRightSidebarTab('cookies')}
+            className="btn-ghost flex items-center justify-center p-1.5 opacity-70 hover:opacity-100 hover:bg-[color:var(--surface-3)] hover:text-[color:var(--accent)] transition-all rounded-md w-[27px] h-[27px]"
+          >
+            <Cookie size={16} />
+          </button>
 
           <button
             title="Save Request"

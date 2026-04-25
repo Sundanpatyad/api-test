@@ -1,6 +1,6 @@
 {
   "name": "payloadx-api-studio",
-  "version": "1.4.1",
+  "version": "1.4.5",
   "private": true,
   "workspaces": [
     "apps/backend",
@@ -15,5 +15,9 @@
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1"
   }
 }

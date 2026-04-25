@@ -159,6 +159,9 @@ export const useProjectStore = create((set, get) => ({
         localStorageService.saveProjects(updated);
         return { projects: updated, isLoading: false };
       });
+
+      // Auto-select the newly created project
+      await get().setCurrentProject(data.project);
       
       if (data.project?._id) {
         const { useSocketStore } = await import('@/store/socketStore');
@@ -177,9 +180,21 @@ export const useProjectStore = create((set, get) => ({
     }
   },
 
-  setCurrentProject: (project) => {
+  setCurrentProject: async (project) => {
     set({ currentProject: project });
     localStorageService.saveCurrentProject(project);
+
+    // Clear dependent states when project changes to avoid stale data
+    try {
+      const { useCollectionStore } = await import('@/store/collectionStore');
+      const { useRequestStore } = await import('@/store/requestStore');
+
+      useCollectionStore.getState().setCurrentCollection(null);
+      useRequestStore.getState().setCurrentRequest(null);
+      useRequestStore.getState().setNoActiveRequest(true);
+    } catch (err) {
+      console.error('Failed to reset dependent stores:', err);
+    }
   },
 
   // Get projects filtered by team ID

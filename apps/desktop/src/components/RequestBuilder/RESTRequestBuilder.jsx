@@ -115,7 +115,7 @@ export default function RESTRequestBuilder() {
       }
       useRequestStore.setState({ cancelCurrentRequest: null });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentRequest, activeEnvironment, resolveVariables, addToHistory, currentTeam, user, emitRequestUpdate]);
 
   const tabs = [

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+  import { useState, useEffect, useRef, useMemo } from 'react';
 import { useTeamStore } from '@/store/teamStore';
 import { useProjectStore } from '@/store/projectStore';
 import { useCollectionStore } from '@/store/collectionStore';
@@ -9,8 +9,9 @@ import { useSocketStore } from '@/store/socketStore';
 import toast from 'react-hot-toast';
 import api from '@/lib/api';
 import { v4 as uuidv4 } from 'uuid';
+import { useWorkflowStore } from '@/store/workflowStore';
 import RefreshButton from '@/components/RefreshButton/RefreshButton';
-import logo from '@/assets/logo.png';
+import PayloadX from '@/components/core/logo';
 
 const NAV_ITEMS = [
   {
@@ -19,6 +20,15 @@ const NAV_ITEMS = [
     icon: (
       <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+      </svg>
+    ),
+  },
+  {
+    id: 'workflow',
+    label: 'Workflow',
+    icon: (
+      <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 5a1 1 0 011-1h4a1 1 0 011 1v7a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v7a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 16a1 1 0 011-1h4a1 1 0 011 1v3a1 1 0 01-1 1H5a1 1 0 01-1-1v-3zM14 16a1 1 0 011-1h4a1 1 0 011 1v3a1 1 0 01-1 1h-4a1 1 0 01-1-1v-3z" />
       </svg>
     ),
   },
@@ -105,6 +115,17 @@ export default function SidebarV2({
     setCurrentCollection
   } = useCollectionStore();
 
+  const { 
+    workflows, 
+    currentWorkflow, 
+    openWorkflow, 
+    fetchWorkflows,
+    newWorkflow,
+    saveWorkflow,
+    deleteWorkflow,
+    updateWorkflowField,
+  } = useWorkflowStore();
+
   const { disconnect } = useSocketStore();
   const { isConnected } = useSocketStore();
   const {
@@ -141,11 +162,55 @@ export default function SidebarV2({
   const [showLogout, setShowLogout] = useState(false);
   const logoutMenuRef = useRef(null);
   const [initializedCollections, setInitializedCollections] = useState(new Set());
-  
+
   const [expandedProjects, setExpandedProjects] = useState(() => {
     const saved = localStorage.getItem('sidebar_expanded_projects');
     return saved ? new Set(JSON.parse(saved)) : new Set();
   });
+
+  // ── Workflow inline-rename state ──────────────────────────────
+  const [renamingWorkflowId, setRenamingWorkflowId] = useState(null);
+  const [renameValue, setRenameValue] = useState('');
+  const renameInputRef = useRef(null);
+
+  const startRename = (wf, e) => {
+    e.stopPropagation();
+    setRenamingWorkflowId(wf.id);
+    setRenameValue(wf.name || 'Untitled Workflow');
+    setTimeout(() => renameInputRef.current?.select(), 30);
+  };
+
+  const commitRename = async (wf) => {
+    const trimmed = renameValue.trim();
+    setRenamingWorkflowId(null);
+    if (!trimmed || trimmed === wf.name) return;
+    // If it's the currently open workflow, update via store field
+    if (currentWorkflow?.id === wf.id) {
+      updateWorkflowField('name', trimmed);
+      await saveWorkflow();
+    } else {
+      // Update in workflows list optimistically then save via API
+      const updated = { ...wf, name: trimmed };
+      openWorkflow(updated);
+      await saveWorkflow();
+      // Re-fetch to sync list
+      if (currentTeam) fetchWorkflows(currentTeam._id, currentProject?._id);
+    }
+    toast.success('Workflow renamed');
+  };
+
+  const handleDeleteWorkflow = async (wf, e) => {
+    e.stopPropagation();
+    if (!window.confirm(`Delete "${wf.name || 'Untitled Workflow'}"? This cannot be undone.`)) return;
+    await deleteWorkflow(wf.id);
+    // If we deleted the active workflow, clear canvas
+    if (currentWorkflow?.id === wf.id) newWorkflow(currentTeam?._id, currentProject?._id);
+  };
+
+  const handleCreateWorkflow = () => {
+    newWorkflow(currentTeam?._id, currentProject?._id);
+    toast.success('New workflow created — drag APIs onto the canvas');
+  };
 
   // Load section expansion state from localStorage
   const [showTeamsSection, setShowTeamsSection] = useState(() => {
@@ -174,10 +239,14 @@ export default function SidebarV2({
   }, [showProjectsSection]);
 
   // Filtered data based on current selection
-  const filteredProjects = useMemo(() =>
-    currentTeam ? getFilteredProjects(currentTeam._id) : [],
-    [currentTeam?._id, projects]
-  );
+  const filteredProjects = useMemo(() => {
+    if (!currentTeam) return [];
+    const all = getFilteredProjects(currentTeam._id);
+    if (currentProject) {
+      return all.filter(p => p._id === currentProject._id);
+    }
+    return all;
+  }, [currentTeam?._id, currentProject?._id, projects]);
 
   const filteredCollections = useMemo(() =>
     currentProject ? getFilteredCollections(currentProject._id) : [],
@@ -187,9 +256,9 @@ export default function SidebarV2({
   // ── Data fetching ──────────────────
   useEffect(() => { fetchTeams(); }, []);
   useEffect(() => { if (currentTeam) fetchProjects(currentTeam._id); }, [currentTeam?._id]);
-  
+
   // Auto-Sync everything if collections is empty or on team change
-  useEffect(() => { 
+  useEffect(() => {
     if (currentTeam && collections.length === 0) {
       syncAll(currentTeam._id);
     }
@@ -254,7 +323,7 @@ export default function SidebarV2({
   useEffect(() => {
     const handleCollectionImported = (e) => {
       const { collectionId, projectId } = e.detail || {};
-      
+
       // Expand the collection
       const currentExpanded = expandedCollectionsRef.current;
       if (collectionId && !currentExpanded.has(collectionId)) {
@@ -264,7 +333,7 @@ export default function SidebarV2({
         // Fetch requests from API for the newly imported collection
         fetchCollectionRequests(collectionId, true);
       }
-      
+
       // Expand the parent project so the collection is visible
       if (projectId && !expandedProjects.has(projectId)) {
         const nextProjects = new Set([...expandedProjects, projectId]);
@@ -495,6 +564,13 @@ export default function SidebarV2({
         },
         { id: 'divider', divider: true },
         {
+          id: 'export',
+          label: 'Export as Postman',
+          icon: <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>,
+          onClick: () => handleExportCollection(null, collection)
+        },
+        { id: 'divider', divider: true },
+        {
           id: 'delete',
           label: 'Delete Collection',
           danger: true,
@@ -507,6 +583,60 @@ export default function SidebarV2({
               const result = await deleteCollection(collection._id);
               if (result.success) toast.success('Collection deleted');
               else toast.error(result.error);
+            }
+          })
+        }
+      ]
+    });
+  };
+
+
+
+  const showWorkflowContextMenu = (e, wf) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    setContextMenu({
+      x: e.clientX,
+      y: e.clientY,
+      items: [
+        {
+          id: 'rename',
+          label: 'Rename Workflow',
+          icon: <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>,
+          onClick: () => setShowEditNameModal(true, {
+            title: 'Rename Workflow',
+            itemType: 'Workflow',
+            currentName: wf.name || 'Untitled Workflow',
+            onSave: async (name) => {
+              if (currentWorkflow?.id === wf.id) {
+                updateWorkflowField('name', name);
+                await saveWorkflow();
+              } else {
+                const updated = { ...wf, name };
+                openWorkflow(updated);
+                await saveWorkflow();
+                if (currentTeam) fetchWorkflows(currentTeam._id, currentProject?._id);
+              }
+              toast.success('Workflow renamed');
+            }
+          })
+        },
+        { id: 'divider', divider: true },
+        {
+          id: 'delete',
+          label: 'Delete Workflow',
+          danger: true,
+          icon: <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>,
+          onClick: () => setShowConfirmDialog(true, {
+            title: 'Delete Workflow?',
+            message: 'This will permanently delete this workflow. This action cannot be undone.',
+            itemName: wf.name || 'Untitled Workflow',
+            onConfirm: async () => {
+              const result = await deleteWorkflow(wf.id);
+              if (result.success) {
+                if (currentWorkflow?.id === wf.id) newWorkflow(currentTeam?._id, currentProject?._id);
+              }
             }
           })
         }
@@ -610,6 +740,46 @@ export default function SidebarV2({
     }
   };
 
+  const handleExportCollection = async (e, col) => {
+    if (e) e.stopPropagation();
+    
+    const toastId = toast.loading(`Preparing ${col.name} for export...`);
+    try {
+      // 1. Ensure we have all requests for this collection
+      if (!initializedCollections.has(col._id)) {
+        setInitializedCollections(prev => new Set(prev).add(col._id));
+        await fetchCollectionRequests(col._id);
+      }
+
+      // 2. Get requests belonging to this collection
+      const colRequests = requests.filter(r => r.collectionId === col._id);
+      
+      // 3. Convert to Postman format
+      const { exportToPostman } = await import('@/utils/postmanExporter');
+      const postmanData = exportToPostman(col, colRequests);
+      const jsonString = JSON.stringify(postmanData, null, 2);
+
+      // 4. Save file using Tauri dialog
+      const { save } = await import('@tauri-apps/api/dialog');
+      const { writeTextFile } = await import('@tauri-apps/api/fs');
+      
+      const filePath = await save({
+        filters: [{ name: 'Postman Collection', extensions: ['json'] }],
+        defaultPath: `${col.name.replace(/[^a-z0-9]/gi, '_')}.postman_collection.json`,
+      });
+
+      if (filePath) {
+        await writeTextFile(filePath, jsonString);
+        toast.success(`${col.name} exported successfully`, { id: toastId });
+      } else {
+        toast.dismiss(toastId);
+      }
+    } catch (err) {
+      console.error('Export failed:', err);
+      toast.error('Failed to export collection', { id: toastId });
+    }
+  };
+
   const toggleProject = (projectId) => {
     const next = new Set(expandedProjects);
     if (next.has(projectId)) next.delete(projectId);
@@ -704,9 +874,7 @@ export default function SidebarV2({
         {/* Logo & App Name */}
         <div className="sdbv2-header">
           <div className="sdbv2-logo-row">
-            <div className="sdbv2-logo-icon">
-              <img src={logo} alt="PayloadX" className="w-5 h-5 object-contain" />
-            </div>
+            <PayloadX className="w-5 h-5" fontSize="8px" />
             <div className="sdbv2-logo-text">
               <span className="sdbv2-app-name">PayloadX Studio</span>
               {currentTeam && (
@@ -747,6 +915,103 @@ export default function SidebarV2({
                 <p className="sdbv2-empty-note">No matches found in project</p>
               )}
             </div>
+          ) : activeV2Nav === 'workflow' ? (
+            <div className="flex-1 flex flex-col min-h-0">
+              {/* Workflows List */}
+              <div className="sdbv2-section shrink-0 max-h-[40%] flex flex-col">
+                <div className="sdbv2-section-head">
+                  <span className="sdbv2-section-label">My Workflows</span>
+                  <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                    <RefreshButton
+                      onRefresh={() => currentTeam && fetchWorkflows(currentTeam._id, currentProject?._id)}
+                      tooltip="Refresh Workflows"
+                      size={12}
+                    />
+                    {/* New Workflow */}
+                    <button
+                      className="sdbv2-section-add"
+                      onClick={handleCreateWorkflow}
+                      title="New Workflow"
+                    >
+                      <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1 mt-1 overflow-y-auto pr-1">
+                  {workflows.filter(w => !currentProject || w.projectId === currentProject._id).length > 0 ? (
+                    workflows
+                      .filter(w => !currentProject || w.projectId === currentProject._id)
+                      .map((wf) => (
+                        <div
+                          key={wf.id}
+                          className={`sdbv2-tree-row w-full group relative ${currentWorkflow?.id === wf.id ? 'sdbv2-tree-row--active' : ''}`}
+                          style={{ cursor: 'pointer', userSelect: 'none' }}
+                          onClick={() => openWorkflow(wf)}
+                          onContextMenu={(e) => showWorkflowContextMenu(e, wf)}
+                        >
+                          {/* Bolt icon */}
+                          <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ color: 'var(--accent)', flexShrink: 0 }}>
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                          </svg>
+
+                          <span
+                            className="sdbv2-tree-text flex-1 text-left"
+                            title={wf.name || 'Untitled Workflow'}
+                          >
+                            {wf.name || 'Untitled Workflow'}
+                          </span>
+                        </div>
+                      ))
+                  ) : (
+                    <div
+                      className="sdbv2-empty-cta"
+                      onClick={handleCreateWorkflow}
+                      style={{ cursor: 'pointer', textAlign: 'center', padding: '12px 8px' }}
+                    >
+                      <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ color: 'var(--text-muted)', margin: '0 auto 4px' }}>
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                      <p className="sdbv2-empty-note" style={{ textAlign: 'center' }}>No workflows yet</p>
+                      <p style={{ fontSize: '10px', color: 'var(--accent)', marginTop: '2px' }}>Click to create one</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* APIs List (for drag and drop) */}
+              <div className="sdbv2-section flex-1 flex flex-col min-h-0 border-t border-[var(--border-1)] mt-2 pt-2">
+                <div className="sdbv2-section-head">
+                  <span className="sdbv2-section-label">Drag APIs to Canvas</span>
+                </div>
+                <div className="flex-1 overflow-y-auto pr-1 mt-1">
+                  {currentProject ? (
+                    filteredProjects.map((project) => {
+                      const projectCollections = collectionsByProject[project._id] || [];
+                      return projectCollections.map((col) => (
+                        <div key={col._id} className="mb-2">
+                          <div className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider px-2 mb-1 opacity-50 flex items-center gap-1">
+                            <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+                            {col.name}
+                          </div>
+                          {requests.filter(r => r.collectionId === col._id).map(req => (
+                            <SidebarRequest
+                              key={req._id}
+                              request={req}
+                              onSelect={() => {}} // No-op on click in workflow mode, just drag
+                              isActive={false}
+                            />
+                          ))}
+                        </div>
+                      ));
+                    })
+                  ) : (
+                    <p className="sdbv2-empty-note p-4 text-center">Select a project to see APIs</p>
+                  )}
+                </div>
+              </div>
+            </div>
           ) : (
             <>
               {/* Grouped Projects & Collections - Only show when project is selected */}
@@ -786,11 +1051,11 @@ export default function SidebarV2({
                       {filteredProjects.map((project) => {
                         const projectCollections = collectionsByProject[project._id] || [];
                         const isProjExp = expandedProjects.has(project._id);
-                        
+
                         return (
                           <div key={project._id} className="mb-1">
                             {/* Project Header */}
-                            <button 
+                            <button
                               onClick={() => toggleProject(project._id)}
                               className="sdbv2-tree-row w-full opacity-80 hover:opacity-100"
                               style={{ paddingLeft: '4px' }}
@@ -825,86 +1090,86 @@ export default function SidebarV2({
                                           <span className="sdbv2-tree-text flex-1 text-left">{col.name}</span>
                                         </button>
 
-                                      <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <RefreshButton
-                                          onRefresh={async () => {
-                                            setRefreshingColId(col._id);
-                                            const result = await refreshCollectionRequests(col._id);
-                                            setRefreshingColId(null);
-                                            if (result.success) toast.success(`Synced ${col.name}`);
-                                            else toast.error('Sync failed');
-                                          }}
-                                          loading={refreshingColId === col._id}
-                                          tooltip="Refresh APIs"
-                                          size={12}
-                                        />
+                                        <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                          <RefreshButton
+                                            onRefresh={async () => {
+                                              setRefreshingColId(col._id);
+                                              const result = await refreshCollectionRequests(col._id);
+                                              setRefreshingColId(null);
+                                              if (result.success) toast.success(`Synced ${col.name}`);
+                                              else toast.error('Sync failed');
+                                            }}
+                                            loading={refreshingColId === col._id}
+                                            tooltip="Refresh APIs"
+                                            size={12}
+                                          />
+                                        </div>
                                       </div>
+                                      {isExp && (
+                                        <div className="sdbv2-indent animate-in">
+                                          {loadingCollections[col._id] ? (
+                                            <div className="flex flex-col gap-1 py-1 pr-2 pl-4">
+                                              <div className="h-6 w-full bg-[var(--surface-3)] rounded-md animate-pulse" />
+                                              <div className="h-6 w-[80%] bg-[var(--surface-2)] rounded-md animate-pulse" />
+                                            </div>
+                                          ) : (
+                                            <>
+                                              {(col.folders || []).map(folder => {
+                                                const isFolderExp = expandedFolders.has(folder._id);
+                                                return (
+                                                  <div key={folder._id}>
+                                                    <button onClick={() => toggleFolder(folder._id)} className="sdbv2-tree-row">
+                                                      <svg className={`sdbv2-chevron ${isFolderExp ? 'sdbv2-chevron--open' : ''}`} width="9" height="9" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                                      </svg>
+                                                      <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ color: 'var(--warning)', flexShrink: 0 }}>
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                                                      </svg>
+                                                      <span className="sdbv2-tree-text">{folder.name}</span>
+                                                    </button>
+                                                    {isFolderExp && requests.filter(r => r.folderId === folder._id).map(req => (
+                                                      <SidebarRequest key={req._id} request={req} onSelect={handleRequestSelect} isActive={currentRequest?._id === req._id} />
+                                                    ))}
+                                                  </div>
+                                                );
+                                              })}
+                                              {requests.filter(r => r.collectionId === col._id && !r.folderId).map(req => (
+                                                <SidebarRequest
+                                                  key={req._id}
+                                                  request={req}
+                                                  onSelect={handleRequestSelect}
+                                                  isActive={currentRequest?._id === req._id}
+                                                  onContextMenu={(e) => showRequestContextMenu(e, req)}
+                                                />
+                                              ))}
+                                              {requests.filter(r => r.collectionId === col._id).length === 0 && (col.folders || []).length === 0 && (
+                                                <div className="sdbv2-empty-note py-1 pl-4 opacity-50">Empty collection</div>
+                                              )}
+                                            </>
+                                          )}
+                                        </div>
+                                      )}
                                     </div>
-                                    {isExp && (
-                                      <div className="sdbv2-indent animate-in">
-                                        {loadingCollections[col._id] ? (
-                                          <div className="flex flex-col gap-1 py-1 pr-2 pl-4">
-                                            <div className="h-6 w-full bg-[var(--surface-3)] rounded-md animate-pulse" />
-                                            <div className="h-6 w-[80%] bg-[var(--surface-2)] rounded-md animate-pulse" />
-                                          </div>
-                                        ) : (
-                                          <>
-                                            {(col.folders || []).map(folder => {
-                                              const isFolderExp = expandedFolders.has(folder._id);
-                                              return (
-                                                <div key={folder._id}>
-                                                  <button onClick={() => toggleFolder(folder._id)} className="sdbv2-tree-row">
-                                                    <svg className={`sdbv2-chevron ${isFolderExp ? 'sdbv2-chevron--open' : ''}`} width="9" height="9" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                                    </svg>
-                                                    <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ color: 'var(--warning)', flexShrink: 0 }}>
-                                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                                                    </svg>
-                                                    <span className="sdbv2-tree-text">{folder.name}</span>
-                                                  </button>
-                                                  {isFolderExp && requests.filter(r => r.folderId === folder._id).map(req => (
-                                                    <SidebarRequest key={req._id} request={req} onSelect={handleRequestSelect} isActive={currentRequest?._id === req._id} />
-                                                  ))}
-                                                </div>
-                                              );
-                                            })}
-                                            {requests.filter(r => r.collectionId === col._id && !r.folderId).map(req => (
-                                              <SidebarRequest
-                                                key={req._id}
-                                                request={req}
-                                                onSelect={handleRequestSelect}
-                                                isActive={currentRequest?._id === req._id}
-                                                onContextMenu={(e) => showRequestContextMenu(e, req)}
-                                              />
-                                            ))}
-                                            {requests.filter(r => r.collectionId === col._id).length === 0 && (col.folders || []).length === 0 && (
-                                              <div className="sdbv2-empty-note py-1 pl-4 opacity-50">Empty collection</div>
-                                            )}
-                                          </>
-                                        )}
-                                      </div>
-                                    )}
-                                  </div>
-                                );
-                              })}
-                              {projectCollections.length === 0 && <p className="sdbv2-empty-note ml-4">No collections yet</p>}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                    {filteredProjects.length === 0 && <p className="sdbv2-empty-note">No projects yet</p>}
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="sdbv2-section">
-                <div className="sdbv2-section-head">
-                  <span className="sdbv2-section-label">Collections</span>
+                                  );
+                                })}
+                                {projectCollections.length === 0 && <p className="sdbv2-empty-note ml-4">No collections yet</p>}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                      {filteredProjects.length === 0 && <p className="sdbv2-empty-note">No projects yet</p>}
+                    </div>
+                  )}
                 </div>
-                <p className="sdbv2-empty-note p-4 text-center">Select a project to view collections</p>
-              </div>
-            )}
+              ) : (
+                <div className="sdbv2-section">
+                  <div className="sdbv2-section-head">
+                    <span className="sdbv2-section-label">Collections</span>
+                  </div>
+                  <p className="sdbv2-empty-note p-4 text-center">Select a project to view collections</p>
+                </div>
+              )}
             </>
           )}
         </div>
@@ -921,26 +1186,98 @@ export default function SidebarV2({
 }
 
 function SidebarRequest({ request, onSelect, isActive, onContextMenu }) {
+  const { requestViewers } = useSocketStore();
+  const { user: currentUser } = useAuthStore();
+
+  const viewers = (requestViewers[request._id] || []).filter(v => 
+    (v._id || v.id) !== currentUser?._id && (v._id || v.id) !== currentUser?.id
+  );
+  
+  // Unique by user ID
+  const uniqueViewers = [];
+  const seenIds = new Set();
+  viewers.forEach(v => {
+    const id = v._id || v.id;
+    if (id && !seenIds.has(id)) {
+      seenIds.add(id);
+      uniqueViewers.push(v);
+    }
+  });
+
   const isWs = request.protocol === 'ws';
   const isSio = request.protocol === 'socketio';
   const color = isWs ? '#38bdf8' : isSio ? '#f0883e' : (METHOD_COLORS[request.method] || '#9A9A9A');
 
+  const onDragStart = (event) => {
+    try {
+      const data = JSON.stringify(request);
+      event.dataTransfer.setData('application/json', data);
+      event.dataTransfer.setData('application/reactflow', 'api');
+      event.dataTransfer.setData('text/plain', data);
+      event.dataTransfer.setData('text', data);
+      event.dataTransfer.effectAllowed = 'all';
+    } catch (e) {
+      console.error('Error in onDragStart:', e);
+    }
+  };
+
   return (
-    <button
+    <div
       onClick={() => onSelect(request)}
       onContextMenu={onContextMenu}
-      className={`sdbv2-tree-row sdbv2-req-row ${isActive ? 'sdbv2-tree-row--active' : ''} relative`}
+      draggable={true}
+      onDragStart={onDragStart}
+      className={`sdbv2-tree-row sdbv2-req-row ${isActive ? 'sdbv2-tree-row--active' : ''} relative cursor-grab active:cursor-grabbing select-none group`}
+      title="Drag to workflow canvas"
+      role="button"
+      tabIndex={0}
     >
       <span className="sdbv2-method-badge" style={{
         color,
         background: `${color}18`,
         fontSize: (isWs || isSio) ? '9px' : '10px',
-        // Hide if accidental GET is present on socket protocols
-        visibility: (isWs || isSio) || request.method ? 'visible' : 'hidden' 
+        visibility: (isWs || isSio) || request.method ? 'visible' : 'hidden'
       }}>
         {isWs ? 'WS' : isSio ? 'SIO' : (request.method || 'GET')}
       </span>
-      <span className="sdbv2-tree-text">{request.name}</span>
-    </button>
+      <span className="sdbv2-tree-text flex-1 truncate">{request.name}</span>
+      
+      {/* Real-time Viewers */}
+      {uniqueViewers.length > 0 && (
+        <div className="flex items-center -space-x-1 ml-auto mr-1 animate-in fade-in zoom-in-75 duration-300">
+          {uniqueViewers.slice(0, 2).map((v, i) => (
+            <div
+              key={v.socketId || i}
+              title={`${v.name || v.email} is viewing`}
+              className="w-3.5 h-3.5 rounded-full border border-[var(--bg-primary)] flex items-center justify-center text-[6px] font-bold text-white shadow-sm"
+              style={{ background: stringToColor(v.name || v.email || '?') }}
+            >
+              {(v.name || v.email || '?')[0].toUpperCase()}
+            </div>
+          ))}
+          {uniqueViewers.length > 2 && (
+            <div className="w-3.5 h-3.5 rounded-full border border-[var(--bg-primary)] bg-[var(--surface-3)] flex items-center justify-center text-[6px] font-bold text-[var(--text-muted)]">
+              +{uniqueViewers.length - 2}
+            </div>
+          )}
+        </div>
+      )}
+
+      <span className={`text-[10px] text-[var(--text-muted)] opacity-0 group-hover:opacity-100 ${uniqueViewers.length > 0 ? 'hidden' : ''}`}>
+        ⋮⋮
+      </span>
+    </div>
   );
+}
+
+function stringToColor(str) {
+  const PALETTE = [
+    '#7c3aed', '#2563eb', '#db2777', '#d97706',
+    '#059669', '#dc2626', '#0891b2', '#9333ea',
+  ];
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return PALETTE[Math.abs(hash) % PALETTE.length];
 }

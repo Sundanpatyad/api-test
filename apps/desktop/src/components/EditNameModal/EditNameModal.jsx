@@ -19,7 +19,7 @@ export default function EditNameModal() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!name.trim()) return;
-    
+
     setLoading(true);
     await onSave(name.trim());
     setLoading(false);
@@ -41,7 +41,7 @@ export default function EditNameModal() {
           <h2 className="text-sm font-semibold text-tx-primary">{title}</h2>
           <button onClick={handleClose} className="text-surface-500 hover:text-tx-primary transition-colors">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>

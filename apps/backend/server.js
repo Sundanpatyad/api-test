@@ -65,6 +65,15 @@ app.prepare().then(() => {
       socket.to(room).emit('member_joined', { user, members });
       socket.emit('room_members', { members });
 
+      // Send current request presence state to the joining user
+      const currentPresence = {};
+      for (const [reqId, viewersMap] of requestViewers.entries()) {
+        if (viewersMap.size > 0) {
+          currentPresence[reqId] = Array.from(viewersMap.values());
+        }
+      }
+      socket.emit('request_viewers_bulk', { presence: currentPresence });
+
       console.log(`[Socket] ${user?.name || socket.id} joined ${room}`);
     });
 
@@ -169,6 +178,22 @@ app.prepare().then(() => {
     socket.on('delete_team', ({ teamId, userId }) => {
       if (!teamId) return;
       socket.to(`team:${teamId}`).emit('team_deleted', { teamId, userId, timestamp: Date.now() });
+    });
+
+    // ── WORKFLOW EVENTS ──────────────────────────────────────────────────────
+    socket.on('create_workflow', ({ teamId, workflow, userId }) => {
+      if (!teamId || !workflow) return;
+      socket.to(`team:${teamId}`).emit('workflow_created', { workflow, userId, timestamp: Date.now() });
+    });
+
+    socket.on('update_workflow', ({ teamId, workflow, userId }) => {
+      if (!teamId || !workflow) return;
+      socket.to(`team:${teamId}`).emit('workflow_updated', { workflow, userId, timestamp: Date.now() });
+    });
+
+    socket.on('delete_workflow', ({ teamId, workflowId, userId }) => {
+      if (!teamId || !workflowId) return;
+      socket.to(`team:${teamId}`).emit('workflow_deleted', { workflowId, userId, timestamp: Date.now() });
     });
 
     // ── API DOC EVENTS ───────────────────────────────────────────────────────

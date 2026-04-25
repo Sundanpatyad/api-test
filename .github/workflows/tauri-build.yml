@@ -5,12 +5,14 @@ on:
     branches:
       - main
       - dev
+      - expressjs
     tags:
       - '*'
   pull_request:
     branches:
       - main
       - dev
+      - expressjs
 
 jobs:
   publish-tauri:
@@ -29,9 +31,15 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: 'npm'
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./apps/desktop/src-tauri -> target"
 
       - name: Install dependencies (ubuntu only)
         if: matrix.platform == 'ubuntu-22.04'
@@ -57,6 +65,6 @@ jobs:
           projectPath: "apps/desktop"
           releaseName: "PayloadX-API-Studio v__VERSION__"
           releaseBody: "PayloadX API Studio Release (Signed & Notarized macOS Build)"
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false
           tagName: ${{ github.ref_name }}

@@ -72,9 +72,9 @@ export default function SyncStatusTag() {
       icon: (
         <svg className={`w-3 h-3 ${isSyncing ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
           {isSyncing ? (
-             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           ) : (
-             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           )}
         </svg>
       )
@@ -99,7 +99,7 @@ export default function SyncStatusTag() {
             <span className="text-[11px] font-bold text-tx-primary">Sync Queue</span>
             <span className="text-[10px] text-surface-400">{queue.length} pending</span>
           </div>
-          
+
           <div className="overflow-y-auto max-h-64 p-1 flex flex-col gap-1">
             {queue.length === 0 ? (
               <div className="px-3 py-4 text-center text-[11px] text-surface-400">Queue is empty</div>
@@ -111,21 +111,21 @@ export default function SyncStatusTag() {
                   </span>
                   <div className="flex flex-col min-w-0 flex-1">
                     <span className="text-[11px] text-tx-primary truncate">
-                      {item.resourceType === 'request' ? 'Request Update' : 
-                       item.resourceType === 'collection' ? 'Collection Update' : 
-                       item.resourceType === 'environment' ? 'Environment Update' : 
-                       item.resourceType === 'project' ? 'Project Update' : 
-                       item.resourceType === 'team' ? 'Team Update' : 
-                       item.url}
+                      {item.resourceType === 'request' ? 'Request Update' :
+                        item.resourceType === 'collection' ? 'Collection Update' :
+                          item.resourceType === 'environment' ? 'Environment Update' :
+                            item.resourceType === 'project' ? 'Project Update' :
+                              item.resourceType === 'team' ? 'Team Update' :
+                                item.url}
                     </span>
                     <span className="text-[9px] text-surface-400 truncate opacity-70 font-mono">
                       {new URL(item.url, 'http://localhost').pathname}
                     </span>
                   </div>
                   {item.retries > 0 && (
-                     <span className="text-[9px] text-danger mt-1" title="Failed Retries">
-                       {item.retries}x
-                     </span>
+                    <span className="text-[9px] text-danger mt-1" title="Failed Retries">
+                      {item.retries}x
+                    </span>
                   )}
                 </div>
               ))
