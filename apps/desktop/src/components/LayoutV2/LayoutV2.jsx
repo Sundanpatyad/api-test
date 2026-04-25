@@ -96,7 +96,21 @@ export default function LayoutV2({
         )}
 
         {/* Main workspace */}
-        <div className="v2-workspace">
+        <div 
+          className="v2-workspace"
+          onDragOver={(e) => {
+            if (e.dataTransfer.types.includes('application/reactflow') || e.dataTransfer.types.includes('application/json')) {
+              e.preventDefault();
+              e.dataTransfer.dropEffect = 'copy';
+            }
+          }}
+          onDragEnter={(e) => {
+            if (e.dataTransfer.types.includes('application/reactflow') || e.dataTransfer.types.includes('application/json')) {
+              e.preventDefault();
+              e.dataTransfer.dropEffect = 'copy';
+            }
+          }}
+        >
 
           {activeV2Nav === 'dashboard' ? (
             <Dashboard />

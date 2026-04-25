@@ -12,20 +12,42 @@ const FEATURES = [
 ];
 
 const PLATFORMS = [
-  { os: "macOS", arch: "Apple Silicon", icon: <FaApple />, primary: true },
-  { os: "macOS", arch: "Intel", icon: <FaApple /> },
-  { os: "Windows", arch: "x64", icon: <FaWindows /> },
-  { os: "Linux", arch: "AppImage", icon: <FaLinux /> },
+  { os: "macOS", arch: "Universal", icon: <FaApple />, primary: true, link: "https://github.com/Sundanpatyad/api-test/releases/download/v1.4.7/PayloadX_1.4.7_x64.dmg" },
+  { os: "Windows", arch: "x64", icon: <FaWindows />, link: "https://github.com/Sundanpatyad/api-test/releases/download/v1.4.7/PayloadX_1.4.7_x64-setup.exe" },
+  { os: "Linux", arch: "AppImage", icon: <FaLinux />, link: "https://github.com/Sundanpatyad/api-test/releases/download/v1.4.7/payload-x_1.4.7_amd64.AppImage" },
+  { os: "Linux", arch: "Debian", icon: <FaLinux />, link: "https://github.com/Sundanpatyad/api-test/releases/download/v1.4.7/payload-x_1.4.7_amd64.deb" },
 ];
+
+import Docs from "./Docs";
 
 export default function App() {
   const [active, setActive] = useState(null);
   const [tick, setTick] = useState(0);
+  const [view, setView] = useState("hero"); // "hero" or "docs"
+  const [userOS, setUserOS] = useState({ name: "Windows", link: "https://github.com/Sundanpatyad/api-test/releases/download/v1.4.7/PayloadX_1.4.7_x64-setup.exe", icon: <FaWindows /> });
 
   useEffect(() => {
     const id = setInterval(() => setTick(t => (t + 1) % 4), 2200);
+    
+    // Detect OS
+    const ua = window.navigator.userAgent;
+    const version = "1.4.7";
+    const baseUrl = `https://github.com/Sundanpatyad/api-test/releases/download/v${version}`;
+
+    if (ua.indexOf("Win") !== -1) {
+      setUserOS({ name: "Windows", link: `${baseUrl}/PayloadX_${version}_x64-setup.exe`, icon: <FaWindows /> });
+    } else if (ua.indexOf("Mac") !== -1) {
+      setUserOS({ name: "macOS", link: `${baseUrl}/PayloadX_${version}_x64.dmg`, icon: <FaApple /> });
+    } else if (ua.indexOf("Linux") !== -1) {
+      setUserOS({ name: "Linux", link: `${baseUrl}/payload-x_${version}_amd64.AppImage`, icon: <FaLinux /> });
+    }
+
     return () => clearInterval(id);
   }, []);
+
+  if (view === "docs") {
+    return <Docs onBack={() => setView("hero")} />;
+  }
 
   return (
     <div className={styles.root}>
@@ -37,9 +59,9 @@ export default function App() {
         <PayloadX size="28px" fontSize="10px" />
         <span className={styles.logoName}>PayloadX</span>
         <div className={styles.navSpacer} />
-        <a href="#" className={styles.navLink}>Docs</a>
+        <span onClick={() => setView("docs")} className={styles.navLink}>Docs</span>
         <a href="https://github.com/Sundanpatyad/api-test" target="_blank" rel="noreferrer" className={styles.navLink}>GitHub</a>
-        <a href="https://api-test-desktop.vercel.app/" target="_blank" rel="noreferrer" className={styles.navCta}>Web App →</a>
+        <a href="https://sundanpatyad.github.io/api-test/" target="_blank" rel="noreferrer" className={styles.navCta}>Live Demo →</a>
       </nav>
 
       {/* MAIN GRID */}
@@ -65,14 +87,14 @@ export default function App() {
           </p>
 
           <div className={styles.ctaRow}>
-            <a href="#" className={styles.btnPrimary}>
-              <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M7 1v8M4 6l3 3 3-3M1 11h12" />
-              </svg>
-              Download
+            <a href={userOS.link} className={styles.btnPrimary}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {userOS.icon}
+                Download for {userOS.name}
+              </span>
             </a>
-            <a href="https://api-test-desktop.vercel.app/" target="_blank" rel="noreferrer" className={styles.btnGhost}>
-              Try Web →
+            <a href="https://github.com/Sundanpatyad/api-test/releases" target="_blank" rel="noreferrer" className={styles.btnGhost}>
+              All Platforms →
             </a>
           </div>
 
@@ -109,19 +131,19 @@ export default function App() {
             <span className={styles.dlLabel}>DOWNLOAD FOR</span>
             <div className={styles.dlPills}>
               {PLATFORMS.map((p, i) => (
-                <button
+                <a
                   key={i}
+                  href={p.link}
                   className={`${styles.dlPill} ${active === i ? styles.dlPillActive : ""} ${p.primary ? styles.dlPillPrimary : ""}`}
                   onMouseEnter={() => setActive(i)}
                   onMouseLeave={() => setActive(null)}
-                  onClick={() => {}}
                 >
                   <span className={styles.pillOs}>
                     <span className={styles.pillIcon}>{p.icon}</span>
                     {p.os}
                   </span>
                   <span className={styles.pillArch}>{p.arch}</span>
-                </button>
+                </a>
               ))}
             </div>
           </div>
@@ -162,10 +184,16 @@ export default function App() {
 
       {/* FOOTER */}
       <footer className={styles.footer}>
-        <span className={styles.footerCopy}>© 2024 PayloadX</span>
+        <div className={styles.footerBrand}>
+          <span className={styles.footerCopy}>© 2024 PayloadX</span>
+          <span className={styles.footerDivider}>·</span>
+          <span className={styles.footerCreator}>
+            Crafted by <span className={styles.metallicText}>Sundan Sharma</span>
+          </span>
+        </div>
         <div className={styles.footerLinks}>
           <a href="https://github.com/Sundanpatyad/api-test" target="_blank" rel="noreferrer">GitHub</a>
-          <a href="https://api-test-desktop.vercel.app/" target="_blank" rel="noreferrer">Web App</a>
+          <a href="https://sundanpatyad.github.io/api-test/" target="_blank" rel="noreferrer">Live Demo</a>
           <a href="#">Changelog</a>
         </div>
       </footer>

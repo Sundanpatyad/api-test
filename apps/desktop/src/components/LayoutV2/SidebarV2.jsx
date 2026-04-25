@@ -1055,10 +1055,24 @@ function SidebarRequest({ request, onSelect, isActive, onContextMenu }) {
   const color = isWs ? '#38bdf8' : isSio ? '#f0883e' : (METHOD_COLORS[request.method] || '#9A9A9A');
 
   const onDragStart = (event) => {
-    const data = JSON.stringify(request);
-    event.dataTransfer.setData('application/json', data);
-    event.dataTransfer.setData('text/plain', data);
-    event.dataTransfer.effectAllowed = 'move';
+    try {
+      const data = JSON.stringify(request);
+      // Standard types for maximum compatibility across Windows, Mac, Linux
+      event.dataTransfer.setData('application/json', data);
+      event.dataTransfer.setData('application/reactflow', 'api');
+      event.dataTransfer.setData('text/plain', data);
+      event.dataTransfer.setData('text', data); // Legacy fallback for some OS/Browsers
+      
+      // 'all' is safest for cross-platform
+      event.dataTransfer.effectAllowed = 'all';
+      
+      // Some platforms need a drag image to show correctly
+      if (event.currentTarget && event.dataTransfer.setDragImage) {
+        // We use the default, but ensuring we don't block it
+      }
+    } catch (e) {
+      console.error('Error in onDragStart:', e);
+    }
   };
 
   return (
@@ -1067,7 +1081,7 @@ function SidebarRequest({ request, onSelect, isActive, onContextMenu }) {
       onContextMenu={onContextMenu}
       draggable={true}
       onDragStart={onDragStart}
-      className={`sdbv2-tree-row sdbv2-req-row ${isActive ? 'sdbv2-tree-row--active' : ''} relative cursor-move select-none`}
+      className={`sdbv2-tree-row sdbv2-req-row ${isActive ? 'sdbv2-tree-row--active' : ''} relative cursor-grab active:cursor-grabbing select-none group`}
       title="Drag to workflow canvas"
       role="button"
       tabIndex={0}

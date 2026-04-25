@@ -26,6 +26,7 @@ import toast from 'react-hot-toast';
 import { v4 as uuidv4 } from 'uuid';
 import { listen } from '@tauri-apps/api/event';
 import { confirm } from '@tauri-apps/api/dialog';
+import * as XLSX from 'xlsx';
 
 const nodeTypes = {
   api: ApiNode,
@@ -287,6 +288,71 @@ function WorkflowCanvasInner() {
     }
   };
 
+  const handleExportExcel = () => {
+    if (!executionResult || !executionResult.node_results) {
+      toast.error('No execution results to export');
+      return;
+    }
+
+    try {
+      // Filter out delay nodes and map results
+      const data = executionResult.node_results
+        .filter(res => res.request) // Only include nodes with request data (API nodes)
+        .map(res => {
+          // Collect validation errors if any
+          const validationErrors = (res.validations || [])
+            .filter(v => !v.passed)
+            .map(v => v.message || `${v.type} check failed`)
+            .join('; ');
+
+          const executionError = res.error?.message || '';
+          const combinedError = [executionError, validationErrors].filter(Boolean).join(' | ');
+
+          return {
+            'Node Name': res.node_name,
+            'Method': res.request?.method || 'N/A',
+            'Status': res.status.toUpperCase(),
+            'HTTP Status': res.response?.status || 'N/A',
+            'Duration (ms)': res.duration,
+            'URL': res.request?.url || 'N/A',
+            'Payload': res.request?.body ? JSON.stringify(res.request.body, null, 2) : 'No Body',
+            'Error': combinedError || (res.status === 'FAILED' ? 'Unknown Failure' : ''),
+            'Execution Time': new Date(res.start_time).toLocaleString(),
+          };
+        });
+
+      if (data.length === 0) {
+        toast.error('No API nodes to export');
+        return;
+      }
+
+      const worksheet = XLSX.utils.json_to_sheet(data);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Test Results");
+
+      // Set column widths for a more detailed report
+      const wscols = [
+        { wch: 25 }, // Node Name
+        { wch: 10 }, // Method
+        { wch: 12 }, // Status
+        { wch: 12 }, // HTTP Status
+        { wch: 15 }, // Duration
+        { wch: 40 }, // URL
+        { wch: 50 }, // Payload
+        { wch: 30 }, // Error
+        { wch: 20 }, // Execution Time
+      ];
+      worksheet['!cols'] = wscols;
+
+      const fileName = `SyncNest_Report_${currentWorkflow.name.replace(/\s+/g, '_')}_${new Date().getTime()}.xlsx`;
+      XLSX.writeFile(workbook, fileName);
+      toast.success('Report generated successfully');
+    } catch (error) {
+      console.error('Failed to generate Excel report:', error);
+      toast.error('Failed to generate report');
+    }
+  };
+
   const reactFlowInstance = useReactFlow();
   const reactFlowWrapper = useRef(null);
 
@@ -314,76 +380,92 @@ function WorkflowCanvasInner() {
 
       const reactFlowBounds = reactFlowWrapper.current?.getBoundingClientRect();
       const type = event.dataTransfer.getData('application/reactflow');
-      let requestData = event.dataTransfer.getData('application/json');
+      let rawData = event.dataTransfer.getData('application/json');
 
-      // Fallback to text/plain
-      if (!requestData) {
-        requestData = event.dataTransfer.getData('text/plain');
+      // Fallback chain for maximum compatibility (Windows/Mac/Linux)
+      if (!rawData) {
+        rawData = event.dataTransfer.getData('text/plain') || event.dataTransfer.getData('text');
       }
 
-      if (!type && !requestData) return;
+      if (!type && !rawData) return;
 
       const position = reactFlowInstance.project({
         x: event.clientX - (reactFlowBounds?.left || 0),
         y: event.clientY - (reactFlowBounds?.top || 0),
       });
 
-      if (requestData) {
-        // Dropped an API request from sidebar
+      // CASE 1: Dropped an API request object (from sidebar)
+      if (rawData) {
         try {
-          const request = JSON.parse(requestData);
+          const request = JSON.parse(rawData);
 
-          // Basic validation to ensure it's a request object
-          if (!request.method && !request.protocol) {
-            console.log('Dropped data is not a valid request:', request);
+          // If it's a valid request object, create an API node
+          if (request.method || request.protocol || request._id) {
+            let parsedBody = null;
+            if (request.body?.raw) {
+              try {
+                parsedBody = JSON.parse(request.body.raw);
+              } catch (e) {
+                parsedBody = request.body.raw;
+              }
+            } else if (request.body && typeof request.body !== 'object') {
+              // Handle cases where body might already be a string or different format
+              parsedBody = request.body;
+            } else if (request.body) {
+              parsedBody = request.body;
+            }
+
+            const newNode = {
+              id: uuidv4(),
+              type: 'api',
+              position,
+              data: {
+                name: request.name || 'API Request',
+                method: request.method || 'GET',
+                url: request.url || '',
+                headers: request.headers || [],
+                params: request.params || [],
+                body: parsedBody,
+                data_mappings: [],
+                validations: [],
+                timeout: 30,
+                retries: 0,
+                save_session: false,
+              },
+            };
+
+            // Update both local and store state for immediate feedback
+            setNodes((nds) => [...nds, newNode]);
+            updateStoreNodes([...currentWorkflow.nodes, newNode]);
+            setSelectedNode(newNode.id);
+
+            toast.success(`Added ${request.name} to workflow`);
             return;
           }
-          let parsedBody = null;
-          if (request.body?.raw) {
-            try {
-              parsedBody = JSON.parse(request.body.raw);
-            } catch (e) {
-              parsedBody = request.body.raw;
-            }
-          }
-
-          const newNode = {
-            id: uuidv4(),
-            type: 'api',
-            position,
-            data: {
-              name: request.name || 'API Request',
-              method: request.method || 'GET',
-              url: request.url || '',
-              headers: request.headers || [],
-              params: request.params || [],
-              body: parsedBody,
-              data_mappings: [],
-              validations: [],
-              timeout: 30,
-              retries: 0,
-            },
-          };
-
-          updateStoreNodes([...currentWorkflow.nodes, newNode]);
-          setSelectedNode(newNode.id);
-
-          toast.success(`Added ${request.name} to workflow`);
         } catch (error) {
-          console.error('Failed to parse request data:', error);
-          toast.error('Failed to add request to workflow');
+          // If parsing fails, it might just be a simple type drop (handled below)
+          console.error('Failed to parse dropped data:', error);
         }
-      } else if (type) {
-        // Dropped a node type
+      }
+
+      // CASE 2: Dropped a node type (from palette buttons if they were draggable)
+      if (type) {
         addNode(type, position);
       }
     },
-    [reactFlowInstance, addNode, currentWorkflow.nodes, updateStoreNodes, setSelectedNode]
+    [reactFlowInstance, addNode, currentWorkflow.nodes, updateStoreNodes, setSelectedNode, setNodes]
   );
 
   const onDragOver = useCallback((event) => {
     event.preventDefault();
-    event.dataTransfer.dropEffect = 'move';
+    event.stopPropagation();
+    event.dataTransfer.dropEffect = 'copy';
+  }, []);
+
+  const onDragEnter = useCallback((event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    event.dataTransfer.dropEffect = 'copy';
   }, []);
 
   return (
@@ -391,8 +473,9 @@ function WorkflowCanvasInner() {
       ref={reactFlowWrapper}
       className="h-full w-full relative"
       style={{ background: 'var(--bg-primary)' }}
-      onDrop={onDrop}
       onDragOver={onDragOver}
+      onDragEnter={onDragEnter}
+      onDrop={onDrop}
     >
       {/* ── Workflow Toolbar ─────────────────────────────────────── */}
       <div className="absolute top-6 left-6 z-10 flex flex-col gap-3">
@@ -535,6 +618,14 @@ function WorkflowCanvasInner() {
             {useWorkflowStore.getState().showResultsLog ? 'Hide Full Log' : 'View Full Log'}
           </button>
 
+          <button
+            onClick={handleExportExcel}
+            className="w-full mt-2 py-2 bg-green-600/10 border border-green-600/30 rounded-xl text-[10px] font-black uppercase tracking-widest text-green-500 hover:bg-green-600/20 transition-all flex items-center justify-center gap-2"
+          >
+            <Save size={12} />
+            Generate Test Report (XLSX)
+          </button>
+
           {useWorkflowStore.getState().showResultsLog && (
             <div className="mt-4 space-y-2 max-h-[300px] overflow-y-auto pr-1 scrollbar-hide animate-in slide-in-from-top-2 duration-200">
               {executionResult.node_results?.map((res, i) => (
@@ -578,6 +669,9 @@ function WorkflowCanvasInner() {
         onPaneClick={onPaneClick}
         onNodeContextMenu={onNodeContextMenu}
         onEdgeContextMenu={onEdgeContextMenu}
+        onDrop={onDrop}
+        onDragOver={onDragOver}
+        onDragEnter={onDragEnter}
         nodeTypes={nodeTypes}
         fitView
         style={{ background: 'var(--bg-primary)' }}
