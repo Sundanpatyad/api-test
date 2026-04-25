@@ -5,14 +5,17 @@ import { useSocketStore } from '@/store/socketStore';
 import { useTeamStore } from '@/store/teamStore';
 import { useProjectStore } from '@/store/projectStore';
 import { useRequestStore } from '@/store/requestStore';
+import { Cookie, Variable } from 'lucide-react';
 import { isTauri } from '@/lib/executor';
 import api from '@/lib/api';
 import EnvironmentSelector from '@/components/EnvironmentSelector/EnvironmentSelector';
 import SyncStatusTag from '@/components/SyncStatusTag/SyncStatusTag';
 import ContextSelector from './ContextSelector';
+import TeamPresence from './TeamPresence';
+
 
 export default function TopBarV2({ onToggleSidebar, sidebarOpen, orientation, onToggleOrientation }) {
-  const { theme, toggleTheme, toggleLayout, setActiveV2Nav } = useUIStore();
+  const { theme, toggleTheme, toggleLayout, setActiveV2Nav, rightSidebarOpen, rightSidebarActiveTab, openRightSidebarTab, toggleRightSidebar } = useUIStore();
   const { user } = useAuthStore();
   const { isConnected } = useSocketStore();
   const { currentTeam } = useTeamStore();
@@ -166,6 +169,9 @@ export default function TopBarV2({ onToggleSidebar, sidebarOpen, orientation, on
         {/* Environment selector */}
         <EnvironmentSelector />
 
+        {/* Team Presence */}
+        <TeamPresence />
+
         {/* Connection dot */}
         {currentTeam && (
           <div
@@ -204,6 +210,23 @@ export default function TopBarV2({ onToggleSidebar, sidebarOpen, orientation, on
                 d="M3 9h18M3 15h18M3 5a2 2 0 012-2h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5z" />
             </svg>
           )}
+        </button>
+
+        {/* Right sidebar toggles */}
+        <button
+          onClick={() => openRightSidebarTab('environment')}
+          className={`v2-header-icon-btn ${rightSidebarOpen && rightSidebarActiveTab === 'environment' ? 'text-[color:var(--accent)]' : ''}`}
+          title="Environment"
+        >
+          <Variable size={15} />
+        </button>
+
+        <button
+          onClick={() => openRightSidebarTab('sessions')}
+          className={`v2-header-icon-btn ${rightSidebarOpen && rightSidebarActiveTab === 'sessions' ? 'text-[color:var(--accent)]' : ''}`}
+          title="Sessions"
+        >
+          <Cookie size={15} />
         </button>
 
         {/* Theme toggle */}

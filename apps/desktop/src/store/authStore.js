@@ -24,6 +24,23 @@ export const useAuthStore = create(
         }
       },
 
+      loginWithGoogle: async (payload) => {
+        set({ isLoading: true, error: null });
+        try {
+          // payload can be { accessToken } or { code, redirectUri }
+          const body = typeof payload === 'string' ? { accessToken: payload } : payload;
+          const { data } = await api.post('/api/auth/google', body);
+          
+          localStorage.setItem('payloadx_token', data.token);
+          set({ user: data.user, token: data.token, isLoading: false });
+          return { success: true };
+        } catch (err) {
+          const error = err.response?.data?.error || 'Google login failed';
+          set({ isLoading: false, error });
+          return { success: false, error };
+        }
+      },
+
       signup: async (name, email, password) => {
         set({ isLoading: true, error: null });
         try {
@@ -47,16 +64,33 @@ export const useAuthStore = create(
           console.error('[Logout] Socket disconnect failed:', e);
         }
 
-        // 2. Clear all LocalStorage/SessionStorage
+        // 2. Clear Rust-side data (Cookies, etc)
+        try {
+          const { invoke } = await import('@tauri-apps/api/tauri');
+          await invoke('clear_cookies');
+        } catch (e) {
+          console.error('[Logout] Tauri cleanup failed:', e);
+        }
+
+        // 3. Clear Sync mappings
+        try {
+          const { syncService } = await import('@/services/syncService');
+          syncService.clearIdMappings();
+        } catch (e) {
+          console.error('[Logout] Sync cleanup failed:', e);
+        }
+
+        // 4. Clear all LocalStorage/SessionStorage
         localStorage.clear();
         sessionStorage.clear();
         
-        // 3. Reset all memory stores to initial state
+        // 5. Reset all memory stores to initial state
         try {
           const { useCollectionStore } = await import('@/store/collectionStore');
           const { useProjectStore } = await import('@/store/projectStore');
           const { useTeamStore } = await import('@/store/teamStore');
           const { useRequestStore } = await import('@/store/requestStore');
+          const { useWorkflowStore } = await import('@/store/workflowStore');
           const { useUIStore } = await import('@/store/uiStore');
           const { useEnvironmentStore } = await import('@/store/environmentStore');
           const { useSyncQueueStore } = await import('@/store/syncQueueStore');
@@ -67,6 +101,7 @@ export const useAuthStore = create(
           useProjectStore.getState().reset();
           useTeamStore.getState().reset();
           useRequestStore.getState().reset();
+          useWorkflowStore.getState().reset();
           useUIStore.getState().reset();
           useEnvironmentStore.getState().reset();
           useWSStore.getState().reset();
@@ -77,7 +112,6 @@ export const useAuthStore = create(
         }
         
         set({ user: null, token: null });
-        // Removing window.location.href = '/' so the app doesn't infinitely hard-reload
       },
 
       fetchMe: async () => {

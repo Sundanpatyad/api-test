@@ -18,7 +18,7 @@ const genId = () => Math.random().toString(36).substr(2, 9);
 export default function ApiDocsPanel() {
   const { currentTeam } = useTeamStore();
   const { currentProject } = useProjectStore();
-  const { socket } = useSocketStore();
+  const { socket, apiDocViewers } = useSocketStore();
   
   const { 
     docs, fetchDocs, 
@@ -73,19 +73,22 @@ export default function ApiDocsPanel() {
       if (currentDoc?._id === docId) {
         setActiveMembers(prev => {
           const ex = prev[endpointId] || [];
-          if (!ex.includes(userId)) return { ...prev, [endpointId]: [...ex, userId] };
+          if (!ex.includes(userId)) {
+             // Set a safety timeout to clear if stop event is missed
+             setTimeout(() => onTypingStop({ docId, endpointId, userId }), 5000);
+             return { ...prev, [endpointId]: [...ex, userId] };
+          }
           return prev;
         });
       }
     };
 
     const onTypingStop = ({ docId, endpointId, userId }) => {
-      if (currentDoc?._id === docId) {
-        setActiveMembers(prev => {
-          const ex = prev[endpointId] || [];
-          return { ...prev, [endpointId]: ex.filter(id => id !== userId) };
-        });
-      }
+      setActiveMembers(prev => {
+        const ex = prev[endpointId] || [];
+        if (!ex.includes(userId)) return prev;
+        return { ...prev, [endpointId]: ex.filter(id => id !== userId) };
+      });
     };
 
     socket.on('apidoc_updated', onDocUpdated);
@@ -236,9 +239,25 @@ export default function ApiDocsPanel() {
                            {ep.path}
                          </span>
                        </div>
-                       {isBeingEdited && !isActive && (
-                          <span className="w-2 h-2 bg-warning rounded-full flex-shrink-0 animate-pulse ml-2" title="Someone is editing"></span>
-                       )}
+                       <div className="flex items-center gap-1.5 ml-2">
+                          {isBeingEdited && !isActive && (
+                            <span className="w-1.5 h-1.5 bg-warning rounded-full flex-shrink-0 animate-pulse" title="Someone is editing"></span>
+                          )}
+                          {(apiDocViewers[ep.id]?.length > 0) && !isActive && (
+                             <div className="flex -space-x-1 items-center">
+                                {apiDocViewers[ep.id].slice(0, 2).map((v, idx) => (
+                                   <div key={idx} className="w-3.5 h-3.5 rounded-full border border-surface-1 flex items-center justify-center text-[6px] font-bold text-white shadow-sm" style={{ backgroundColor: `hsl(${(v.name?.length || 0) * 40}, 60%, 50%)` }}>
+                                      {v.name?.[0]?.toUpperCase() || '?'}
+                                   </div>
+                                ))}
+                                {apiDocViewers[ep.id].length > 2 && (
+                                   <div className="w-3.5 h-3.5 rounded-full bg-surface-3 border border-surface-1 flex items-center justify-center text-[5px] font-bold text-surface-500">
+                                      +{apiDocViewers[ep.id].length - 2}
+                                   </div>
+                                )}
+                             </div>
+                          )}
+                       </div>
                      </div>
                      {ep.summary && (
                        <div className="text-[10px] text-surface-400 truncate w-full pl-[44px]">

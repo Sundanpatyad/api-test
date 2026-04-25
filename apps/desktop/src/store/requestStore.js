@@ -6,6 +6,8 @@ import { syncService } from '@/services/syncService';
 import { v4 as uuidv4 } from 'uuid';
 import { useConnectivityStore } from '@/store/connectivityStore';
 import toast from 'react-hot-toast';
+import { deepClone } from '@/utils/perf';
+import { rustUrlParseParams, rustUrlBuild, jsBuildUrl, jsParseParams } from '@/lib/rust';
 
 const defaultRequest = () => ({
   _id: null,
@@ -22,51 +24,9 @@ const defaultRequest = () => ({
   teamId: null,
 });
 
-const syncParamsFromUrl = (url, currentParams = []) => {
-  const parts = (url || '').split('?');
-  if (parts.length < 2) {
-    const disabled = currentParams.filter((p) => p.enabled === false);
-    return disabled.length ? disabled : [{ id: uuidv4(), key: '', value: '', enabled: true }];
-  }
-
-  const qStr = parts.slice(1).join('?');
-  const pairs = qStr ? qStr.split('&') : [];
-  
-  let newParams = pairs.map(pair => {
-    const [key, ...valParts] = pair.split('=');
-    return {
-      id: uuidv4(),
-      key: key || '',
-      value: valParts.join('=') || '',
-      enabled: true
-    };
-  });
-
-  const disabledParams = currentParams.filter(p => p.enabled === false);
-  newParams = [...newParams, ...disabledParams];
-
-  // Append empty row if last row is filled
-  if (newParams.length === 0 || newParams[newParams.length - 1].key || newParams[newParams.length - 1].value) {
-    newParams.push({ id: uuidv4(), key: '', value: '', enabled: true });
-  }
-  
-  return newParams;
-};
-
-const syncUrlFromParams = (url, currentParams = []) => {
-  const baseUrl = (url || '').split('?')[0];
-  const activeParams = currentParams.filter(p => p.enabled !== false && (p.key || p.value));
-  
-  if (activeParams.length === 0) return baseUrl;
-  
-  const qs = activeParams.map(p => {
-    if (!p.key && p.value) return `=${p.value}`;
-    if (p.key && !p.value) return `${p.key}=`;
-    return `${p.key}=${p.value}`;
-  }).join('&');
-  
-  return `${baseUrl}?${qs}`;
-};
+// syncParamsFromUrl and syncUrlFromParams are now delegated to Rust
+// via rustUrlParseParams / rustUrlBuild in @/lib/rust.js.
+// JS fallback implementations live inside rust.js for non-Tauri environments.
 
 export const useRequestStore = create(
   persist(
@@ -80,6 +40,8 @@ export const useRequestStore = create(
       noActiveRequest: false,
       openTabs: [],
       activeTabId: null,
+      // O(1) tab lookup map — kept in sync with openTabs
+      _tabsById: new Map(),
 
       setCurrentRequest: (req) => {
         const ensureIds = (arr = []) =>
@@ -88,29 +50,43 @@ export const useRequestStore = create(
             id: item.id || (item._id ? String(item._id) : uuidv4()),
           }));
 
+        if (!req) {
+          set({ currentRequest: defaultRequest(), response: null });
+          return;
+        }
+
         const newReq = {
           ...defaultRequest(),
           ...req,
           params: ensureIds(req.params),
           headers: ensureIds(req.headers),
-          url: syncUrlFromParams(req.url || '', req.params || [])
+          url: jsBuildUrl(req.url || '', req.params || [])
         };
         
         set((state) => {
-          const existingTab = state.openTabs.find(t => t.id === newReq._id);
-          localStorageService.saveCurrentRequest(newReq);
-          
-          if (existingTab) {
-            return { currentRequest: newReq, noActiveRequest: false, activeTabId: existingTab.id };
+          const tabId = newReq._id;
+          // O(1) lookup via Map
+          if (tabId && state._tabsById.has(tabId)) {
+            localStorageService.saveCurrentRequest(newReq);
+            return { currentRequest: newReq, noActiveRequest: false, activeTabId: tabId };
           }
           
-          const newTabId = newReq._id || uuidv4();
-          const newTab = { id: newTabId, request: newReq, originalRequest: JSON.parse(JSON.stringify(newReq)), isDirty: false };
+          const newTabId = tabId || uuidv4();
+          const newTab = {
+            id: newTabId,
+            request: newReq,
+            originalRequest: deepClone(newReq),
+            isDirty: false,
+          };
+          const newTabsById = new Map(state._tabsById);
+          newTabsById.set(newTabId, newTab);
+          localStorageService.saveCurrentRequest(newReq);
           return {
             currentRequest: newReq,
             noActiveRequest: false,
             openTabs: [...state.openTabs, newTab],
-            activeTabId: newTabId
+            activeTabId: newTabId,
+            _tabsById: newTabsById,
           };
         });
       },
@@ -119,30 +95,33 @@ export const useRequestStore = create(
 
       setActiveTabId: (id) => {
         set((state) => {
-           const tab = state.openTabs.find(t => t.id === id);
-           if (!tab) return state;
-           localStorageService.saveCurrentRequest(tab.request);
-           return { activeTabId: id, currentRequest: tab.request, noActiveRequest: false };
+          // O(1) lookup via Map
+          const tab = state._tabsById.get(id);
+          if (!tab) return state;
+          localStorageService.saveCurrentRequest(tab.request);
+          return { activeTabId: id, currentRequest: tab.request, noActiveRequest: false };
         });
       },
 
       closeTab: (id) => {
         set((state) => {
            const newTabs = state.openTabs.filter(t => t.id !== id);
+           const newTabsById = new Map(state._tabsById);
+           newTabsById.delete(id);
            const isClosingActive = state.activeTabId === id;
            
            if (newTabs.length === 0) {
-              return { openTabs: [], activeTabId: null, currentRequest: defaultRequest(), noActiveRequest: true };
+              return { openTabs: [], activeTabId: null, currentRequest: defaultRequest(), noActiveRequest: true, _tabsById: newTabsById };
            }
            
            if (isClosingActive) {
               const closingIndex = state.openTabs.findIndex(t => t.id === id);
               const nextTab = newTabs[closingIndex - 1] || newTabs[0];
               localStorageService.saveCurrentRequest(nextTab.request);
-              return { openTabs: newTabs, activeTabId: nextTab.id, currentRequest: nextTab.request, noActiveRequest: false };
+              return { openTabs: newTabs, activeTabId: nextTab.id, currentRequest: nextTab.request, noActiveRequest: false, _tabsById: newTabsById };
            }
            
-           return { openTabs: newTabs };
+           return { openTabs: newTabs, _tabsById: newTabsById };
         });
       },
 
@@ -201,22 +180,40 @@ export const useRequestStore = create(
       updateField: (field, value) => {
         set((state) => {
           const req = { ...state.currentRequest, [field]: value };
+
+          // Sync URL ↔ Params via Rust (async, non-blocking UI)
           if (field === 'url') {
-            req.params = syncParamsFromUrl(value, req.params);
+            rustUrlParseParams(value, req.params).then(params => {
+              set((s) => {
+                const r = { ...s.currentRequest, params };
+                const openTabs = [...s.openTabs];
+                const tIdx = openTabs.findIndex(t => t.id === s.activeTabId);
+                if (tIdx >= 0) openTabs[tIdx] = { ...openTabs[tIdx], request: r, isDirty: true };
+                return { currentRequest: r, openTabs };
+              });
+            });
           } else if (field === 'params') {
-            req.url = syncUrlFromParams(req.url, value);
+            rustUrlBuild(req.url, value).then(url => {
+              set((s) => {
+                const r = { ...s.currentRequest, url };
+                const openTabs = [...s.openTabs];
+                const tIdx = openTabs.findIndex(t => t.id === s.activeTabId);
+                if (tIdx >= 0) openTabs[tIdx] = { ...openTabs[tIdx], request: r, isDirty: true };
+                return { currentRequest: r, openTabs };
+              });
+            });
           }
-          
+
           if (field === 'name' && (req._id || req.collectionId)) {
             import('@/store/collectionStore').then(({ useCollectionStore }) => {
               useCollectionStore.getState().updateRequest(req);
             });
           }
-          
+
           const openTabs = [...state.openTabs];
           const tIdx = openTabs.findIndex(t => t.id === state.activeTabId);
           if (tIdx >= 0) openTabs[tIdx] = { ...openTabs[tIdx], request: req, isDirty: true };
-          
+
           return { currentRequest: req, openTabs };
         });
       },
@@ -284,7 +281,7 @@ export const useRequestStore = create(
             set(state => {
               const newTabs = [...state.openTabs];
               const idx = newTabs.findIndex(t => t.id === state.activeTabId);
-              if (idx >= 0) newTabs[idx] = { ...newTabs[idx], request: data.request, originalRequest: JSON.parse(JSON.stringify(data.request)), isDirty: false };
+      if (idx >= 0) newTabs[idx] = { ...newTabs[idx], request: data.request, originalRequest: deepClone(data.request), isDirty: false };
               return { currentRequest: data.request, openTabs: newTabs };
             });
             
@@ -304,7 +301,7 @@ export const useRequestStore = create(
             set(state => {
               const newTabs = [...state.openTabs];
               const idx = newTabs.findIndex(t => t.id === state.activeTabId);
-              if (idx >= 0) newTabs[idx] = { id: data.request._id, request: data.request, originalRequest: JSON.parse(JSON.stringify(data.request)), isDirty: false };
+              if (idx >= 0) newTabs[idx] = { id: data.request._id, request: data.request, originalRequest: deepClone(data.request), isDirty: false };
               return { currentRequest: data.request, openTabs: newTabs, activeTabId: data.request._id };
             });
             
@@ -420,18 +417,22 @@ export const useRequestStore = create(
       },
 
       getCachedRequest: (id, collectionId) => {
-        // Try current request first
+        // 1. Fast-path: check current request (O(1))
         const currentReq = get().currentRequest;
         if (currentReq?._id === id) return currentReq;
+
+        // 2. Check open tabs Map (O(1))
+        const tabsById = get()._tabsById;
+        if (tabsById.has(id)) return tabsById.get(id).request;
         
-        // Try collection requests
+        // 3. Check collection requests (O(n) — unavoidable, but targeted)
         if (collectionId) {
           const collectionRequests = localStorageService.getRequests(collectionId);
           const found = collectionRequests.find(r => r._id === id);
           if (found) return found;
         }
         
-        // Try all stored requests
+        // 4. Full scan of localStorage (last resort)
         const allRequests = localStorageService.get(localStorageService.KEYS.REQUESTS) || {};
         for (const collId in allRequests) {
           const found = allRequests[collId].find(r => r._id === id);
@@ -476,10 +477,14 @@ export const useRequestStore = create(
         }
         
         // Also clean from request store's local state
-        set((state) => ({
-          requests: state.requests.filter(r => r._id !== id),
-          currentRequest: state.currentRequest?._id === id ? null : state.currentRequest,
-        }));
+        set((state) => {
+          const isCurrent = state.currentRequest?._id === id;
+          return {
+            requests: state.requests ? state.requests.filter(r => r._id !== id) : [],
+            currentRequest: isCurrent ? null : state.currentRequest,
+            noActiveRequest: isCurrent ? true : state.noActiveRequest,
+          };
+        });
         
         return { success: true };
       },

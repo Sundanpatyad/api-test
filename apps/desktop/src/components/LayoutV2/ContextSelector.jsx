@@ -41,9 +41,6 @@ export default function ContextSelector() {
     if (currentTeam?._id !== team._id) {
       setCurrentTeam(team);
       setCurrentProject(null);
-      setCurrentCollection(null);
-      setCurrentRequest(null);
-      setNoActiveRequest(true);
     }
     setTeamOpen(false);
   };
@@ -51,9 +48,6 @@ export default function ContextSelector() {
   const handleProjectChange = (proj) => {
     if (currentProject?._id !== proj._id) {
       setCurrentProject(proj);
-      setCurrentCollection(null);
-      setCurrentRequest(null);
-      setNoActiveRequest(true);
     }
     setProjectOpen(false);
   };
@@ -68,7 +62,7 @@ export default function ContextSelector() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const filteredProjects = useMemo(() => 
+  const filteredProjects = useMemo(() =>
     currentTeam ? getFilteredProjects(currentTeam._id) : [],
     [currentTeam?._id, projects]
   );

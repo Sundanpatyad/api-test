@@ -1,7 +1,23 @@
 /**
  * Postman Collection v2 / v2.1 parser for client-side use
  * Converts Postman JSON to PayloadX internal request schema
+ *
+ * Rust-first: delegates to the native serde_json parser for large collections.
+ * Falls back to the JS implementation automatically.
  */
+
+/**
+ * Primary entry point — tries Rust parser, falls back to JS.
+ * Use this instead of parsePostmanCollection() directly.
+ *
+ * @param {string|object} input — JSON string or already-parsed object
+ * @returns {Promise<object>}
+ */
+export async function parsePostmanCollectionAuto(input) {
+  const json = typeof input === 'string' ? input : JSON.stringify(input);
+  const { rustParsePostman } = await import('@/lib/rust');
+  return rustParsePostman(json);
+}
 
 export function parsePostmanCollection(json) {
   const info = json.info || {};

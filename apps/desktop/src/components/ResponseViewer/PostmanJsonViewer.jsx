@@ -168,7 +168,7 @@ const JsonRow = memo(function JsonRow({ line, index, colors, isHit, isCurrent, o
         style={{
           width: 52, minWidth: 52, textAlign: 'right', paddingRight: 10,
           color: 'var(--color-text-tertiary, #aaa)',
-          borderRight: '0.5px solid var(--color-border-tertiary, #e0e0e0)',
+          borderRight: '1px solid var(--border-1, #333)',
           fontSize: 10.5, cursor: line.canExpand ? 'pointer' : 'default',
           display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
           gap: 2, height: '100%', userSelect: 'none',
@@ -495,14 +495,14 @@ export default function PostmanJsonViewer({ value, className = '' }) {
       style={{
         display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden',
         background: 'var(--color-background-primary)',
-        border: '0.5px solid var(--color-border-tertiary, #e0e0e0)',
+        border: 'none',
         borderRadius: 'var(--border-radius-lg, 6px)',
       }}
     >
       {/* ── Toolbar ─────────────────────────────────────────────────────────── */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '8px 12px', borderBottom: '0.5px solid var(--color-border-tertiary, #e0e0e0)',
+        padding: '8px 12px', borderBottom: '1px solid var(--border-1, #333)',
         background: 'var(--color-background-secondary)', flexShrink: 0, gap: 8, flexWrap: 'wrap',
       }}>
         {/* Left: status badges */}
@@ -600,7 +600,7 @@ export default function PostmanJsonViewer({ value, className = '' }) {
 
       {/* ── Tab strip ─────────────────────────────────────────────────────────── */}
       <div style={{
-        display: 'flex', borderBottom: '0.5px solid var(--color-border-tertiary, #e0e0e0)',
+        display: 'flex', borderBottom: '1px solid var(--border-1, #333)',
         background: 'var(--color-background-secondary)', flexShrink: 0,
       }}>
         {['pretty', 'raw', 'paste'].map(t => (

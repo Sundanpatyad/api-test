@@ -8,7 +8,7 @@
   },
   "package": {
     "productName": "PayloadX",
-    "version": "1.4.3"
+    "version": "1.4.7"
   },
   "tauri": {
     "allowlist": {
@@ -27,7 +27,10 @@
       "dialog": {
         "all": false,
         "open": true,
-        "save": true
+        "save": true,
+        "message": true,
+        "confirm": true,
+        "ask": true
       }
     },
     "bundle": {

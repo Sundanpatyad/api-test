@@ -5,8 +5,9 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
-        mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
+        sans: ['DM Mono', 'monospace'],
+        title: ['Syne', 'sans-serif'],
+        mono: ['DM Mono', 'monospace'],
       },
       colors: {
         // ── Design system tokens (CSS-variable backed) ────────────────

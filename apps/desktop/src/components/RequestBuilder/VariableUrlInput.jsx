@@ -36,18 +36,17 @@ export default function VariableUrlInput({ value, onChange, placeholder }) {
     <div className="relative flex-1 min-w-0 h-full">
       {/* Container — provides border + background */}
       <div
-        className={`flex items-center w-full h-full px-2.5 font-mono text-xs outline-none transition-all duration-150 ${
-          hasUnresolved 
-            ? 'bg-warning/10' 
-            : 'bg-transparent'
-        }`}
+        className={`flex items-center w-full h-full px-2.5 font-mono text-xs outline-none transition-all duration-150 ${hasUnresolved
+          ? 'bg-warning/10'
+          : 'bg-transparent'
+          }`}
       >
         {/* Scrollable Container */}
         <div className="w-full overflow-x-auto whitespace-pre custom-scrollbar pb-0.5" style={{ lineHeight: '1.25rem' }}>
-          
+
           {/* Sizing wrapper — dynamically expands to text width */}
           <div className="relative min-w-full w-max">
-            
+
             {/* Transparent input — perfectly stretches to cover the text */}
             <input
               ref={inputRef}
@@ -63,35 +62,35 @@ export default function VariableUrlInput({ value, onChange, placeholder }) {
 
             {/* Colored mirror — acts as the structural foundation */}
             <div aria-hidden="true" className="pointer-events-none select-none">
-            {value === '' ? (
-              <span style={{ color: 'var(--text-muted)' }}>{placeholder}</span>
-            ) : (
-              segments.map((seg, i) =>
-                seg.type === 'text' ? (
-                  <span key={i} className="text-tx-primary">{seg.text}</span>
-                ) : (
-                  // Variable token — colored + hoverable for tooltip
-                  <span
-                    key={i}
-                    className={`pointer-events-auto cursor-default ${seg.found ? 'text-brand-400' : 'text-orange-400'
-                      }`}
-                    onMouseEnter={(e) => {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      setTooltip({
-                        varName: seg.varName,
-                        found: seg.found,
-                        value: seg.resolvedValue,
-                        x: rect.left,
-                        y: rect.top,
-                      });
-                    }}
-                    onMouseLeave={() => setTooltip(null)}
-                  >
-                    {seg.text}
-                  </span>
+              {value === '' ? (
+                <span style={{ color: 'var(--text-muted)' }}>{placeholder}</span>
+              ) : (
+                segments.map((seg, i) =>
+                  seg.type === 'text' ? (
+                    <span key={i} className="text-tx-primary">{seg.text}</span>
+                  ) : (
+                    // Variable token — colored + hoverable for tooltip
+                    <span
+                      key={i}
+                      className={`pointer-events-auto cursor-default ${seg.found ? 'text-green-500' : 'text-orange-400'
+                        }`}
+                      onMouseEnter={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setTooltip({
+                          varName: seg.varName,
+                          found: seg.found,
+                          value: seg.resolvedValue,
+                          x: rect.left,
+                          y: rect.top,
+                        });
+                      }}
+                      onMouseLeave={() => setTooltip(null)}
+                    >
+                      {seg.text}
+                    </span>
+                  )
                 )
-              )
-            )}
+              )}
             </div>
           </div>
         </div>
@@ -110,7 +109,7 @@ export default function VariableUrlInput({ value, onChange, placeholder }) {
         >
           <div className="bg-surface-900 border border-surface-700 rounded-lg px-2.5 py-1.5 shadow-glass text-xs max-w-xs">
             <div className="flex items-center gap-1.5 mb-0.5">
-              <code className={`${tooltip.found ? 'text-brand-400' : 'text-orange-400'}`}>
+              <code className={`${tooltip.found ? 'text-green-500 font-bold' : 'text-orange-400'}`}>
                 {`{{${tooltip.varName}}}`}
               </code>
               {tooltip.found ? (

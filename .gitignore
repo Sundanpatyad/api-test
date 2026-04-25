@@ -7,3 +7,5 @@ target/
 .DS_Store
 *.log
 .vercel/
+apps/backend/*.json
+!apps/backend/package.json
