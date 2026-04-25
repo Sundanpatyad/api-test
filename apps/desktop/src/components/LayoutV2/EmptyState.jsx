@@ -14,7 +14,7 @@ export default function EmptyState({ onShowTeamModal, onShowProjectModal }) {
   const renderContent = () => {
     if (!hasTeams) {
       return {
-        title: "Welcome to PayloadX",
+        title: <>Welcome to <span className="metallic-app-name">PayloadX</span></>,
         subtitle: "Start by creating your first team to organize your API projects.",
         buttonText: "Create First Team",
         onClick: onShowTeamModal

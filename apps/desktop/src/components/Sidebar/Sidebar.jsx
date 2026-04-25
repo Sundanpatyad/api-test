@@ -162,7 +162,7 @@ export default function Sidebar() {
       <div className="p-3 border-b border-[var(--border-1)]">
         <div className="flex items-center gap-2 mb-3">
           <PayloadX className="w-7 h-7" fontSize="10px" />
-          <span className="text-sm font-semibold text-tx-primary">PayloadX Studio</span>
+          <span className="text-sm font-semibold text-tx-primary"><span className="metallic-app-name text-base">PayloadX</span> Studio</span>
         </div>
 
         {/* Search */}

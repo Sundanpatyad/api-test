@@ -51,7 +51,7 @@ export default function SplashScreen({ onComplete }) {
               <PayloadX className="w-16 h-16" fontSize="24px" />
 
               <div className="mt-6 text-center">
-                <h1 className="text-3xl font-black tracking-tighter" style={{ background: 'var(--grad-chrome)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>PayloadX</h1>
+                <h1 className="text-4xl metallic-app-name">PayloadX</h1>
                 <p className="text-[10px] text-[#4A5060] font-bold uppercase tracking-[0.3em] mt-1">API Studio</p>
               </div>
             </div>

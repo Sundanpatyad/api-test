@@ -41,6 +41,8 @@ export const useWorkflowStore = create(
       // UI state
       selectedNode: null,
       isSaving: false,
+      isCreating: false,
+      isDeleting: false,
       isLoadingWorkflows: false,
 
       // ─── Workflow Management ───────────────────────────────────
@@ -75,18 +77,46 @@ export const useWorkflowStore = create(
         });
       },
 
-      newWorkflow: (teamId, projectId) => {
+      newWorkflow: async (teamId, projectId) => {
+        if (!navigator.onLine) {
+          toast.error('You are offline. Cannot create workflow.');
+          return null;
+        }
+
+        set({ isCreating: true });
         const nw = defaultWorkflow();
-        nw.id = uuidv4();
         nw.teamId = teamId || null;
         nw.projectId = projectId || null;
-        set((state) => ({
-          currentWorkflow: nw,
-          workflows: [...state.workflows, nw],
-          selectedNode: null,
-          executionResult: null,
-        }));
-        return nw;
+
+        try {
+          const { data } = await api.post('/api/workflow', nw);
+          const createdWorkflow = data.workflow;
+
+          set((state) => ({
+            currentWorkflow: createdWorkflow,
+            workflows: [createdWorkflow, ...state.workflows],
+            selectedNode: null,
+            executionResult: null,
+            isCreating: false,
+          }));
+
+          // Emit real-time update
+          const { useSocketStore } = await import('@/store/socketStore');
+          const { useAuthStore } = await import('@/store/authStore');
+          const { useTeamStore } = await import('@/store/teamStore');
+          useSocketStore.getState().emitWorkflowCreated(
+            useTeamStore.getState().currentTeam?._id,
+            createdWorkflow,
+            useAuthStore.getState().user?._id
+          );
+
+          return createdWorkflow;
+        } catch (error) {
+          console.error('Failed to create workflow:', error);
+          toast.error('Failed to create workflow on server');
+          set({ isCreating: false });
+          return null;
+        }
       },
 
       setWorkflows: (workflows) => set({ workflows }),
@@ -521,7 +551,11 @@ export const useWorkflowStore = create(
             try {
               // Update existing
               const { data } = await api.put(`/api/workflow/${workflow.id}`, workflow);
-              set({ currentWorkflow: data.workflow, isSaving: false });
+              set((state) => ({
+                currentWorkflow: data.workflow,
+                workflows: state.workflows.map((w) => (w.id === workflow.id ? data.workflow : w)),
+                isSaving: false,
+              }));
 
               // Emit real-time update
               const { useSocketStore } = await import('@/store/socketStore');
@@ -540,7 +574,11 @@ export const useWorkflowStore = create(
               if (putError.response?.status === 404) {
                 console.log('Workflow not found for update, attempting to create new...');
                 const { data } = await api.post('/api/workflow', workflow);
-                set({ currentWorkflow: data.workflow, isSaving: false });
+                set((state) => ({
+                  currentWorkflow: data.workflow,
+                  workflows: state.workflows.map((w) => (w.id === workflow.id ? data.workflow : w)),
+                  isSaving: false,
+                }));
                 toast.success('Workflow saved (as new)');
                 return { success: true, workflow: data.workflow };
               }
@@ -549,7 +587,11 @@ export const useWorkflowStore = create(
           } else {
             // Create new
             const { data } = await api.post('/api/workflow', workflow);
-            set({ currentWorkflow: data.workflow, isSaving: false });
+            set((state) => ({
+              currentWorkflow: data.workflow,
+              workflows: state.workflows.map((w) => (w.id === workflow.id ? data.workflow : w)),
+              isSaving: false,
+            }));
             
             // Emit real-time update
             const { useSocketStore } = await import('@/store/socketStore');
@@ -595,10 +637,12 @@ export const useWorkflowStore = create(
           return { success: false };
         }
 
+        set({ isDeleting: true });
         try {
           await api.delete(`/api/workflow/${workflowId}`);
           set((state) => ({
             workflows: state.workflows.filter((w) => w.id !== workflowId),
+            isDeleting: false,
           }));
 
           // Emit real-time update
@@ -614,8 +658,17 @@ export const useWorkflowStore = create(
           toast.success('Workflow deleted');
           return { success: true };
         } catch (error) {
+          if (error.response?.status === 404) {
+            set((state) => ({
+              workflows: state.workflows.filter((w) => w.id !== workflowId),
+              isDeleting: false,
+            }));
+            toast.success('Workflow deleted (locally)');
+            return { success: true };
+          }
           console.error('Failed to delete workflow:', error);
           toast.error('Failed to delete workflow');
+          set({ isDeleting: false });
           return { success: false, error };
         }
       },

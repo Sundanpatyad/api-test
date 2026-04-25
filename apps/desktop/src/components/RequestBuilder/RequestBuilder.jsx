@@ -19,7 +19,8 @@ export default function RequestBuilder() {
     updateField,
     saveRequest,
     noActiveRequest,
-    newRequest
+    newRequest,
+    isSaving
   } = useRequestStore();
 
   const { currentTeam } = useTeamStore();
@@ -28,7 +29,6 @@ export default function RequestBuilder() {
 
   const [showProtocolDropdown, setShowProtocolDropdown] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
 
   const PROTOCOLS = [
     { id: 'http', label: 'HTTP (REST)', icon: '🌐' },
@@ -62,13 +62,12 @@ export default function RequestBuilder() {
       e.preventDefault();
       if (isSaving) return;
 
-      setIsSaving(true);
       try {
         const r = await saveRequest();
         if (r?.success) toast.success('Request saved');
         else if (r?.error) toast.error(r.error);
-      } finally {
-        setIsSaving(false);
+      } catch (err) {
+        console.error('Save failed:', err);
       }
     }
   }, [saveRequest, isSaving]);
@@ -183,14 +182,9 @@ export default function RequestBuilder() {
             disabled={isSaving}
             onClick={async () => {
               if (isSaving) return;
-              setIsSaving(true);
-              try {
-                const r = await saveRequest();
-                if (r?.success) toast.success('Saved');
-                else toast.error(r?.error || 'Failed');
-              } finally {
-                setIsSaving(false);
-              }
+              const r = await saveRequest();
+              if (r?.success) toast.success('Saved');
+              else toast.error(r?.error || 'Failed');
             }}
             className="btn-ghost flex items-center justify-center p-1.5 opacity-70 hover:opacity-100 hover:bg-[color:var(--surface-3)] transition-all rounded-md disabled:opacity-50 disabled:cursor-not-allowed w-[27px] h-[27px]"
           >

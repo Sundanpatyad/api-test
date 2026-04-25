@@ -34,6 +34,9 @@ export const useRequestStore = create(
       currentRequest: defaultRequest(),
       response: null,
       isExecuting: false,
+      isSaving: false,
+      isCreating: false,
+      isDeleting: false,
       cancelCurrentRequest: null,
       history: [],
       activeTab: 'params',
@@ -273,7 +276,7 @@ export const useRequestStore = create(
         }
 
         const req = get().currentRequest;
-
+        set({ isSaving: true });
         try {
           if (req._id) {
             const { data } = await api.put(`/api/request/${req._id}`, req);
@@ -281,8 +284,8 @@ export const useRequestStore = create(
             set(state => {
               const newTabs = [...state.openTabs];
               const idx = newTabs.findIndex(t => t.id === state.activeTabId);
-      if (idx >= 0) newTabs[idx] = { ...newTabs[idx], request: data.request, originalRequest: deepClone(data.request), isDirty: false };
-              return { currentRequest: data.request, openTabs: newTabs };
+              if (idx >= 0) newTabs[idx] = { ...newTabs[idx], request: data.request, originalRequest: deepClone(data.request), isDirty: false };
+              return { currentRequest: data.request, openTabs: newTabs, isSaving: false };
             });
             
             localStorageService.saveCurrentRequest(data.request);
@@ -302,7 +305,7 @@ export const useRequestStore = create(
               const newTabs = [...state.openTabs];
               const idx = newTabs.findIndex(t => t.id === state.activeTabId);
               if (idx >= 0) newTabs[idx] = { id: data.request._id, request: data.request, originalRequest: deepClone(data.request), isDirty: false };
-              return { currentRequest: data.request, openTabs: newTabs, activeTabId: data.request._id };
+              return { currentRequest: data.request, openTabs: newTabs, activeTabId: data.request._id, isSaving: false };
             });
             
             localStorageService.saveCurrentRequest(data.request);
@@ -321,9 +324,11 @@ export const useRequestStore = create(
             return { success: true, request: data.request };
           }
         } catch (err) {
+          set({ isSaving: false });
           return { success: false, error: err.response?.data?.error || 'Save failed' };
         }
-      },      createRequest: async (requestData) => {
+      },      
+      createRequest: async (requestData) => {
         if (!navigator.onLine) {
           toast.error('You are offline. Cannot create request.');
           return { success: false, error: 'Offline' };
@@ -332,7 +337,7 @@ export const useRequestStore = create(
         const { collectionId } = requestData;
         const { useCollectionStore } = await import('@/store/collectionStore');
         const collectionStore = useCollectionStore.getState();
-
+        set({ isCreating: true });
         try {
           const { data } = await api.post('/api/request', requestData);
           
@@ -349,9 +354,10 @@ export const useRequestStore = create(
               useAuthStore.getState().user?._id
             );
           }
-          
+          set({ isCreating: false });
           return { success: true, request: data.request };
         } catch (err) {
+          set({ isCreating: false });
           return { success: false, error: err.response?.data?.error || 'Failed to create request' };
         }
       },
@@ -449,7 +455,7 @@ export const useRequestStore = create(
         }
 
         const isNotFound = (err) => err.response?.status === 404 || err.response?.data?.error?.includes('not found');
-
+        set({ isDeleting: true });
         try {
           await api.delete(`/api/request/${id}`);
           
@@ -465,6 +471,7 @@ export const useRequestStore = create(
         } catch (err) {
           // If not found on server, still clean up locally
           if (!isNotFound(err)) {
+            set({ isDeleting: false });
             return { success: false, error: err.response?.data?.error || 'Failed to delete request' };
           }
           // Continue to local cleanup for 404 errors
@@ -483,6 +490,7 @@ export const useRequestStore = create(
             requests: state.requests ? state.requests.filter(r => r._id !== id) : [],
             currentRequest: isCurrent ? null : state.currentRequest,
             noActiveRequest: isCurrent ? true : state.noActiveRequest,
+            isDeleting: false,
           };
         });
         
@@ -584,7 +592,10 @@ export const useRequestStore = create(
           cancelCurrentRequest: null,
           history: [],
           activeTab: 'params',
-          noActiveRequest: false
+          noActiveRequest: false,
+          isSaving: false,
+          isCreating: false,
+          isDeleting: false
         });
       }
     }),

@@ -17,6 +17,8 @@ export const useCollectionStore = create((set, get) => ({
   isLoadingRequests: false,
   loadingCollections: {}, // Track loading state per collectionId
   isRefreshing: false,
+  isCreating: false,
+  isDeleting: false,
 
   initFromStorage: () => {
     const stored = localStorageService.get(localStorageService.KEYS.COLLECTIONS);
@@ -321,14 +323,14 @@ export const useCollectionStore = create((set, get) => ({
     }
 
     const tempId = uuidv4();
-    set({ isLoading: true });
+    set({ isCreating: true });
     try {
       const { data } = await api.post('/api/collection', { name, projectId, teamId, description });
 
       set((state) => {
         const updated = [data.collection, ...state.collections];
         localStorageService.saveCollections(updated);
-        return { collections: updated, isLoading: false };
+        return { collections: updated, isCreating: false };
       });
 
       if (data.collection?._id) {
@@ -344,7 +346,7 @@ export const useCollectionStore = create((set, get) => ({
 
       return { success: true, collection: data.collection };
     } catch (err) {
-      set({ isLoading: false });
+      set({ isCreating: false });
       return { success: false, error: err.response?.data?.error || 'Failed to create collection' };
     }
   },
@@ -472,7 +474,7 @@ export const useCollectionStore = create((set, get) => ({
     }
 
     const isNotFound = (err) => err.response?.status === 404 || err.response?.data?.error?.includes('not found');
-
+    set({ isDeleting: true });
     try {
       await api.delete(`/api/collection/${id}`);
 
@@ -487,6 +489,7 @@ export const useCollectionStore = create((set, get) => ({
     } catch (err) {
       // If not found on server, still clean up locally
       if (!isNotFound(err)) {
+        set({ isDeleting: false });
         return { success: false, error: err.response?.data?.error || 'Failed to delete collection' };
       }
       // Continue to local cleanup for 404 errors
@@ -503,6 +506,7 @@ export const useCollectionStore = create((set, get) => ({
       return {
         collections: updated,
         currentCollection: updatedCurrent,
+        isDeleting: false
       };
     });
 
@@ -517,7 +521,9 @@ export const useCollectionStore = create((set, get) => ({
       isLoading: false,
       isLoadingRequests: false,
       loadingCollections: {},
-      isRefreshing: false
+      isRefreshing: false,
+      isCreating: false,
+      isDeleting: false
     });
   }
 }));

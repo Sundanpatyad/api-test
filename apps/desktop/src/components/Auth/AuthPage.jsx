@@ -4,10 +4,11 @@ import { invoke } from '@tauri-apps/api/tauri';
 import { listen } from '@tauri-apps/api/event';
 import toast from 'react-hot-toast';
 import PayloadX from '../core/logo';
+import ForgotPassword from './ForgotPassword';
 
 export default function AuthPage() {
-  const [mode, setMode] = useState('login'); // 'login' | 'signup'
-  const [form, setForm] = useState({ name: '', email: '', password: '' });
+  const [mode, setMode] = useState('login'); // 'login' | 'signup' | 'forgot-password' | 'verify-signup'
+  const [form, setForm] = useState({ name: '', email: '', password: '', otp: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const { login, signup, loginWithGoogle, isLoading } = useAuthStore();
@@ -120,11 +121,29 @@ export default function AuthPage() {
 
     if (!validateForm()) return;
 
-    const result = mode === 'login'
-      ? await login(form.email, form.password)
-      : await signup(form.name, form.email, form.password);
+    if (mode === 'login') {
+      const result = await login(form.email, form.password);
+      if (!result.success) toast.error(result.error);
+    } else {
+      const result = await signup(form.name, form.email, form.password);
+      if (result.success) {
+        toast.success('Check your email for verification code!');
+        setMode('verify-signup');
+      } else {
+        toast.error(result.error);
+      }
+    }
+  };
 
-    if (!result.success) toast.error(result.error);
+  const handleVerifySignup = async (e) => {
+    e.preventDefault();
+    if (!form.otp) return toast.error('Verification code is required');
+    const result = await useAuthStore.getState().verifySignup(form.email, form.otp);
+    if (result.success) {
+      toast.success('Email verified! Welcome to PayloadX.');
+    } else {
+      toast.error(result.error);
+    }
   };
 
   // Google icon SVG
@@ -172,15 +191,45 @@ export default function AuthPage() {
         {/* App Logo */}
         <div className="absolute top-10 left-10 flex items-center gap-3 z-20">
           <PayloadX />
-          <span className="text-white font-bold text-sm tracking-tight">PayloadX</span>
+          <span className="metallic-app-name text-lg">PayloadX</span>
         </div>
 
         {/* Form Container */}
         <div className="flex-1 flex flex-col justify-center px-10 lg:px-16 max-w-[440px] mx-auto w-full relative z-10">
-          <div className="space-y-10">
+          {mode === 'forgot-password' ? (
+            <ForgotPassword onBack={() => setMode('login')} />
+          ) : mode === 'verify-signup' ? (
+            <div className="space-y-10 animate-in">
+              <div className="space-y-1.5 text-center lg:text-left">
+                <h1 className="text-2xl font-bold text-white tracking-tight pb-2 leading-normal">Verify your email</h1>
+                <p className="text-slate-500 text-[13px]">We've sent a 6-digit code to <span className="text-slate-300">{form.email}</span>.</p>
+              </div>
+              <form onSubmit={handleVerifySignup} className="space-y-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.1em] ml-0.5">Verification Code</label>
+                  <input
+                    className="w-full h-11 px-4 bg-white/[0.02] border border-white/5 rounded-lg text-white placeholder:text-slate-700 focus:border-white/20 focus:bg-white/[0.04] outline-none transition-all duration-200 text-sm text-center tracking-[0.5em] font-bold"
+                    type="text"
+                    placeholder="000000"
+                    maxLength={6}
+                    value={form.otp}
+                    onChange={(e) => setForm({ ...form, otp: e.target.value.replace(/\D/g, '') })}
+                    required
+                  />
+                </div>
+                <button type="submit" className="w-full h-11 btn-primary" disabled={isLoading}>
+                  {isLoading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mx-auto" /> : 'Verify Email'}
+                </button>
+                <button type="button" onClick={() => setMode('signup')} className="w-full text-[11px] text-slate-500 hover:text-white font-bold uppercase tracking-[0.1em] transition-colors">
+                  Wrong email? Back to signup
+                </button>
+              </form>
+            </div>
+          ) : (
+            <div className="space-y-10">
             {/* Heading */}
             <div className="space-y-1.5 text-center lg:text-left">
-              <h1 className="text-2xl font-bold text-white tracking-tight">
+              <h1 className="text-2xl font-bold text-white tracking-tight pb-2 leading-normal">
                 {mode === 'login' ? 'Sign in' : 'Create account'}
               </h1>
               <p className="text-slate-500 text-[13px]">
@@ -239,6 +288,17 @@ export default function AuthPage() {
                     {showPassword ? <EyeOpenIcon /> : <EyeClosedIcon />}
                   </button>
                 </div>
+                {mode === 'login' && (
+                  <div className="flex justify-end pr-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setMode('forgot-password')}
+                      className="text-[10px] text-slate-500 hover:text-white transition-colors font-medium"
+                    >
+                      Forgot your password?
+                    </button>
+                  </div>
+                )}
               </div>
 
               <button
@@ -301,12 +361,13 @@ export default function AuthPage() {
               </p>
             </div>
           </div>
+          )}
         </div>
       </div>
 
       {/* ── Right Side: Detailed Dashboard Mockup ── */}
       <div className="hidden lg:flex lg:w-[65%] bg-[#060606] relative overflow-hidden items-center justify-center p-12">
-        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.03] pointer-events-none" />
+        <div className="absolute inset-0 bg-transparent opacity-[0.03] pointer-events-none" />
 
         {/* Content Container */}
         <div className="relative z-10 w-full max-w-5xl flex flex-col gap-10">
