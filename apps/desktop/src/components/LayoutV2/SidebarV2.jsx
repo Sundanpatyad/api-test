@@ -1,4 +1,4 @@
-  import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useTeamStore } from '@/store/teamStore';
 import { useProjectStore } from '@/store/projectStore';
 import { useCollectionStore } from '@/store/collectionStore';
@@ -93,7 +93,9 @@ export default function SidebarV2({
     isLoading: isLoadingProjects,
     isRefreshing: isRefreshingProjects,
     refreshProjects,
-    getFilteredProjects
+    getFilteredProjects,
+    isLoading: isCreatingProject,
+    isDeleting: isDeletingProject
   } = useProjectStore();
   const {
     collections,
@@ -112,18 +114,22 @@ export default function SidebarV2({
     refreshCollectionRequests,
     loadCollectionRequestsFromStorage,
     getFilteredCollections,
-    setCurrentCollection
+    setCurrentCollection,
+    isCreating: isCreatingCollection,
+    isDeleting: isDeletingCollection
   } = useCollectionStore();
 
-  const { 
-    workflows, 
-    currentWorkflow, 
-    openWorkflow, 
+  const {
+    workflows,
+    currentWorkflow,
+    openWorkflow,
     fetchWorkflows,
     newWorkflow,
     saveWorkflow,
     deleteWorkflow,
     updateWorkflowField,
+    isCreating: isCreatingWorkflow,
+    isDeleting: isDeletingWorkflow
   } = useWorkflowStore();
 
   const { disconnect } = useSocketStore();
@@ -139,7 +145,16 @@ export default function SidebarV2({
     setShowEditNameModal,
     setShowInviteModal
   } = useUIStore();
-  const { currentRequest, setCurrentRequest, createRequest, updateRequestName, deleteRequest, setNoActiveRequest } = useRequestStore();
+  const { 
+    currentRequest, 
+    setCurrentRequest, 
+    createRequest, 
+    updateRequestName, 
+    deleteRequest, 
+    setNoActiveRequest,
+    isCreating: isCreatingRequest,
+    isDeleting: isDeletingRequest
+  } = useRequestStore();
 
   const handleRequestSelect = (request) => {
     setCurrentRequest(request);
@@ -204,12 +219,16 @@ export default function SidebarV2({
     if (!window.confirm(`Delete "${wf.name || 'Untitled Workflow'}"? This cannot be undone.`)) return;
     await deleteWorkflow(wf.id);
     // If we deleted the active workflow, clear canvas
-    if (currentWorkflow?.id === wf.id) newWorkflow(currentTeam?._id, currentProject?._id);
+    if (currentWorkflow?.id === wf.id) {
+      await newWorkflow(currentTeam?._id, currentProject?._id);
+    }
   };
 
-  const handleCreateWorkflow = () => {
-    newWorkflow(currentTeam?._id, currentProject?._id);
-    toast.success('New workflow created — drag APIs onto the canvas');
+  const handleCreateWorkflow = async () => {
+    const wf = await newWorkflow(currentTeam?._id, currentProject?._id);
+    if (wf) {
+      toast.success('New workflow created — drag APIs onto the canvas');
+    }
   };
 
   // Load section expansion state from localStorage
@@ -566,7 +585,7 @@ export default function SidebarV2({
         {
           id: 'export',
           label: 'Export as Postman',
-          icon: <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>,
+          icon: <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>,
           onClick: () => handleExportCollection(null, collection)
         },
         { id: 'divider', divider: true },
@@ -635,7 +654,9 @@ export default function SidebarV2({
             onConfirm: async () => {
               const result = await deleteWorkflow(wf.id);
               if (result.success) {
-                if (currentWorkflow?.id === wf.id) newWorkflow(currentTeam?._id, currentProject?._id);
+                if (currentWorkflow?.id === wf.id) {
+                  await newWorkflow(currentTeam?._id, currentProject?._id);
+                }
               }
             }
           })
@@ -742,7 +763,7 @@ export default function SidebarV2({
 
   const handleExportCollection = async (e, col) => {
     if (e) e.stopPropagation();
-    
+
     const toastId = toast.loading(`Preparing ${col.name} for export...`);
     try {
       // 1. Ensure we have all requests for this collection
@@ -753,7 +774,7 @@ export default function SidebarV2({
 
       // 2. Get requests belonging to this collection
       const colRequests = requests.filter(r => r.collectionId === col._id);
-      
+
       // 3. Convert to Postman format
       const { exportToPostman } = await import('@/utils/postmanExporter');
       const postmanData = exportToPostman(col, colRequests);
@@ -762,7 +783,7 @@ export default function SidebarV2({
       // 4. Save file using Tauri dialog
       const { save } = await import('@tauri-apps/api/dialog');
       const { writeTextFile } = await import('@tauri-apps/api/fs');
-      
+
       const filePath = await save({
         filters: [{ name: 'Postman Collection', extensions: ['json'] }],
         defaultPath: `${col.name.replace(/[^a-z0-9]/gi, '_')}.postman_collection.json`,
@@ -876,7 +897,7 @@ export default function SidebarV2({
           <div className="sdbv2-logo-row">
             <PayloadX className="w-5 h-5" fontSize="8px" />
             <div className="sdbv2-logo-text">
-              <span className="sdbv2-app-name">PayloadX Studio</span>
+              <span className="sdbv2-app-name"><span className="metallic-app-name">PayloadX</span> </span>
               {currentTeam && (
                 <span className="sdbv2-team-tag">
                   {currentTeam.name}
@@ -931,11 +952,19 @@ export default function SidebarV2({
                     <button
                       className="sdbv2-section-add"
                       onClick={handleCreateWorkflow}
+                      disabled={isCreatingWorkflow}
                       title="New Workflow"
                     >
-                      <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                      </svg>
+                      {isCreatingWorkflow ? (
+                        <svg className="w-2.5 h-2.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                        </svg>
+                      ) : (
+                        <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                      )}
                     </button>
                   </div>
                 </div>
@@ -967,14 +996,21 @@ export default function SidebarV2({
                   ) : (
                     <div
                       className="sdbv2-empty-cta"
-                      onClick={handleCreateWorkflow}
-                      style={{ cursor: 'pointer', textAlign: 'center', padding: '12px 8px' }}
+                      onClick={() => !isCreatingWorkflow && handleCreateWorkflow()}
+                      style={{ cursor: isCreatingWorkflow ? 'default' : 'pointer', textAlign: 'center', padding: '12px 8px' }}
                     >
-                      <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ color: 'var(--text-muted)', margin: '0 auto 4px' }}>
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                      </svg>
-                      <p className="sdbv2-empty-note" style={{ textAlign: 'center' }}>No workflows yet</p>
-                      <p style={{ fontSize: '10px', color: 'var(--accent)', marginTop: '2px' }}>Click to create one</p>
+                      {isCreatingWorkflow ? (
+                        <svg className="w-5 h-5 animate-spin mx-auto mb-1 text-[var(--accent)]" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                        </svg>
+                      ) : (
+                        <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ color: 'var(--text-muted)', margin: '0 auto 4px' }}>
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                      )}
+                      <p className="sdbv2-empty-note" style={{ textAlign: 'center' }}>{isCreatingWorkflow ? 'Creating...' : 'No workflows yet'}</p>
+                      {!isCreatingWorkflow && <p style={{ fontSize: '10px', color: 'var(--accent)', marginTop: '2px' }}>Click to create one</p>}
                     </div>
                   )}
                 </div>
@@ -999,7 +1035,7 @@ export default function SidebarV2({
                             <SidebarRequest
                               key={req._id}
                               request={req}
-                              onSelect={() => {}} // No-op on click in workflow mode, just drag
+                              onSelect={() => { }} // No-op on click in workflow mode, just drag
                               isActive={false}
                             />
                           ))}
@@ -1189,10 +1225,10 @@ function SidebarRequest({ request, onSelect, isActive, onContextMenu }) {
   const { requestViewers } = useSocketStore();
   const { user: currentUser } = useAuthStore();
 
-  const viewers = (requestViewers[request._id] || []).filter(v => 
+  const viewers = (requestViewers[request._id] || []).filter(v =>
     (v._id || v.id) !== currentUser?._id && (v._id || v.id) !== currentUser?.id
   );
-  
+
   // Unique by user ID
   const uniqueViewers = [];
   const seenIds = new Set();
@@ -1241,7 +1277,7 @@ function SidebarRequest({ request, onSelect, isActive, onContextMenu }) {
         {isWs ? 'WS' : isSio ? 'SIO' : (request.method || 'GET')}
       </span>
       <span className="sdbv2-tree-text flex-1 truncate">{request.name}</span>
-      
+
       {/* Real-time Viewers */}
       {uniqueViewers.length > 0 && (
         <div className="flex items-center -space-x-1 ml-auto mr-1 animate-in fade-in zoom-in-75 duration-300">

@@ -263,7 +263,7 @@ export default function Docs({ onBack }) {
       <nav className={styles.nav}>
         <div onClick={onBack} className={styles.logoName}>
            <PayloadX size="28px" fontSize="10px" />
-           <span style={{ marginLeft: '10px' }}>PayloadX</span>
+           <span style={{ marginLeft: '10px' }} className="metallic-app-name py-2 px-1 text-2xl">PayloadX</span>
         </div>
         <div className={styles.navSpacer} />
         <a href="https://github.com/Sundanpatyad/api-test" target="_blank" rel="noreferrer" className={styles.navLink}>

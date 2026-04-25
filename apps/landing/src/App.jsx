@@ -57,7 +57,7 @@ export default function App() {
       {/* NAV */}
       <nav className={styles.nav}>
         <PayloadX size="28px" fontSize="10px" />
-        <span className={styles.logoName}>PayloadX</span>
+        <span className={`${styles.logoName} metallic-app-name py-2 px-1`}>PayloadX</span>
         <div className={styles.navSpacer} />
         <span onClick={() => setView("docs")} className={styles.navLink}>Docs</span>
         <a href="https://github.com/Sundanpatyad/api-test" target="_blank" rel="noreferrer" className={styles.navLink}>GitHub</a>
@@ -75,8 +75,8 @@ export default function App() {
           </div>
 
           <h1 className={styles.title}>
-            <span className={styles.titleChrome}>Payload</span>
-            <span className={styles.titleX}>X</span>
+            <span className={`${styles.titleChrome} metallic-app-name`} style={{ display: 'block', paddingBottom: '0.2em' }}>Payload</span>
+            <span className={`${styles.titleX} metallic-app-name`} style={{ display: 'block' }}>X</span>
           </h1>
 
           <p className={styles.tagline}>API Testing,<br />Simplified.</p>

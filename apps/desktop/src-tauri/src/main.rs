@@ -103,7 +103,7 @@ async fn start_oauth_flow(window: tauri::Window) -> Result<u16, String> {
         .noise {
             position: fixed;
             inset: 0;
-            background: url('https://grainy-gradients.vercel.app/noise.svg');
+            background: transparent;
             opacity: 0.02;
             pointer-events: none;
             z-index: 1;
