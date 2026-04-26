@@ -5,7 +5,8 @@
   "workspaces": [
     "apps/backend",
     "apps/realtime",
-    "apps/desktop"
+    "apps/desktop",
+    "apps/landing"
   ],
   "scripts": {
     "backend": "cd apps/backend && npm run dev",
