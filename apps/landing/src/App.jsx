@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import styles from "./App.module.css";
 import { Zap, Lock, Users, Code, Download } from 'lucide-react';
-import { FaApple, FaWindows, FaLinux } from 'react-icons/fa';
+import { FaApple, FaWindows, FaLinux } from 'react-icons/fa6';
 import PayloadX from "./components/core/Logo";
 
 const FEATURES = [
