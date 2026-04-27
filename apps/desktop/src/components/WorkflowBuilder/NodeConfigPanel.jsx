@@ -9,6 +9,7 @@ import {
 import { v4 as uuidv4 } from 'uuid';
 import { useEnvironmentStore } from '@/store/environmentStore';
 import VariableUrlInput from '@/components/RequestBuilder/VariableUrlInput';
+import { localStorageService } from '@/services/localStorageService';
 
 export default function NodeConfigPanel() {
   const { 
@@ -36,11 +37,16 @@ export default function NodeConfigPanel() {
     const groups = {};
     
     projectCols.forEach(col => {
-      // Find requests belonging to this collection
-      const colRequests = requests.filter(r => r.collectionId === col._id);
+      // Find requests belonging to this collection in store
+      const storeRequests = requests.filter(r => r.collectionId === col._id);
       
-      if (colRequests.length > 0) {
-        const filtered = colRequests.filter(r => 
+      // Fallback to local storage if store is empty for this collection
+      const allColRequests = storeRequests.length > 0 
+        ? storeRequests 
+        : localStorageService.getRequests(col._id);
+      
+      if (allColRequests.length > 0) {
+        const filtered = allColRequests.filter(r => 
           !apiSearch || 
           r.name.toLowerCase().includes(apiSearch.toLowerCase()) || 
           r.url?.toLowerCase().includes(apiSearch.toLowerCase())

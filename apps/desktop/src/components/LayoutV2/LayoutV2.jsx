@@ -52,7 +52,17 @@ export default function LayoutV2({
   const [splitPercent, setSplitPercent] = useState(50);
 
   return (
-    <div className="v2-app">
+    <div 
+      className="v2-app"
+      onDragOver={(e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'copy';
+      }}
+      onDragEnter={(e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'copy';
+      }}
+    >
       {/* ── Top bar ── */}
       <TopBarV2
         sidebarOpen={sidebarV2Open}
@@ -62,7 +72,17 @@ export default function LayoutV2({
       />
 
       {/* ── Body row ── */}
-      <div className="v2-body">
+      <div 
+        className="v2-body"
+        onDragOver={(e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'copy';
+        }}
+        onDragEnter={(e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'copy';
+        }}
+      >
 
         {/* Left sidebar (collapsible) */}
         {sidebarV2Open && (
@@ -99,16 +119,12 @@ export default function LayoutV2({
         <div 
           className="v2-workspace"
           onDragOver={(e) => {
-            if (e.dataTransfer.types.includes('application/reactflow') || e.dataTransfer.types.includes('application/json')) {
-              e.preventDefault();
-              e.dataTransfer.dropEffect = 'copy';
-            }
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'copy';
           }}
           onDragEnter={(e) => {
-            if (e.dataTransfer.types.includes('application/reactflow') || e.dataTransfer.types.includes('application/json')) {
-              e.preventDefault();
-              e.dataTransfer.dropEffect = 'copy';
-            }
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'copy';
           }}
         >
 

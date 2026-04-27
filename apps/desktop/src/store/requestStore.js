@@ -270,13 +270,16 @@ export const useRequestStore = create(
       },
 
       saveRequest: async () => {
-        if (!navigator.onLine) {
-          toast.error('You are offline. Cannot save request.');
-          return { success: false, error: 'Offline' };
-        }
-
         const req = get().currentRequest;
         set({ isSaving: true });
+        
+        const handleOfflineSave = () => {
+          syncService.queueChange('update_request', { id: req._id, ...req });
+          set({ isSaving: false });
+          toast.success('Saved locally (Sync pending)');
+          return { success: true, offline: true };
+        };
+
         try {
           if (req._id) {
             const { data } = await api.put(`/api/request/${req._id}`, req);
@@ -324,27 +327,35 @@ export const useRequestStore = create(
             return { success: true, request: data.request };
           }
         } catch (err) {
+          const isNetError = !err.response && (err.code === 'ERR_NETWORK' || !navigator.onLine);
+          if (isNetError && req._id) {
+             return handleOfflineSave();
+          }
           set({ isSaving: false });
           return { success: false, error: err.response?.data?.error || 'Save failed' };
         }
       },      
       createRequest: async (requestData) => {
-        if (!navigator.onLine) {
-          toast.error('You are offline. Cannot create request.');
-          return { success: false, error: 'Offline' };
-        }
-
         const { collectionId } = requestData;
         const { useCollectionStore } = await import('@/store/collectionStore');
         const collectionStore = useCollectionStore.getState();
         set({ isCreating: true });
+
+        const handleOfflineCreate = () => {
+          const tempId = `temp_${uuidv4()}`;
+          const mockRequest = { ...requestData, _id: tempId };
+          syncService.queueChange('create_request', mockRequest, tempId);
+          collectionStore.addRequest(mockRequest);
+          set({ isCreating: false });
+          toast.success('Created locally (Sync pending)');
+          return { success: true, request: mockRequest, offline: true };
+        };
+
         try {
           const { data } = await api.post('/api/request', requestData);
           
           if (data.request?._id) {
-            // Add request to collection store
             collectionStore.addRequest(data.request);
-
             const { useSocketStore } = await import('@/store/socketStore');
             const { useAuthStore } = await import('@/store/authStore');
             const { useTeamStore } = await import('@/store/teamStore');
@@ -357,18 +368,29 @@ export const useRequestStore = create(
           set({ isCreating: false });
           return { success: true, request: data.request };
         } catch (err) {
+          const isNetError = !err.response && (err.code === 'ERR_NETWORK' || !navigator.onLine);
+          if (isNetError) {
+             return handleOfflineCreate();
+          }
           set({ isCreating: false });
           return { success: false, error: err.response?.data?.error || 'Failed to create request' };
         }
       },
 
       updateRequestName: async (id, name) => {
-        if (!navigator.onLine) {
-          toast.error('You are offline. Cannot update request.');
-          return { success: false, error: 'Offline' };
-        }
-
         const currentReq = get().currentRequest;
+        
+        const handleOfflineUpdate = () => {
+          syncService.queueChange('update_request', { id, name });
+          if (currentReq?._id === id) {
+            const updated = { ...currentReq, name };
+            set({ currentRequest: updated });
+            localStorageService.saveCurrentRequest(updated);
+          }
+          toast.success('Renamed locally (Sync pending)');
+          return { success: true, offline: true };
+        };
+
         try {
           const { data } = await api.put(`/api/request/${id}`, { name });
           if (currentReq?._id === id) {
@@ -378,6 +400,10 @@ export const useRequestStore = create(
           }
           return { success: true, request: data.request };
         } catch (err) {
+          const isNetError = !err.response && (err.code === 'ERR_NETWORK' || !navigator.onLine);
+          if (isNetError) {
+             return handleOfflineUpdate();
+          }
           return { success: false, error: err.response?.data?.error || 'Failed to update request' };
         }
       },
@@ -449,13 +475,33 @@ export const useRequestStore = create(
       },
 
       deleteRequest: async (id, collectionId) => {
-        if (!navigator.onLine) {
-          toast.error('You are offline. Cannot delete request.');
-          return { success: false, error: 'Offline' };
-        }
-
         const isNotFound = (err) => err.response?.status === 404 || err.response?.data?.error?.includes('not found');
         set({ isDeleting: true });
+
+        const localCleanup = async () => {
+          if (collectionId) {
+            const { useCollectionStore } = await import('@/store/collectionStore');
+            useCollectionStore.getState().removeRequest(id, collectionId);
+          }
+          
+          set((state) => {
+            const isCurrent = state.currentRequest?._id === id;
+            return {
+              requests: state.requests ? state.requests.filter(r => r._id !== id) : [],
+              currentRequest: isCurrent ? null : state.currentRequest,
+              noActiveRequest: isCurrent ? true : state.noActiveRequest,
+              isDeleting: false,
+            };
+          });
+        };
+
+        const handleOfflineDelete = async () => {
+          syncService.queueChange('delete_request', { id, collectionId });
+          await localCleanup();
+          toast.success('Deleted locally (Sync pending)');
+          return { success: true, offline: true };
+        };
+
         try {
           await api.delete(`/api/request/${id}`);
           
@@ -468,31 +514,20 @@ export const useRequestStore = create(
             id,
             useAuthStore.getState().user?._id
           );
+          await localCleanup();
         } catch (err) {
+          const isNetError = !err.response && (err.code === 'ERR_NETWORK' || !navigator.onLine);
+          if (isNetError) {
+             return handleOfflineDelete();
+          }
+
           // If not found on server, still clean up locally
           if (!isNotFound(err)) {
             set({ isDeleting: false });
             return { success: false, error: err.response?.data?.error || 'Failed to delete request' };
           }
-          // Continue to local cleanup for 404 errors
+          await localCleanup();
         }
-
-        // Clean up local state regardless of server response (for 404 or success)
-        if (collectionId) {
-          const { useCollectionStore } = await import('@/store/collectionStore');
-          useCollectionStore.getState().removeRequest(id, collectionId);
-        }
-        
-        // Also clean from request store's local state
-        set((state) => {
-          const isCurrent = state.currentRequest?._id === id;
-          return {
-            requests: state.requests ? state.requests.filter(r => r._id !== id) : [],
-            currentRequest: isCurrent ? null : state.currentRequest,
-            noActiveRequest: isCurrent ? true : state.noActiveRequest,
-            isDeleting: false,
-          };
-        });
         
         return { success: true };
       },

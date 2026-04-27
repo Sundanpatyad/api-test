@@ -12,6 +12,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { useWorkflowStore } from '@/store/workflowStore';
 import RefreshButton from '@/components/RefreshButton/RefreshButton';
 import PayloadX from '@/components/core/logo';
+import { localStorageService } from '@/services/localStorageService';
 
 const NAV_ITEMS = [
   {
@@ -1023,25 +1024,41 @@ export default function SidebarV2({
                 </div>
                 <div className="flex-1 overflow-y-auto pr-1 mt-1">
                   {currentProject ? (
-                    filteredProjects.map((project) => {
-                      const projectCollections = collectionsByProject[project._id] || [];
-                      return projectCollections.map((col) => (
-                        <div key={col._id} className="mb-2">
-                          <div className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider px-2 mb-1 opacity-50 flex items-center gap-1">
-                            <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
-                            {col.name}
+                    (() => {
+                      const projectCollections = collectionsByProject[currentProject._id] || [];
+                      if (projectCollections.length === 0) {
+                        return <p className="sdbv2-empty-note p-4 text-center">No collections in this project</p>;
+                      }
+
+                      return projectCollections.map((col) => {
+                        // Load requests for this collection from storage if not already in store
+                        const storeRequests = requests.filter(r => r.collectionId === col._id);
+                        const localRequests = storeRequests.length > 0 
+                          ? storeRequests 
+                          : localStorageService.getRequests(col._id);
+
+                        if (localRequests.length === 0) return null;
+
+                        return (
+                          <div key={col._id} className="mb-2">
+                            <div className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider px-2 mb-1 opacity-50 flex items-center gap-1">
+                              <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                              </svg>
+                              {col.name}
+                            </div>
+                            {localRequests.map(req => (
+                              <SidebarRequest
+                                key={req._id}
+                                request={req}
+                                onSelect={() => { }} // No-op on click in workflow mode, just drag
+                                isActive={false}
+                              />
+                            ))}
                           </div>
-                          {requests.filter(r => r.collectionId === col._id).map(req => (
-                            <SidebarRequest
-                              key={req._id}
-                              request={req}
-                              onSelect={() => { }} // No-op on click in workflow mode, just drag
-                              isActive={false}
-                            />
-                          ))}
-                        </div>
-                      ));
-                    })
+                        );
+                      });
+                    })()
                   ) : (
                     <p className="sdbv2-empty-note p-4 text-center">Select a project to see APIs</p>
                   )}

@@ -317,13 +317,23 @@ export const useCollectionStore = create((set, get) => ({
   },
 
   createCollection: async (name, projectId, teamId, description) => {
-    if (!navigator.onLine) {
-      toast.error('You are offline. Cannot create collection.');
-      return { success: false, error: 'Offline' };
-    }
-
-    const tempId = uuidv4();
     set({ isCreating: true });
+
+    const handleOfflineCreate = () => {
+      const tempId = `temp_${uuidv4()}`;
+      const mockCollection = { _id: tempId, name, projectId, teamId, description };
+      syncService.queueChange('create_collection', mockCollection, tempId);
+      
+      set((state) => {
+        const updated = [mockCollection, ...state.collections];
+        localStorageService.saveCollections(updated);
+        return { collections: updated, isCreating: false };
+      });
+      
+      toast.success('Collection created locally (Sync pending)');
+      return { success: true, collection: mockCollection, offline: true };
+    };
+
     try {
       const { data } = await api.post('/api/collection', { name, projectId, teamId, description });
 
@@ -346,6 +356,10 @@ export const useCollectionStore = create((set, get) => ({
 
       return { success: true, collection: data.collection };
     } catch (err) {
+      const isNetError = !err.response && (err.code === 'ERR_NETWORK' || !navigator.onLine);
+      if (isNetError) {
+        return handleOfflineCreate();
+      }
       set({ isCreating: false });
       return { success: false, error: err.response?.data?.error || 'Failed to create collection' };
     }
@@ -365,10 +379,23 @@ export const useCollectionStore = create((set, get) => ({
   },
 
   updateCollectionName: async (id, name) => {
-    if (!navigator.onLine) {
-      toast.error('You are offline. Cannot update collection.');
-      return { success: false, error: 'Offline' };
-    }
+    const handleOfflineUpdate = () => {
+      syncService.queueChange('update_collection', { id, name });
+      
+      set((state) => {
+        const updated = state.collections.map((c) => (c._id === id ? { ...c, name } : c));
+        const updatedCurrent = state.currentCollection?._id === id ? { ...state.currentCollection, name } : state.currentCollection;
+        localStorageService.saveCollections(updated);
+        localStorageService.saveCurrentCollection(updatedCurrent);
+        return {
+          collections: updated,
+          currentCollection: updatedCurrent,
+        };
+      });
+      
+      toast.success('Collection renamed locally (Sync pending)');
+      return { success: true, offline: true };
+    };
 
     try {
       const { data } = await api.put(`/api/collection/${id}`, { name });
@@ -395,6 +422,10 @@ export const useCollectionStore = create((set, get) => ({
 
       return { success: true, collection: data.collection };
     } catch (err) {
+      const isNetError = !err.response && (err.code === 'ERR_NETWORK' || !navigator.onLine);
+      if (isNetError) {
+        return handleOfflineUpdate();
+      }
       return { success: false, error: err.response?.data?.error || 'Failed to update collection' };
     }
   },
@@ -468,13 +499,32 @@ export const useCollectionStore = create((set, get) => ({
   },
 
   deleteCollection: async (id) => {
-    if (!navigator.onLine) {
-      toast.error('You are offline. Cannot delete collection.');
-      return { success: false, error: 'Offline' };
-    }
-
     const isNotFound = (err) => err.response?.status === 404 || err.response?.data?.error?.includes('not found');
     set({ isDeleting: true });
+
+    const localCleanup = () => {
+      set((state) => {
+        const updated = state.collections.filter((c) => c._id !== id);
+        const updatedCurrent = state.currentCollection?._id === id ? null : state.currentCollection;
+        localStorageService.saveCollections(updated);
+        localStorageService.saveCurrentCollection(updatedCurrent);
+        // Also clean up requests for this collection
+        localStorageService.saveRequests(id, []);
+        return {
+          collections: updated,
+          currentCollection: updatedCurrent,
+          isDeleting: false
+        };
+      });
+    };
+
+    const handleOfflineDelete = () => {
+      syncService.queueChange('delete_collection', { id });
+      localCleanup();
+      toast.success('Collection deleted locally (Sync pending)');
+      return { success: true, offline: true };
+    };
+
     try {
       await api.delete(`/api/collection/${id}`);
 
@@ -486,29 +536,20 @@ export const useCollectionStore = create((set, get) => ({
         id,
         useAuthStore.getState().user?._id
       );
+      localCleanup();
     } catch (err) {
+      const isNetError = !err.response && (err.code === 'ERR_NETWORK' || !navigator.onLine);
+      if (isNetError) {
+        return handleOfflineDelete();
+      }
+
       // If not found on server, still clean up locally
       if (!isNotFound(err)) {
         set({ isDeleting: false });
         return { success: false, error: err.response?.data?.error || 'Failed to delete collection' };
       }
-      // Continue to local cleanup for 404 errors
+      localCleanup();
     }
-
-    // Clean up local state regardless of server response (for 404 or success)
-    set((state) => {
-      const updated = state.collections.filter((c) => c._id !== id);
-      const updatedCurrent = state.currentCollection?._id === id ? null : state.currentCollection;
-      localStorageService.saveCollections(updated);
-      localStorageService.saveCurrentCollection(updatedCurrent);
-      // Also clean up requests for this collection
-      localStorageService.saveRequests(id, []);
-      return {
-        collections: updated,
-        currentCollection: updatedCurrent,
-        isDeleting: false
-      };
-    });
 
     return { success: true };
   },

@@ -147,7 +147,7 @@ export default function SIORequestBuilder() {
 
       {/* URL Bar */}
       <div className="ws-url-bar px-3 py-2 bg-[color:var(--surface-1)] border-b border-[color:var(--border-1)] flex items-center gap-2">
-        <div className="flex items-center gap-1.5 flex-1 p-1">
+        <div className="flex items-center gap-1.5 flex-1 min-w-0 p-1">
           <span className="text-[10px] font-bold text-[#f0883e] bg-[#f0883e]/10 px-1.5 py-0.5 rounded">SIO</span>
           <input
             className="flex-1 bg-transparent border-none outline-none text-[12px] text-[color:var(--text-primary)]"

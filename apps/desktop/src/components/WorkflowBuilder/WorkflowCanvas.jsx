@@ -458,13 +458,11 @@ function WorkflowCanvasInner() {
 
   const onDragOver = useCallback((event) => {
     event.preventDefault();
-    event.stopPropagation();
     event.dataTransfer.dropEffect = 'copy';
   }, []);
 
   const onDragEnter = useCallback((event) => {
     event.preventDefault();
-    event.stopPropagation();
     event.dataTransfer.dropEffect = 'copy';
   }, []);
 
